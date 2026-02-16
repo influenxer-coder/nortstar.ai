@@ -40,7 +40,7 @@ export function InsightArtifact({ content }: { content: Record<string, unknown> 
               ))}
             </div>
           )}
-          {insight.recommendation && (
+          {Boolean(insight.recommendation) && (
             <div className="border-t border-zinc-800 pt-3">
               <p className="text-sm font-medium text-zinc-500">Recommendation</p>
               <p className="mt-1 text-sm text-zinc-300">{String(insight.recommendation)}</p>
