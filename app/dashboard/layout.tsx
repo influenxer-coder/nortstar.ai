@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { LayoutDashboard, FileText, Settings, Bell, LogOut } from 'lucide-react'
+import { Logo } from '@/components/logo'
 
 export default function DashboardLayout({
   children,
@@ -13,7 +14,7 @@ export default function DashboardLayout({
         {/* Logo */}
         <div className="px-3 md:px-4 mb-6">
           <Link href="/dashboard" className="flex items-center gap-2 py-1.5 px-1 rounded-md hover:bg-zinc-900 transition-colors">
-            <span className="text-xl">🎯</span>
+            <Logo size={24} className="shrink-0" />
             <span className="hidden md:block font-semibold text-zinc-100 text-sm">NorthStar</span>
           </Link>
         </div>

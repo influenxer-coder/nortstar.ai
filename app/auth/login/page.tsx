@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Logo } from '@/components/logo'
 import { Loader2, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
@@ -61,7 +62,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <span className="text-2xl">🎯</span>
+            <Logo size={28} className="shrink-0" />
             <span className="text-xl font-semibold">NorthStar</span>
           </Link>
           <h1 className="text-2xl font-bold text-zinc-100 mb-2">
@@ -98,8 +99,9 @@ export default function LoginPage() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-violet-300 mb-0.5">
-                    🎯 Try Demo (No login required)
+                  <div className="flex items-center gap-2 text-sm font-medium text-violet-300 mb-0.5">
+                    <Logo size={18} />
+                    Try Demo (No login required)
                   </div>
                   <div className="text-xs text-zinc-500">
                     See NorthStar with 239 real-world data points

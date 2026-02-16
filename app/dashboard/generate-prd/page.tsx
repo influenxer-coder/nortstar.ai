@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, CheckCircle } from 'lucide-react'
 import { PRDEditor } from '@/components/prd-editor'
+import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { DEMO_INSIGHTS, DEMO_PRD_CONTENT } from '@/lib/demo-data'
 import type { PRD, Insight } from '@/lib/types'
@@ -31,7 +32,7 @@ function GeneratingAnimation({ insight }: { insight: Insight | null }) {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center max-w-sm">
         <div className="w-16 h-16 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-6 relative">
-          <span className="text-2xl">🧠</span>
+          <Logo size={40} />
           <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 animate-ping" />
         </div>
 

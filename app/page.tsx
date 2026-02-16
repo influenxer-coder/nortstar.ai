@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, Zap, Bell, FileText, Search, ChevronRight, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/logo'
 
 export default function LandingPage() {
   return (
@@ -9,7 +10,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🎯</span>
+            <Logo size={28} className="shrink-0" />
             <span className="font-semibold tracking-tight">NorthStar</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
@@ -318,7 +319,7 @@ export default function LandingPage() {
       <footer className="border-t border-zinc-900 py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🎯</span>
+            <Logo size={20} className="shrink-0" />
             <span className="font-semibold text-zinc-400">NorthStar</span>
           </div>
           <p className="text-xs text-zinc-600">

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Loader2, RefreshCw, TrendingUp, AlertTriangle, Smile } from 'lucide-react'
 import { CommandPalette } from '@/components/command-palette'
 import { InsightCard } from '@/components/insight-card'
+import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { DEMO_INSIGHTS, DEMO_STATS } from '@/lib/demo-data'
 import type { Insight } from '@/lib/types'
@@ -44,7 +45,7 @@ function LoadingAnimation() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center max-w-sm">
         <div className="w-16 h-16 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-6">
-          <span className="text-3xl">🎯</span>
+          <Logo size={40} />
         </div>
         <h3 className="text-lg font-semibold text-zinc-100 mb-6">NorthStar is analyzing your data…</h3>
         <div className="space-y-2 text-left">
@@ -236,7 +237,9 @@ function DashboardContent() {
           </div>
         ) : (
           <div className="text-center py-20 text-zinc-600">
-            <div className="text-4xl mb-4">🎯</div>
+            <div className="flex justify-center mb-4">
+              <Logo size={48} />
+            </div>
             <p className="text-sm">No insights yet. Connect a data source to get started.</p>
             <Button size="sm" variant="outline" className="mt-4">
               Connect Data Source
