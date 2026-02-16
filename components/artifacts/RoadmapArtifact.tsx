@@ -11,10 +11,10 @@ export function RoadmapArtifact({ content }: { content: Record<string, unknown> 
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="font-medium text-zinc-100">{String(item.title ?? item.name ?? '')}</h3>
-            {item.description && (
+            {Boolean(item.description) && (
               <p className="mt-1 text-sm text-zinc-400">{String(item.description)}</p>
             )}
-            {item.quarter && (
+            {Boolean(item.quarter) && (
               <p className="mt-1 text-xs text-zinc-500">Target: {String(item.quarter)}</p>
             )}
           </div>
