@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 262 83% 74%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 262 83% 74%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Linear-style scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 20%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 0% 30%);
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* PRD Editor styles */
+.prd-content {
+  @apply max-w-none;
+}
+.prd-content h1 { @apply text-2xl font-bold text-zinc-100 mb-4 mt-8; }
+.prd-content h2 { @apply text-xl font-semibold text-zinc-200 mb-3 mt-6; }
+.prd-content h3 { @apply text-lg font-medium text-zinc-300 mb-2 mt-5; }
+.prd-content p { @apply text-zinc-400 mb-4 leading-relaxed; }
+.prd-content blockquote { @apply border-l-2 border-violet-500 pl-4 text-zinc-400 italic my-4; }
+.prd-content ul { @apply list-disc list-inside space-y-1 text-zinc-400 mb-4; }
+.prd-content ol { @apply list-decimal list-inside space-y-1 text-zinc-400 mb-4; }
+.prd-content strong { @apply text-zinc-200 font-semibold; }
+.prd-content code { @apply bg-zinc-800 text-violet-300 px-1 py-0.5 rounded text-sm; }
+.prd-content pre { @apply bg-zinc-800 p-4 rounded-lg overflow-x-auto mb-4; }
+.prd-content hr { @apply border-zinc-800 my-6; }
+.prd-content a { @apply text-violet-400 underline hover:text-violet-300; }
+
+/* Keyboard shortcut badge */
+.kbd {
+  @apply inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-zinc-800 text-zinc-400 rounded border border-zinc-700;
+  font-family: ui-monospace, monospace;
+  min-width: 1.4rem;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Severity dot pulse */
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.severity-critical { animation: pulse-critical 2s ease-in-out infinite; }
