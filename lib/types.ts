@@ -80,3 +80,66 @@ export interface SlackAlert {
 
 export type InsightSeverity = 'critical' | 'high' | 'medium' | 'low' | 'positive'
 export type InsightType = 'pain_point' | 'feature_request' | 'churn_risk' | 'positive'
+
+// Chat / PM agent (profiles, conversations, messages, artifacts)
+export interface Profile {
+  id: string
+  email: string
+  full_name: string | null
+  company: string | null
+  role: string | null
+  onboarding_completed: boolean
+  company_size: string | null
+  product_stage: string | null
+  current_tools: string[] | null
+  main_pain_points: string[] | null
+  product_name: string | null
+  product_description: string | null
+  target_users: string | null
+  north_star_metric: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Conversation {
+  id: string
+  user_id: string
+  title: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatMessage {
+  id: string
+  conversation_id: string
+  user_id: string
+  role: 'user' | 'assistant'
+  content: string
+  agent_used: string | null
+  processing_time_ms: number | null
+  created_at: string
+}
+
+export interface Artifact {
+  id: string
+  user_id: string
+  conversation_id: string | null
+  message_id: string | null
+  type: 'prd' | 'insight' | 'roadmap' | 'analytics' | 'user_story'
+  title: string
+  content: Record<string, unknown>
+  quality_score: number | null
+  human_edited: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface UserContextRow {
+  id: string
+  user_id: string
+  context_type: string
+  key: string
+  value: string
+  created_at: string
+  updated_at: string
+}
