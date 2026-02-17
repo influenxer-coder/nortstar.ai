@@ -5,11 +5,11 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'NorthStar — AI Product Manager on Your Team',
+  title: 'NorthStar — The Cursor for Product Managers',
   description: 'Stop drowning in feedback. NorthStar lives in your workflow—Slack, Linear, Notion—delivering insights and PRDs proactively.',
   keywords: 'product management, AI, insights, PRD, Slack, Linear, Notion',
   openGraph: {
-    title: 'NorthStar — AI Product Manager on Your Team',
+    title: 'NorthStar — The Cursor for Product Managers',
     description: 'Stop drowning in feedback. NorthStar lives in your workflow—Slack, Linear, Notion—delivering insights and PRDs proactively.',
     type: 'website',
   },
