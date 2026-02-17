@@ -19,14 +19,14 @@ export default function LandingPage() {
             <a href="#pricing" className="hover:text-zinc-100 transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/auth/login">
+            <Link href="/auth/signin">
               <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-100">
-                Sign in
+                Log in
               </Button>
             </Link>
             <Link href="/auth/login">
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-500 text-white">
-                Request Access
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md">
+                Request Free Trial →
               </Button>
             </Link>
           </div>
@@ -36,35 +36,36 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="pt-32 pb-24 px-6">
         <div className="max-w-5xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-full px-4 py-1.5 text-xs text-violet-300 mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-            Now in private beta — request enterprise access
+          {/* Eyebrow */}
+          <div className="text-sm text-blue-400 uppercase tracking-wide mb-4">
+            CURSOR FOR ENGINEERS. NORTHSTAR FOR PMs.
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
-            The AI Product Manager
-            <br />
-            <span className="gradient-text">on Your Team</span>
+          <h1 className="text-5xl font-bold text-white leading-tight mb-2">
+            Your next APM hire costs $160K/year.
+          </h1>
+          <h1 className="text-5xl font-bold text-blue-400 leading-tight mb-4">
+            NorthStar does their job in 30 seconds.
           </h1>
 
-          <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Stop drowning in feedback. NorthStar lives in your workflow—Slack, Linear, Notion—
-            delivering insights and PRDs proactively. No setup, no empty states.
+          <p className="text-neutral-400 text-lg mt-4 max-w-xl mx-auto mb-10">
+            Senior PMs at Snap, Meta, and Google use NorthStar to automate 
+            research synthesis, PRD writing, and roadmap prioritization — 
+            the work they keep hiring juniors to do.
           </p>
 
           {/* CTA */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/auth/login">
-              <Button size="lg" className="bg-violet-600 hover:bg-violet-500 text-white h-12 px-8 text-base gap-2">
-                See Live Demo
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 text-base gap-2">
+                Deploy Free for 14 Days →
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
-            <Button variant="outline" size="lg" className="h-12 px-8 text-base border-zinc-700 text-zinc-300 hover:border-zinc-500">
-              Request Enterprise Access
-            </Button>
+            <button className="text-zinc-400 hover:text-zinc-300 underline">
+              Watch 2-min demo
+            </button>
           </div>
 
           {/* Social proof */}
@@ -77,7 +78,7 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <span>Trusted by 40+ PMs</span>
+              <span>Used by product teams replacing their first APM hire</span>
             </div>
             <div className="flex items-center gap-1">
               {[...Array(5)].map((_, i) => (
@@ -106,7 +107,7 @@ export default function LandingPage() {
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="font-semibold text-zinc-100">Hi Alex!</h3>
+                  <h3 className="font-semibold text-zinc-100">NorthStar analyzed this week&apos;s 127 tickets so you didn&apos;t have to.</h3>
                   <p className="text-xs text-zinc-500">I analyzed 127 tickets, 23 calls, 89 chats. Here&apos;s what matters:</p>
                 </div>
                 <div className="text-xs text-zinc-600 bg-zinc-800 px-3 py-1.5 rounded-md">
@@ -140,32 +141,48 @@ export default function LandingPage() {
       <section id="features" className="py-24 px-6 border-t border-zinc-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              PMs spend 60-70% of time on busywork
+            <h2 className="text-3xl md:text-4xl font-bold mb-8">
+              You keep hiring PMs to do work that should be automated.
             </h2>
-            <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-              Reading tickets, writing summaries, drafting PRDs—all tasks that AI should handle,
-              freeing you to make decisions that matter.
-            </p>
+            
+            {/* Stats row */}
+            <div className="bg-neutral-900 rounded-xl p-6 flex gap-8 justify-center items-center flex-wrap">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white">$160K</div>
+                <div className="text-sm text-neutral-400 mt-1">avg APM salary + benefits</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white">70%</div>
+                <div className="text-sm text-neutral-400 mt-1">of their time on tasks NorthStar automates</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white">30 sec</div>
+                <div className="text-sm text-neutral-400 mt-1">to generate a full PRD with evidence</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white">Day 1</div>
+                <div className="text-sm text-neutral-400 mt-1">value, zero onboarding</div>
+              </div>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
                 icon: <Search className="w-5 h-5 text-violet-400" />,
-                title: 'Research Synthesis',
+                title: 'Replaces: Manual research & ticket triage',
                 description: 'Monitors Zendesk, Gong, and Intercom continuously. Proactively surfaces what matters, not just what\'s new.',
                 stat: '127 tickets → 5 insights',
               },
               {
                 icon: <FileText className="w-5 h-5 text-violet-400" />,
-                title: 'Instant PRD Generation',
+                title: 'Replaces: Junior PM writing PRDs from scratch',
                 description: 'Click "Generate PRD" on any insight. Get a 70% complete draft in 30 seconds, backed by real customer evidence.',
                 stat: '10 hours → 30 seconds',
               },
               {
                 icon: <Bell className="w-5 h-5 text-violet-400" />,
-                title: 'Proactive Alerts',
+                title: 'Replaces: Daily dashboard monitoring',
                 description: 'NorthStar pings your Slack when customers mention churn, bugs, or competitors. You\'re always first to know.',
                 stat: 'Real-time awareness',
               },
@@ -188,11 +205,11 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Aha moment in 5 seconds
+              Set up once. Every PM on your team has an AI junior.
             </h2>
-            <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-              IT admin connects your data sources once. Every PM gets instant value
-              from day one—no setup, no onboarding, no empty states.
+            <p className="text-neutral-400 text-lg max-w-xl mx-auto">
+              IT connects your tools in 5 minutes. 
+              Every PM gets instant access with no training required.
             </p>
           </div>
 
@@ -247,71 +264,122 @@ export default function LandingPage() {
 
       {/* Pricing */}
       <section id="pricing" className="py-24 px-6 border-t border-zinc-900">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Enterprise Pricing
-          </h2>
-          <p className="text-zinc-400 text-lg mb-12">
-            One plan, unlimited PMs. Designed for teams that move fast.
-          </p>
-
-          <div className="border border-violet-500/30 rounded-xl p-8 bg-violet-500/5 relative overflow-hidden">
-            <div className="absolute top-4 right-4">
-              <span className="text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-3 py-1 rounded-full font-medium">
-                Most Popular
-              </span>
-            </div>
-
-            <h3 className="text-2xl font-bold text-zinc-100 mb-2">Enterprise</h3>
-            <div className="flex items-baseline justify-center gap-1 mb-6">
-              <span className="text-5xl font-bold gradient-text">$10K</span>
-              <span className="text-zinc-400">/month</span>
-            </div>
-
-            <ul className="text-sm text-zinc-300 space-y-3 mb-8 text-left max-w-sm mx-auto">
-              {[
-                'Unlimited PM seats',
-                'All integrations (Zendesk, Gong, Intercom, Slack)',
-                'SSO (Okta, Azure AD)',
-                'Custom data retention',
-                'Priority support + dedicated CSM',
-                'API access',
-                'Slack + Linear + Notion integrations',
-                'Weekly AI reports',
-              ].map((feature, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <Link href="/auth/login">
-              <Button size="lg" className="w-full bg-violet-600 hover:bg-violet-500 text-white h-12 text-base">
-                Request Enterprise Access
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Pricing
+            </h2>
           </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            {/* Starter Card */}
+            <div className="border border-zinc-800 rounded-xl p-8 bg-zinc-900/50">
+              <div className="text-xs text-zinc-500 uppercase tracking-wide mb-2">STARTER</div>
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-4xl font-bold text-white">$499</span>
+                <span className="text-zinc-400 text-sm">/month</span>
+              </div>
+              <p className="text-sm text-zinc-400 mb-6">For teams replacing their first APM hire</p>
+              <ul className="text-sm text-zinc-300 space-y-3 mb-8">
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Up to 5 PMs
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Research synthesis (Zendesk, Intercom, Gong)
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  PRD generation
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Slack alerts
+                </li>
+              </ul>
+              <Link href="/auth/login">
+                <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 text-base">
+                  Start 14-day free trial
+                </Button>
+              </Link>
+            </div>
+
+            {/* Team Card */}
+            <div className="border border-zinc-800 rounded-xl p-8 bg-zinc-900/50 ring-2 ring-blue-600 relative">
+              <div className="absolute top-4 right-4">
+                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded font-medium">
+                  Most Popular
+                </span>
+              </div>
+              <div className="text-xs text-zinc-500 uppercase tracking-wide mb-2">TEAM</div>
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-4xl font-bold text-white">$1,499</span>
+                <span className="text-zinc-400 text-sm">/month</span>
+              </div>
+              <p className="text-sm text-zinc-400 mb-6">For scaling product organizations</p>
+              <ul className="text-sm text-zinc-300 space-y-3 mb-8">
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Everything in Starter
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Unlimited PMs
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Roadmap prioritization (RICE)
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Churn prediction (30-day forecast)
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Linear + Notion sync
+                </li>
+                <li className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+                  Dedicated onboarding
+                </li>
+              </ul>
+              <Link href="/auth/login">
+                <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 text-base">
+                  Start 14-day free trial
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-neutral-400 text-sm mt-6 text-center">
+            One APM costs $13,000/month in salary alone. 
+            NorthStar pays for itself on day one.
+          </p>
         </div>
       </section>
 
       {/* CTA */}
       <section className="py-24 px-6 border-t border-zinc-900">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to stop drowning in feedback?
+          <h2 className="text-4xl font-bold text-white mb-3">
+            Stop paying $160K for someone to read Zendesk tickets.
           </h2>
-          <p className="text-zinc-400 text-lg mb-8">
-            See NorthStar in action with real demo data. No setup required.
+          <p className="text-neutral-400 text-center mt-3 mb-8">
+            NorthStar automates the research, writing, and analysis. 
+            Your team focuses on what only humans can do.
           </p>
-          <Link href="/auth/login">
-            <Button size="lg" className="bg-violet-600 hover:bg-violet-500 text-white h-12 px-10 text-base gap-2">
-              <Zap className="w-4 h-4" />
-              Try Live Demo — Free
-            </Button>
-          </Link>
-          <p className="text-xs text-zinc-600 mt-4">No credit card required. Demo uses sample data.</p>
+          <div className="flex items-center justify-center gap-6">
+            <Link href="/auth/login">
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 text-lg gap-2">
+                Deploy Free for 14 Days →
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <button className="text-neutral-400 underline ml-6">
+              Book a 20-min demo
+            </button>
+          </div>
         </div>
       </section>
 
@@ -323,7 +391,8 @@ export default function LandingPage() {
             <span className="font-semibold text-zinc-400">NorthStar</span>
           </div>
           <p className="text-xs text-zinc-600">
-            © 2026 NorthStar AI. Built for product teams who move fast.
+            © 2026 NorthStar AI · Built by a PM who spent 10 years at 
+            Snap, Meta, Apple & Google doing work that AI should do.
           </p>
           <div className="flex items-center gap-6 text-xs text-zinc-600">
             <a href="#" className="hover:text-zinc-400">Privacy</a>
