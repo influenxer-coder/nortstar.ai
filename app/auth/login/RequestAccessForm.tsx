@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react'
 export function RequestAccessForm() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
@@ -25,13 +26,19 @@ export function RequestAccessForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim() || !password.trim()) return
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
     setLoading(true)
     setError('')
 
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signInWithOtp({
+    // Sign up with email + password (Supabase will send verification email)
+    const { error: err } = await supabase.auth.signUp({
       email: email.trim(),
+      password: password.trim(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -54,12 +61,12 @@ export function RequestAccessForm() {
             <span className="text-xl font-semibold text-zinc-100">NorthStar</span>
           </Link>
           <h1 className="text-2xl font-bold text-zinc-100 mb-2">
-            {sent ? 'Check your email' : 'Request access'}
+            {sent ? 'Check your email' : 'Sign up'}
           </h1>
           <p className="text-sm text-zinc-400">
             {sent
-              ? `We sent a verification link to ${email}`
-              : 'Enter your email. We\'ll send you a link to verify and open the app.'}
+              ? `We sent a verification link to ${email}. Click it to verify your email and complete signup.`
+              : 'Create your account. We\'ll send a verification link to your email.'}
           </p>
         </div>
 
@@ -69,10 +76,10 @@ export function RequestAccessForm() {
               📧
             </div>
             <p className="text-sm text-zinc-400">
-              Click the link in the email to verify and sign in. You'll then be taken to the app to test NorthStar.
+              Click the verification link in your email. After verifying, you'll be able to sign in with your email and password.
             </p>
             <p className="text-xs text-zinc-500">
-              Open the link in the <strong>same browser</strong> where you requested access. The link expires in 1 hour.
+              Open the link in the <strong>same browser</strong> where you signed up. The link expires in 1 hour.
             </p>
             <button
               type="button"
@@ -94,6 +101,16 @@ export function RequestAccessForm() {
               autoFocus
               className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
             />
+            <Input
+              type="password"
+              placeholder="Password (min 8 characters)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+            />
             {error && (
               <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">
                 {error}
@@ -110,12 +127,18 @@ export function RequestAccessForm() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending…
+                  Creating account…
                 </>
               ) : (
-                'Send verification email'
+                'Sign up'
               )}
             </Button>
+            <p className="text-center text-xs text-zinc-500">
+              Already have an account?{' '}
+              <Link href="/auth/signin" className="text-violet-400 hover:text-violet-300">
+                Sign in
+              </Link>
+            </p>
           </form>
         )}
 

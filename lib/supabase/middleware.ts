@@ -32,13 +32,13 @@ export async function updateSession(request: NextRequest) {
   // Protect dashboard and onboarding (require auth)
   if (!user && (path.startsWith('/dashboard') || path.startsWith('/onboarding'))) {
     const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
+    url.pathname = '/auth/signin'
     url.searchParams.set('next', path)
     return NextResponse.redirect(url)
   }
 
-  // If signed in and hitting login, redirect to dashboard (or onboarding)
-  if (user && path.startsWith('/auth/login')) {
+  // If signed in and hitting login/signin, redirect to dashboard (or onboarding)
+  if (user && (path.startsWith('/auth/login') || path.startsWith('/auth/signin'))) {
     const url = request.nextUrl.clone()
     const next = request.nextUrl.searchParams.get('next')
     if (next && (next.startsWith('/dashboard') || next.startsWith('/onboarding'))) {

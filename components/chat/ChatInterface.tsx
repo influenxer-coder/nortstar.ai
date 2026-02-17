@@ -12,6 +12,7 @@ export function ChatInterface() {
   const [loading, setLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactData | null>(null)
+  const [initError, setInitError] = useState<string | null>(null)
 
   const loadMessages = useCallback(async () => {
     if (!conversationId) return
@@ -53,6 +54,37 @@ export function ChatInterface() {
         
         console.log('[ChatInterface] User:', user.id)
         
+        // Ensure profile exists first (required for foreign key constraint)
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        if (profileError) {
+          console.error('[ChatInterface] Error checking profile:', profileError)
+        }
+        
+        if (!profile) {
+          console.log('[ChatInterface] Creating profile...')
+          const { error: createProfileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email ?? '',
+              full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
+              onboarding_completed: false,
+            })
+          
+          if (createProfileError) {
+            console.error('[ChatInterface] Error creating profile:', createProfileError)
+            return
+          }
+          console.log('[ChatInterface] Profile created')
+        }
+        
+        if (!mounted) return
+        
         // Try to get existing conversation
         const { data: existing, error: existingError } = await supabase
           .from('conversations')
@@ -64,6 +96,7 @@ export function ChatInterface() {
         
         if (existingError) {
           console.error('[ChatInterface] Error fetching conversation:', existingError)
+          console.error('[ChatInterface] Error details:', JSON.stringify(existingError, null, 2))
         }
         
         if (existing && mounted) {
@@ -82,15 +115,33 @@ export function ChatInterface() {
         
         if (createError) {
           console.error('[ChatInterface] Error creating conversation:', createError)
+          console.error('[ChatInterface] Error details:', JSON.stringify(createError, null, 2))
+          console.error('[ChatInterface] User ID:', user.id)
+          if (mounted) {
+            setInitError(`Failed to create conversation: ${createError.message}`)
+          }
           return
         }
         
         if (created && mounted) {
           console.log('[ChatInterface] Created conversation:', created.id)
           setConversationId(created.id)
+          setInitError(null)
+        } else if (!created) {
+          console.error('[ChatInterface] No conversation returned after insert')
+          if (mounted) {
+            setInitError('Failed to create conversation: No data returned')
+          }
         }
       } catch (err) {
         console.error('[ChatInterface] Init error:', err)
+        if (err instanceof Error) {
+          console.error('[ChatInterface] Error message:', err.message)
+          console.error('[ChatInterface] Error stack:', err.stack)
+          if (mounted) {
+            setInitError(`Initialization error: ${err.message}`)
+          }
+        }
       }
     }
     init()
@@ -191,10 +242,26 @@ export function ChatInterface() {
       <div className="flex flex-1 flex-col min-w-0">
         {!conversationId ? (
           <div className="flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <div className="mb-4 text-4xl">⏳</div>
-              <h3 className="mb-2 text-lg font-semibold text-zinc-100">Setting up your conversation...</h3>
-              <p className="text-sm text-zinc-400">Please wait a moment</p>
+            <div className="text-center max-w-md px-4">
+              {initError ? (
+                <>
+                  <div className="mb-4 text-4xl">⚠️</div>
+                  <h3 className="mb-2 text-lg font-semibold text-zinc-100">Error setting up conversation</h3>
+                  <p className="mb-4 text-sm text-red-400">{initError}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="rounded-md bg-violet-600 px-4 py-2 text-sm text-white hover:bg-violet-500"
+                  >
+                    Reload page
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="mb-4 text-4xl">⏳</div>
+                  <h3 className="mb-2 text-lg font-semibold text-zinc-100">Setting up your conversation...</h3>
+                  <p className="text-sm text-zinc-400">Please wait a moment</p>
+                </>
+              )}
             </div>
           </div>
         ) : (

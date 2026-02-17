@@ -24,23 +24,29 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`)
   }
 
+  // Check if this is a new user (just verified email)
+  const isNewUser = !user.user_metadata?.password_set
+
   // Ensure profile exists (create from auth user)
   const { data: existing } = await supabase
     .from('profiles')
     .select('id, onboarding_completed')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!existing) {
-    await supabase.from('profiles').insert({
+    const { error: insertError } = await supabase.from('profiles').insert({
       id: user.id,
       email: user.email ?? '',
       full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
       onboarding_completed: false,
     })
+    if (insertError) {
+      console.error('[Callback] Error creating profile:', insertError)
+    }
   }
 
-  const profile = existing ?? (await supabase.from('profiles').select('onboarding_completed').eq('id', user.id).single()).data
+  const profile = existing ?? (await supabase.from('profiles').select('onboarding_completed').eq('id', user.id).maybeSingle()).data
 
   // Redirect: onboarding first, then dashboard; or requested next
   if (next && !next.startsWith('/onboarding') && !next.startsWith('/dashboard')) {
