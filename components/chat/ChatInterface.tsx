@@ -73,13 +73,32 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMsg])
     setLoading(true)
     try {
+      console.log('[ChatInterface] Sending message:', { conversation_id: conversationId, message: content })
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversation_id: conversationId, message: content }),
       })
+      
+      console.log('[ChatInterface] Response status:', res.status)
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        console.error('[ChatInterface] API error:', errorData)
+        throw new Error(errorData.error || 'Request failed')
+      }
+      
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Request failed')
+      console.log('[ChatInterface] Response data:', { 
+        hasResponse: !!data.response, 
+        responseLength: data.response?.length,
+        hasArtifact: !!data.artifact 
+      })
+      
+      if (!data.response) {
+        throw new Error('No response from backend')
+      }
+      
       const assistantMsg: ChatMessageItem = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -89,6 +108,7 @@ export function ChatInterface() {
       setMessages((prev) => [...prev, assistantMsg])
       if (data.artifact) setSelectedArtifact(data.artifact)
     } catch (err) {
+      console.error('[ChatInterface] Error:', err)
       const errMsg = err instanceof Error ? err.message : 'Something went wrong'
       setMessages((prev) => [
         ...prev,

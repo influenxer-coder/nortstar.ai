@@ -28,30 +28,55 @@ export async function POST(request: NextRequest) {
 
     // Call Railway backend
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001'
+    
+    if (!backendUrl || backendUrl === 'http://localhost:3001') {
+      console.warn('[Chat API] WARNING: BACKEND_URL not set, using localhost fallback. Set BACKEND_URL in Vercel env vars.')
+    }
+    
     const startTime = Date.now()
     
-    const backendResponse = await fetch(`${backendUrl}/api/chat`, {
+    const backendPayload = {
+      user_id: user.id,
+      conversation_id: conversationId,
+      message: message.trim(),
+      user_context: {
+        profile: profile ?? null,
+        context: contextRows ?? [],
+      },
+    }
+
+    // Try different endpoint paths - adjust based on your Railway backend structure
+    const endpointPath = '/api/chat' // Change to '/chat' or '/v1/chat' if your backend uses different path
+    const backendEndpoint = `${backendUrl}${endpointPath}`
+    
+    console.log(`[Chat API] Calling backend: ${backendEndpoint}`)
+    console.log(`[Chat API] Backend URL env: ${process.env.BACKEND_URL || 'NOT SET (using localhost fallback)'}`)
+    console.log(`[Chat API] Payload:`, JSON.stringify(backendPayload, null, 2))
+
+    const backendResponse = await fetch(backendEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        user_id: user.id,
-        conversation_id: conversationId,
-        message: message.trim(),
-        user_context: {
-          profile: profile ?? null,
-          context: contextRows ?? [],
-        },
-      }),
+      body: JSON.stringify(backendPayload),
     })
 
+    console.log(`[Chat API] Backend response status: ${backendResponse.status}`)
+
     if (!backendResponse.ok) {
-      const errorData = await backendResponse.json().catch(() => ({ error: 'Backend request failed' }))
-      throw new Error(errorData.error || `Backend error: ${backendResponse.status}`)
+      const errorText = await backendResponse.text()
+      console.error(`[Chat API] Backend error response:`, errorText)
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { error: `Backend error: ${backendResponse.status} - ${errorText}` }
+      }
+      throw new Error(errorData.error || errorData.message || `Backend error: ${backendResponse.status}`)
     }
 
     const result = await backendResponse.json()
+    console.log(`[Chat API] Backend result:`, { response: result.response?.substring(0, 100), artifact: result.artifact?.type })
     const processingTime = Date.now() - startTime
 
     // Save assistant message
@@ -99,9 +124,14 @@ export async function POST(request: NextRequest) {
       processing_time_ms: processingTime,
     })
   } catch (error: unknown) {
-    console.error('Chat API error:', error)
+    console.error('[Chat API] Error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    console.error('[Chat API] Error details:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
