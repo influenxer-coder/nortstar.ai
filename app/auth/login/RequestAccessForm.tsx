@@ -36,7 +36,7 @@ export function RequestAccessForm() {
 
     const supabase = createClient()
     // Sign up with email + password (Supabase will send verification email)
-    const { error: err } = await supabase.auth.signUp({
+    const { data, error: err } = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
       options: {
@@ -45,9 +45,45 @@ export function RequestAccessForm() {
     })
 
     if (err) {
+      console.error('[SignUp] Error:', err)
+      setError(err.message)
+      setLoading(false)
+    } else {
+      console.log('[SignUp] Success:', data)
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        // Email confirmation required
+        setSent(true)
+      } else if (data.session) {
+        // User is already confirmed (shouldn't happen but handle it)
+        window.location.href = '/dashboard'
+      } else {
+        setSent(true)
+      }
+      setLoading(false)
+    }
+  }
+
+  async function handleResendEmail() {
+    if (!email.trim()) return
+    setLoading(true)
+    setError('')
+
+    const supabase = createClient()
+    const { error: err } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim(),
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (err) {
+      console.error('[Resend] Error:', err)
       setError(err.message)
     } else {
-      setSent(true)
+      setError('')
+      alert('Verification email sent! Check your inbox and spam folder.')
     }
     setLoading(false)
   }
@@ -81,13 +117,35 @@ export function RequestAccessForm() {
             <p className="text-xs text-zinc-500">
               Open the link in the <strong>same browser</strong> where you signed up. The link expires in 1 hour.
             </p>
-            <button
-              type="button"
-              onClick={() => setSent(false)}
-              className="text-sm text-violet-400 hover:text-violet-300"
-            >
-              Use a different email
-            </button>
+            <div className="rounded-md border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
+              <p className="font-semibold mb-1">Email not arriving?</p>
+              <ul className="list-disc list-inside space-y-1 text-yellow-300/80">
+                <li>Check your spam/junk folder</li>
+                <li>Wait 1-2 minutes (emails can be delayed)</li>
+                <li>Click "Resend verification email" below</li>
+                <li>Make sure email confirmation is enabled in Supabase dashboard</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleResendEmail}
+                disabled={loading}
+                className="text-sm text-violet-400 hover:text-violet-300 disabled:opacity-50"
+              >
+                {loading ? 'Sending...' : 'Resend verification email'}
+              </button>
+              <div className="text-xs text-zinc-600">
+                Didn&apos;t receive it? Check spam folder or{' '}
+                <button
+                  type="button"
+                  onClick={() => setSent(false)}
+                  className="text-violet-400 hover:text-violet-300 underline"
+                >
+                  use a different email
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
