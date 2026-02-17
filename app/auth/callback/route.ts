@@ -5,9 +5,16 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? ''
+  const error = searchParams.get('error')
+  const errorDescription = searchParams.get('error_description')
 
+  // Supabase may redirect here with error if magic link is invalid/expired (e.g. opened in different browser)
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth/login?error=no_code`)
+    const params = new URLSearchParams()
+    if (error) params.set('error', error)
+    if (errorDescription) params.set('error_description', errorDescription)
+    if (!error && !errorDescription) params.set('error', 'no_code')
+    return NextResponse.redirect(`${origin}/auth/login?${params.toString()}`)
   }
 
   const supabase = createClient()

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -9,10 +10,19 @@ import { Logo } from '@/components/logo'
 import { Loader2 } from 'lucide-react'
 
 export default function RequestAccessPage() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+
+  // Show error from callback (e.g. magic link invalid or expired)
+  useEffect(() => {
+    const err = searchParams.get('error')
+    const desc = searchParams.get('error_description')
+    if (desc) setError(decodeURIComponent(desc.replace(/\+/g, ' ')))
+    else if (err && err !== 'no_code') setError(err)
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -63,7 +73,7 @@ export default function RequestAccessPage() {
               Click the link in the email to verify and sign in. You’ll then be taken to the app to test NorthStar.
             </p>
             <p className="text-xs text-zinc-500">
-              The link expires in 1 hour.
+              Open the link in the <strong>same browser</strong> where you requested access. The link expires in 1 hour.
             </p>
             <button
               type="button"
@@ -86,7 +96,12 @@ export default function RequestAccessPage() {
               className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
             />
             {error && (
-              <p className="text-xs text-red-400">{error}</p>
+              <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                {error}
+                {error.includes('invalid') || error.includes('expired') ? (
+                  <p className="mt-1 text-zinc-400">Request a new link and open it in the same browser.</p>
+                ) : null}
+              </div>
             )}
             <Button
               type="submit"
