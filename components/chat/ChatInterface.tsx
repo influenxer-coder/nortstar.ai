@@ -35,25 +35,63 @@ export function ChatInterface() {
   useEffect(() => {
     let mounted = true
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || !mounted) return
-      const { data: existing } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      if (existing) {
-        setConversationId(existing.id)
-        return
+      try {
+        console.log('[ChatInterface] Initializing...')
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError) {
+          console.error('[ChatInterface] Auth error:', userError)
+          return
+        }
+        
+        if (!user) {
+          console.warn('[ChatInterface] No user found')
+          return
+        }
+        
+        if (!mounted) return
+        
+        console.log('[ChatInterface] User:', user.id)
+        
+        // Try to get existing conversation
+        const { data: existing, error: existingError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        
+        if (existingError) {
+          console.error('[ChatInterface] Error fetching conversation:', existingError)
+        }
+        
+        if (existing && mounted) {
+          console.log('[ChatInterface] Found existing conversation:', existing.id)
+          setConversationId(existing.id)
+          return
+        }
+        
+        // Create new conversation
+        console.log('[ChatInterface] Creating new conversation...')
+        const { data: created, error: createError } = await supabase
+          .from('conversations')
+          .insert({ user_id: user.id })
+          .select('id')
+          .single()
+        
+        if (createError) {
+          console.error('[ChatInterface] Error creating conversation:', createError)
+          return
+        }
+        
+        if (created && mounted) {
+          console.log('[ChatInterface] Created conversation:', created.id)
+          setConversationId(created.id)
+        }
+      } catch (err) {
+        console.error('[ChatInterface] Init error:', err)
       }
-      const { data: created } = await supabase
-        .from('conversations')
-        .insert({ user_id: user.id })
-        .select('id')
-        .single()
-      if (created && mounted) setConversationId(created.id)
     }
     init()
     return () => { mounted = false }
@@ -64,13 +102,26 @@ export function ChatInterface() {
   }, [conversationId, loadMessages])
 
   const handleSendMessage = async (content: string) => {
-    if (!conversationId) return
+    console.log('[ChatInterface] handleSendMessage called:', { conversationId, content })
+    
+    if (!conversationId) {
+      console.error('[ChatInterface] No conversationId, cannot send message')
+      alert('Error: No conversation found. Please refresh the page.')
+      return
+    }
+    
     const userMsg: ChatMessageItem = {
       id: crypto.randomUUID(),
       role: 'user',
       content,
     }
-    setMessages((prev) => [...prev, userMsg])
+    
+    console.log('[ChatInterface] Adding user message to state')
+    setMessages((prev) => {
+      const updated = [...prev, userMsg]
+      console.log('[ChatInterface] Messages after adding user:', updated.length)
+      return updated
+    })
     setLoading(true)
     try {
       console.log('[ChatInterface] Sending message:', { conversation_id: conversationId, message: content })
@@ -119,11 +170,39 @@ export function ChatInterface() {
     }
   }
 
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log('[ChatInterface] State update:', {
+      conversationId,
+      messagesCount: messages.length,
+      loading,
+      hasArtifact: !!selectedArtifact,
+    })
+  }, [conversationId, messages.length, loading, selectedArtifact])
+
   return (
     <div className="flex h-[calc(100vh-0px)] bg-zinc-950">
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 z-50 rounded bg-zinc-900 p-2 text-xs text-zinc-400">
+          Conv: {conversationId ? '✓' : '✗'} | Msgs: {messages.length} | Loading: {loading ? '✓' : '✗'}
+        </div>
+      )}
       <div className="flex flex-1 flex-col min-w-0">
-        <MessageList messages={messages} loading={loading} />
-        <MessageInput onSend={handleSendMessage} disabled={loading} />
+        {!conversationId ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+              <div className="mb-4 text-4xl">⏳</div>
+              <h3 className="mb-2 text-lg font-semibold text-zinc-100">Setting up your conversation...</h3>
+              <p className="text-sm text-zinc-400">Please wait a moment</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <MessageList messages={messages} loading={loading} />
+            <MessageInput onSend={handleSendMessage} disabled={loading} />
+          </>
+        )}
       </div>
       {selectedArtifact && (
         <div className="hidden w-1/2 border-l border-zinc-800 lg:block">

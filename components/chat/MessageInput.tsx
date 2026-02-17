@@ -16,8 +16,14 @@ export function MessageInput({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || disabled) return
-    onSend(input.trim())
+    console.log('[MessageInput] Submit:', { input: input.trim(), disabled })
+    if (!input.trim() || disabled) {
+      console.log('[MessageInput] Submit blocked:', { hasInput: !!input.trim(), disabled })
+      return
+    }
+    const message = input.trim()
+    console.log('[MessageInput] Calling onSend with:', message)
+    onSend(message)
     setInput('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
