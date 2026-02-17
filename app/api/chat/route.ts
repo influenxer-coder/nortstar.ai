@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { OrchestratorAgent } from '@/lib/agents/orchestrator'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,14 +18,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     const { data: contextRows } = await supabase.from('user_context').select('context_type, key, value').eq('user_id', user.id)
 
-    const orchestrator = new OrchestratorAgent({
-      user_id: user.id,
-      user_context: {
-        profile: profile ?? null,
-        context: contextRows ?? [],
-      },
-    })
-
+    // Save user message
     await supabase.from('messages').insert({
       conversation_id: conversationId,
       user_id: user.id,
@@ -34,10 +26,35 @@ export async function POST(request: NextRequest) {
       content: message.trim(),
     })
 
+    // Call Railway backend
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001'
     const startTime = Date.now()
-    const result = await orchestrator.handleTask({ type: 'query', query: message.trim() })
+    
+    const backendResponse = await fetch(`${backendUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        conversation_id: conversationId,
+        message: message.trim(),
+        user_context: {
+          profile: profile ?? null,
+          context: contextRows ?? [],
+        },
+      }),
+    })
+
+    if (!backendResponse.ok) {
+      const errorData = await backendResponse.json().catch(() => ({ error: 'Backend request failed' }))
+      throw new Error(errorData.error || `Backend error: ${backendResponse.status}`)
+    }
+
+    const result = await backendResponse.json()
     const processingTime = Date.now() - startTime
 
+    // Save assistant message
     const { data: assistantRow } = await supabase
       .from('messages')
       .insert({
@@ -45,7 +62,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         role: 'assistant',
         content: result.response,
-        agent_used: result.agent_used,
+        agent_used: result.agent_used || 'orchestrator',
         processing_time_ms: processingTime,
       })
       .select()
@@ -78,7 +95,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: result.response,
       artifact,
-      agent_used: result.agent_used,
+      agent_used: result.agent_used || 'orchestrator',
       processing_time_ms: processingTime,
     })
   } catch (error: unknown) {

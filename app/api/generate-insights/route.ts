@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { DEMO_INSIGHTS } from '@/lib/demo-data'
 
 export async function POST(request: Request) {
   try {
     const { orgId, demo } = await request.json()
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
-
-    if (demo || !apiKey) {
+    if (demo) {
       // Return demo insights
       return NextResponse.json({ insights: DEMO_INSIGHTS, source: 'demo' })
     }
@@ -28,59 +25,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ insights: [], message: 'No recent feedback found' })
     }
 
-    const anthropic = new Anthropic({ apiKey })
-
-    const prompt = `You are NorthStar, an AI product analyst. Analyze this customer feedback and extract actionable insights for the product team.
-
-Feedback data (${feedback.length} items):
-${JSON.stringify(feedback.slice(0, 100), null, 2)}
-
-Extract and return a JSON object with:
-{
-  "insights": [
-    {
-      "insight_type": "pain_point" | "feature_request" | "churn_risk" | "positive",
-      "title": "Short, specific title (max 70 chars)",
-      "summary": "2-3 sentence explanation with context",
-      "severity": "critical" | "high" | "medium" | "low" | "positive",
-      "mention_count": number,
-      "revenue_impact": "string or null",
-      "evidence": [
-        {
-          "source_type": "zendesk" | "gong" | "intercom",
-          "quote": "exact customer quote",
-          "customer": "company name if available",
-          "date": "ISO date string"
-        }
-      ]
-    }
-  ]
-}
-
-Rules:
-- Only include issues mentioned by 3+ customers (unless critical churn risk)
-- severity=critical: customers threatening to cancel or blocking $50K+ deals
-- severity=high: >10 mentions or >$100K ARR impact
-- Include 2-4 evidence quotes per insight
-- Title should be specific ("Invite button broken" not "Collaboration issues")
-- Return max 8 insights, prioritized by severity`
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
+    // Call Railway backend
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001'
+    
+    const backendResponse = await fetch(`${backendUrl}/api/generate-insights`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        org_id: orgId,
+        feedback: feedback.slice(0, 100),
+      }),
     })
 
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
-
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
+    if (!backendResponse.ok) {
+      const errorData = await backendResponse.json().catch(() => ({ error: 'Backend request failed' }))
+      console.error('Backend error:', errorData)
       return NextResponse.json({ insights: DEMO_INSIGHTS, source: 'demo_fallback' })
     }
 
-    const parsed = JSON.parse(jsonMatch[0])
-    const insights = parsed.insights || []
+    const result = await backendResponse.json()
+    const insights = result.insights || []
 
     // Save insights to DB
     for (const insight of insights) {
