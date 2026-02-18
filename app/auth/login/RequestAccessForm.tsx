@@ -15,6 +15,7 @@ export function RequestAccessForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [existingUser, setExistingUser] = useState(false)
   const [error, setError] = useState('')
   const [showResetLink, setShowResetLink] = useState(false)
 
@@ -36,7 +37,10 @@ export function RequestAccessForm() {
     setError('')
 
     const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/callback`
+    const baseUrl = typeof process.env.NEXT_PUBLIC_SITE_URL === 'string' && process.env.NEXT_PUBLIC_SITE_URL
+      ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+      : window.location.origin
+    const redirectTo = `${baseUrl}/auth/callback`
     console.log('[SignUp] Requesting sign up', {
       email: email.trim(),
       emailRedirectTo: redirectTo,
@@ -79,12 +83,18 @@ export function RequestAccessForm() {
         email.trim()
       )
       if (data.user && !data.session) {
-        setSent(true)
-        if (!isNewUser) setShowResetLink(true)
+        if (isNewUser) {
+          setSent(true)
+          setExistingUser(false)
+        } else {
+          setExistingUser(true)
+          setSent(false)
+        }
       } else if (data.session) {
         window.location.href = '/dashboard'
       } else {
         setSent(true)
+        setExistingUser(false)
       }
       setLoading(false)
     }
@@ -96,7 +106,10 @@ export function RequestAccessForm() {
     setError('')
 
     const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/callback`
+    const baseUrl = typeof process.env.NEXT_PUBLIC_SITE_URL === 'string' && process.env.NEXT_PUBLIC_SITE_URL
+      ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+      : window.location.origin
+    const redirectTo = `${baseUrl}/auth/callback`
     console.log('[Resend] Requesting resend verification email', {
       email: email.trim(),
       type: 'signup',
@@ -131,16 +144,40 @@ export function RequestAccessForm() {
             <span className="text-xl font-semibold text-zinc-100">NorthStar</span>
           </Link>
           <h1 className="text-2xl font-bold text-zinc-100 mb-2">
-            {sent ? 'Check your email' : 'Sign up'}
+            {existingUser ? 'Already registered' : sent ? 'Check your email' : 'Sign up'}
           </h1>
           <p className="text-sm text-zinc-400">
-            {sent
-              ? `We sent a verification link to ${email}. Click it to verify your email and complete signup.`
-              : 'Create your account. We\'ll send a verification link to your email.'}
+            {existingUser
+              ? `This email is already registered. Sign in or reset your password.`
+              : sent
+                ? `We sent a verification link to ${email}. Click it to verify your email and complete signup.`
+                : 'Create your account. We\'ll send a verification link to your email.'}
           </p>
         </div>
 
-        {sent ? (
+        {existingUser ? (
+          <div className="space-y-4 text-center">
+            <Link
+              href={`/auth/signin?email=${encodeURIComponent(email)}`}
+              className="block w-full rounded-md bg-violet-600 hover:bg-violet-500 px-4 py-3 text-center text-sm font-medium text-white"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/auth/forgot-password"
+              className="block w-full rounded-md border border-zinc-600 px-4 py-3 text-center text-sm font-medium text-zinc-300 hover:bg-zinc-800"
+            >
+              Reset password
+            </Link>
+            <button
+              type="button"
+              onClick={() => { setExistingUser(false) }}
+              className="text-sm text-zinc-500 hover:text-zinc-400"
+            >
+              Use a different email
+            </button>
+          </div>
+        ) : sent ? (
           <div className="space-y-6 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-violet-500/20 bg-violet-500/10 text-3xl">
               📧
@@ -155,12 +192,17 @@ export function RequestAccessForm() {
               <p className="font-semibold mb-1">Email not arriving?</p>
               <ul className="list-disc list-inside space-y-1 text-yellow-300/80">
                 <li>Check your spam/junk folder</li>
-                <li>Wait 1-2 minutes (emails can be delayed)</li>
-                <li>Click "Resend verification email" below</li>
-                <li>Make sure email confirmation is enabled in Supabase dashboard</li>
+                <li>Click &quot;Resend verification email&quot; below</li>
+                <li>Or <strong>try signing in</strong> with your password — if your project has email confirmation turned off in Supabase, it will work</li>
               </ul>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <Link
+                href={`/auth/signin?email=${encodeURIComponent(email)}`}
+                className="block w-full rounded-md border border-violet-500/40 bg-violet-500/20 px-4 py-2.5 text-center text-sm font-medium text-violet-200 hover:bg-violet-500/30"
+              >
+                Try signing in with my password
+              </Link>
               <button
                 type="button"
                 onClick={handleResendEmail}

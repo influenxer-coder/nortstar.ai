@@ -21,7 +21,10 @@ function ForgotPasswordForm() {
     setError('')
 
     const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/callback`
+    const baseUrl = typeof process.env.NEXT_PUBLIC_SITE_URL === 'string' && process.env.NEXT_PUBLIC_SITE_URL
+      ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+      : window.location.origin
+    const redirectTo = `${baseUrl}/auth/callback`
     console.log('[ForgotPassword] Requesting password reset email', {
       email: email.trim(),
       redirectTo,
