@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageList, type ChatMessageItem } from './MessageList'
 import { MessageInput } from './MessageInput'
 import { ArtifactPreview, type ArtifactData } from './ArtifactPreview'
 
 export function ChatInterface() {
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
   const [messages, setMessages] = useState<ChatMessageItem[]>([])
   const [loading, setLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -42,11 +43,13 @@ export function ChatInterface() {
         
         if (userError) {
           console.error('[ChatInterface] Auth error:', userError)
+          if (mounted) setInitError(`Auth error: ${userError.message}`)
           return
         }
         
         if (!user) {
           console.warn('[ChatInterface] No user found')
+          if (mounted) setInitError('Not signed in. Please sign in again.')
           return
         }
         
@@ -78,6 +81,7 @@ export function ChatInterface() {
           
           if (createProfileError) {
             console.error('[ChatInterface] Error creating profile:', createProfileError)
+            if (mounted) setInitError(`Could not create profile: ${createProfileError.message}. Try refreshing.`)
             return
           }
           console.log('[ChatInterface] Profile created')
@@ -97,6 +101,8 @@ export function ChatInterface() {
         if (existingError) {
           console.error('[ChatInterface] Error fetching conversation:', existingError)
           console.error('[ChatInterface] Error details:', JSON.stringify(existingError, null, 2))
+          if (mounted) setInitError(`Could not load conversation: ${existingError.message}. Try refreshing.`)
+          return
         }
         
         if (existing && mounted) {
@@ -146,7 +152,16 @@ export function ChatInterface() {
     }
     init()
     return () => { mounted = false }
-  }, [supabase])
+  }, [])
+
+  // Timeout: if still no conversation after 15s, show error so user isn't stuck
+  useEffect(() => {
+    if (conversationId || initError) return
+    const t = setTimeout(() => {
+      setInitError('Setup is taking too long. Please refresh the page or try again later.')
+    }, 15000)
+    return () => clearTimeout(t)
+  }, [conversationId, initError])
 
   useEffect(() => {
     if (conversationId) loadMessages()

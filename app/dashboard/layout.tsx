@@ -17,11 +17,11 @@ export default async function DashboardLayout({
     .from('profiles')
     .select('full_name, email, onboarding_completed')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profile && !profile.onboarding_completed) redirect('/onboarding')
 
-  const displayName = profile?.full_name || profile?.email?.split('@')[0] || 'User'
+  const displayName = profile?.full_name || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'
   const initial = displayName.charAt(0).toUpperCase()
   const email = profile?.email ?? user.email ?? ''
 
