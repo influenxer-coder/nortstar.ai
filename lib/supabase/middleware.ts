@@ -37,8 +37,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If signed in and hitting login/signin, redirect to dashboard (or onboarding)
-  if (user && (path.startsWith('/auth/login') || path.startsWith('/auth/signin'))) {
+  // If signed in and hitting login/signin/forgot-password, redirect to dashboard (or onboarding)
+  if (user && (path.startsWith('/auth/login') || path.startsWith('/auth/signin') || path.startsWith('/auth/forgot-password'))) {
     const url = request.nextUrl.clone()
     const next = request.nextUrl.searchParams.get('next')
     if (next && (next.startsWith('/dashboard') || next.startsWith('/onboarding'))) {

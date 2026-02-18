@@ -16,6 +16,7 @@ export function RequestAccessForm() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+  const [showResetLink, setShowResetLink] = useState(false)
 
   useEffect(() => {
     const err = searchParams.get('error')
@@ -35,27 +36,52 @@ export function RequestAccessForm() {
     setError('')
 
     const supabase = createClient()
+    const redirectTo = `${window.location.origin}/auth/callback`
+    console.log('[SignUp] Requesting sign up', {
+      email: email.trim(),
+      emailRedirectTo: redirectTo,
+      timestamp: new Date().toISOString(),
+    })
     // Sign up with email + password (Supabase will send verification email)
     const { data, error: err } = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectTo,
       },
     })
 
     if (err) {
-      console.error('[SignUp] Error:', err)
+      console.error('[SignUp] Error:', err?.message, err)
+      const msg = err.message || ''
+      const isAlreadyExists =
+        /already registered|already exists|user already/i.test(msg) ||
+        msg.includes('already been registered')
       setError(err.message)
+      if (isAlreadyExists) setShowResetLink(true)
       setLoading(false)
     } else {
-      console.log('[SignUp] Success:', data)
-      // Check if email confirmation is required
+      const hasUser = !!data?.user
+      const hasSession = !!data?.session
+      const createdAt = data?.user?.created_at
+      const isNewUser = createdAt && Date.now() - new Date(createdAt).getTime() < 60_000
+      console.log('[SignUp] Success:', {
+        hasUser,
+        hasSession,
+        userId: data?.user?.id,
+        emailConfirmed: data?.user?.email_confirmed_at != null,
+        created_at: data?.user?.created_at,
+        isLikelyNewUser: isNewUser,
+        fullData: data,
+      })
+      console.log(
+        '[SignUp] Email: Supabase sends the verification email server-side. If confirmation is enabled, an email should have been sent to',
+        email.trim()
+      )
       if (data.user && !data.session) {
-        // Email confirmation required
         setSent(true)
+        if (!isNewUser) setShowResetLink(true)
       } else if (data.session) {
-        // User is already confirmed (shouldn't happen but handle it)
         window.location.href = '/dashboard'
       } else {
         setSent(true)
@@ -70,18 +96,26 @@ export function RequestAccessForm() {
     setError('')
 
     const supabase = createClient()
+    const redirectTo = `${window.location.origin}/auth/callback`
+    console.log('[Resend] Requesting resend verification email', {
+      email: email.trim(),
+      type: 'signup',
+      emailRedirectTo: redirectTo,
+      timestamp: new Date().toISOString(),
+    })
     const { error: err } = await supabase.auth.resend({
       type: 'signup',
       email: email.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectTo,
       },
     })
 
     if (err) {
-      console.error('[Resend] Error:', err)
+      console.error('[Resend] Error:', err?.message, err)
       setError(err.message)
     } else {
+      console.log('[Resend] Resend requested successfully. Supabase should have sent verification email to', email.trim())
       setError('')
       alert('Verification email sent! Check your inbox and spam folder.')
     }
@@ -135,6 +169,12 @@ export function RequestAccessForm() {
               >
                 {loading ? 'Sending...' : 'Resend verification email'}
               </button>
+              <p className="text-xs text-zinc-500">
+                Already have an account?{' '}
+                <Link href="/auth/forgot-password" className="text-violet-400 hover:text-violet-300 underline">
+                  Reset your password
+                </Link>
+              </p>
               <div className="text-xs text-zinc-600">
                 Didn&apos;t receive it? Check spam folder or{' '}
                 <button
@@ -175,6 +215,13 @@ export function RequestAccessForm() {
                 {error.includes('invalid') || error.includes('expired') ? (
                   <p className="mt-1 text-zinc-400">Request a new link and open it in the same browser.</p>
                 ) : null}
+                {showResetLink && (
+                  <p className="mt-2">
+                    <Link href="/auth/forgot-password" className="text-violet-300 hover:text-violet-200 underline">
+                      Reset your password instead →
+                    </Link>
+                  </p>
+                )}
               </div>
             )}
             <Button

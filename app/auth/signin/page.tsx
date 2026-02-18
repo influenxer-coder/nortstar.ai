@@ -89,7 +89,12 @@ function SignInForm() {
             )}
           </Button>
           <p className="text-center text-xs text-zinc-500">
-            Don't have an account?{' '}
+            <Link href="/auth/forgot-password" className="text-violet-400 hover:text-violet-300">
+              Forgot password? Reset it
+            </Link>
+          </p>
+          <p className="text-center text-xs text-zinc-500">
+            Don&apos;t have an account?{' '}
             <Link href="/auth/login" className="text-violet-400 hover:text-violet-300">
               Sign up
             </Link>
