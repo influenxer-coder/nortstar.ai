@@ -143,3 +143,13 @@ export interface UserContextRow {
   created_at: string
   updated_at: string
 }
+
+export interface Agent {
+  id: string
+  user_id: string
+  name: string | null
+  google_drive_roadmap_url: string | null
+  main_kpi: string
+  created_at: string
+  updated_at: string
+}

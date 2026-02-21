@@ -16,6 +16,7 @@ This creates:
 - `public.messages`
 - `public.artifacts`
 - `public.user_context`
+- `public.agents` (user-created agents: Google Drive roadmap + main KPI)
 - RLS policies and indexes
 
 5. After it succeeds, refresh your app and try logging in again.
