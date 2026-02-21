@@ -129,11 +129,11 @@ CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- Agents (user-created: Google Drive roadmap + main KPI)
+-- Agents (user-created: name required for Slack/meetings, Google Drive via SSO, main KPI)
 CREATE TABLE IF NOT EXISTS public.agents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  name TEXT,
+  name TEXT NOT NULL,
   google_drive_roadmap_url TEXT,
   main_kpi TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

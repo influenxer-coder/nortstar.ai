@@ -52,7 +52,7 @@ export default async function AgentsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-zinc-100 truncate">
-                      {agent.name || 'Unnamed agent'}
+                      {agent.name}
                     </h3>
                     <p className="text-sm text-zinc-400 mt-1">
                       <span className="text-zinc-500">Main KPI:</span> {agent.main_kpi}

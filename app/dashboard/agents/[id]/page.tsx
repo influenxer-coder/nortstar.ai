@@ -35,7 +35,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <Bot className="h-5 w-5 text-violet-400" />
           </div>
           <h1 className="text-xl font-bold text-zinc-100">
-            {(agent as Agent).name || 'Unnamed agent'}
+            {(agent as Agent).name}
           </h1>
         </div>
 
