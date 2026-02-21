@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { LayoutDashboard, FileText, Settings, LogOut, Bot } from 'lucide-react'
+import { LogOut, Bot } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
 
@@ -40,10 +40,7 @@ export default async function DashboardLayout({
 
         <nav className="flex-1 space-y-1 px-2">
           {[
-            { href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Chat', shortcut: 'D' },
             { href: '/dashboard/agents', icon: <Bot className="h-4 w-4" />, label: 'Agents', shortcut: 'G' },
-            { href: '/dashboard/artifacts', icon: <FileText className="h-4 w-4" />, label: 'Artifacts', shortcut: 'A' },
-            { href: '/dashboard/settings', icon: <Settings className="h-4 w-4" />, label: 'Settings', shortcut: 'S' },
           ].map((item) => (
             <Link
               key={item.href}

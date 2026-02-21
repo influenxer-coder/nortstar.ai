@@ -1,7 +1,5 @@
-'use client'
-
-import { ChatInterface } from '@/components/chat/ChatInterface'
+import { redirect } from 'next/navigation'
 
 export default function DashboardPage() {
-  return <ChatInterface />
+  redirect('/dashboard/agents')
 }
