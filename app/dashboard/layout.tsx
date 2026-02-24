@@ -31,10 +31,10 @@ export default async function DashboardLayout({
         <div className="mb-6 px-3 md:px-4">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 rounded-md py-1.5 px-1 transition-colors hover:bg-zinc-900"
+            className="flex items-center gap-[10px] rounded-md py-1.5 px-1 transition-colors hover:bg-zinc-900"
           >
-            <Logo size={24} className="shrink-0" />
-            <span className="hidden font-semibold text-zinc-100 text-sm md:block">NorthStar</span>
+            <Logo size={28} className="shrink-0" />
+            <span className="hidden font-medium text-zinc-100 text-sm tracking-[0.05em] md:block font-sans">NorthStar</span>
           </Link>
         </div>
 

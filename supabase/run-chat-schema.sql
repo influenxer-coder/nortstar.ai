@@ -129,13 +129,19 @@ CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- Agents (user-created: name required for Slack/meetings, Google Drive via SSO, main KPI)
+-- Agents (Create Agent flow: name, url, GitHub, PostHog, target_element, status)
 CREATE TABLE IF NOT EXISTS public.agents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  url TEXT,
+  github_repo TEXT,
+  posthog_api_key TEXT,
+  posthog_project_id TEXT,
+  target_element JSONB,
+  status TEXT DEFAULT 'Analyzing',
   google_drive_roadmap_url TEXT,
-  main_kpi TEXT NOT NULL,
+  main_kpi TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

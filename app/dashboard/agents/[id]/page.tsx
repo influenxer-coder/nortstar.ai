@@ -12,7 +12,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   const { data: agent } = await supabase
     .from('agents')
-    .select('id, name, google_drive_roadmap_url, main_kpi, created_at, updated_at')
+    .select('id, name, url, github_repo, target_element, status, google_drive_roadmap_url, main_kpi, created_at, updated_at')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -40,10 +40,39 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         </div>
 
         <dl className="space-y-4 text-sm">
-          <div>
-            <dt className="text-zinc-500 font-medium">Main KPI</dt>
-            <dd className="text-zinc-100 mt-1">{(agent as Agent).main_kpi}</dd>
-          </div>
+          {(agent as Agent).url && (
+            <div>
+              <dt className="text-zinc-500 font-medium">Target URL</dt>
+              <dd className="mt-1">
+                <a
+                  href={(agent as Agent).url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-violet-400 hover:text-violet-300 truncate block max-w-full"
+                >
+                  {(agent as Agent).url}
+                </a>
+              </dd>
+            </div>
+          )}
+          {(agent as Agent).target_element?.text && (
+            <div>
+              <dt className="text-zinc-500 font-medium">Target element</dt>
+              <dd className="text-zinc-100 mt-1">{(agent as Agent).target_element?.text}</dd>
+            </div>
+          )}
+          {(agent as Agent).status && (
+            <div>
+              <dt className="text-zinc-500 font-medium">Status</dt>
+              <dd className="text-zinc-100 mt-1">{(agent as Agent).status}</dd>
+            </div>
+          )}
+          {(agent as Agent).main_kpi && (
+            <div>
+              <dt className="text-zinc-500 font-medium">Main KPI</dt>
+              <dd className="text-zinc-100 mt-1">{(agent as Agent).main_kpi}</dd>
+            </div>
+          )}
           {(agent as Agent).google_drive_roadmap_url && (
             <div>
               <dt className="text-zinc-500 font-medium">Google Drive roadmap</dt>

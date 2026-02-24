@@ -148,8 +148,14 @@ export interface Agent {
   id: string
   user_id: string
   name: string
-  google_drive_roadmap_url: string | null
-  main_kpi: string
+  url: string | null
+  github_repo: string | null
+  posthog_api_key: string | null
+  posthog_project_id: string | null
+  target_element: { type?: string; text?: string; position?: Record<string, number> } | null
+  status: string | null
   created_at: string
   updated_at: string
+  google_drive_roadmap_url?: string | null
+  main_kpi?: string
 }

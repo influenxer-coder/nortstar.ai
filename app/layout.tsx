@@ -1,10 +1,18 @@
 import type { Metadata } from 'next'
-import { Inter, Syne } from 'next/font/google'
+import { Instrument_Serif, DM_Sans } from 'next/font/google'
 import PostHogProvider from '@/components/PostHogProvider'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
-const syne = Syne({ subsets: ['latin'], variable: '--font-syne' })
+const instrumentSerif = Instrument_Serif({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-instrument-serif',
+})
+const dmSans = DM_Sans({
+  weight: ['300', '400', '500', '600'],
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+})
 
 export const metadata: Metadata = {
   title: 'NorthStar — Autonomous Feature Improvement',
@@ -24,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} ${syne.variable} antialiased bg-zinc-950 text-zinc-50 font-sans`}>
+      <body className={`${dmSans.variable} ${instrumentSerif.variable} ${dmSans.className} antialiased bg-zinc-950 text-zinc-50 font-sans`}>
         <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>

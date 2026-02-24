@@ -10,7 +10,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        display: ['var(--font-syne)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-instrument-serif)', 'Instrument Serif', 'serif'],
+        sans: ['var(--font-dm-sans)', 'DM Sans', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -11,10 +11,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#1a1a1a] bg-[#0A0A0A]/90 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Logo size={28} className="shrink-0" />
-            <span className="font-semibold tracking-tight">NorthStar</span>
-          </div>
+          <Logo size={28} wordmark color="white" className="shrink-0" />
           <div className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
             <a href="#problem" className="hover:text-zinc-100 transition-colors">The problem</a>
             <a href="#how-it-works" className="hover:text-zinc-100 transition-colors">How it works</a>
@@ -250,9 +247,9 @@ export default function LandingPage() {
       {/* SECTION 7: FOOTER */}
       <footer className="py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[10px] text-zinc-400">
             <Logo size={20} className="shrink-0" />
-            <span className="font-semibold text-zinc-400">NorthStar</span>
+            <span className="font-medium tracking-[0.05em] font-sans">NorthStar</span>
           </div>
           <p className="text-xs text-zinc-500 text-center md:text-left max-w-md">
             Built by a PM who spent a decade at Snap, Meta, Apple, and Google. This is the tool that should have existed the whole time.

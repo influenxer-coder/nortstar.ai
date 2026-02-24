@@ -10,7 +10,7 @@ const words2 = LINE2.split(' ')
 
 export default function HeroHeadline() {
   return (
-    <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-zinc-100 text-center">
+    <h1 className="font-display font-normal leading-tight text-zinc-100 text-center" style={{ fontSize: 'clamp(48px, 6vw, 80px)', letterSpacing: '-0.02em' }}>
       <span className="block">
         {words1.map((word, i) => (
           <motion.span

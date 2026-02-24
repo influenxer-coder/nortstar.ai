@@ -11,7 +11,7 @@ export default async function AgentsPage() {
 
   const { data: agents } = await supabase
     .from('agents')
-    .select('id, name, main_kpi, google_drive_roadmap_url, created_at')
+    .select('id, name, url, target_element, status, main_kpi, google_drive_roadmap_url, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -32,7 +32,7 @@ export default async function AgentsPage() {
           <Bot className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-zinc-100 mb-2">No agents yet</h2>
           <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto">
-            Create an agent to link your Google Drive roadmap and define the main KPI for prioritization.
+            Create an agent: connect a URL, GitHub, and PostHog, then pick the element to optimize.
           </p>
           <Link href="/dashboard/agents/new">
             <Button className="bg-violet-600 hover:bg-violet-500 text-white gap-2">
@@ -54,18 +54,30 @@ export default async function AgentsPage() {
                     <h3 className="font-semibold text-zinc-100 truncate">
                       {agent.name}
                     </h3>
-                    <p className="text-sm text-zinc-400 mt-1">
-                      <span className="text-zinc-500">Main KPI:</span> {agent.main_kpi}
-                    </p>
-                    {agent.google_drive_roadmap_url && (
-                      <p className="text-xs text-zinc-500 mt-1 truncate">
-                        Roadmap: {agent.google_drive_roadmap_url}
+                    {(agent as Agent).url && (
+                      <p className="text-sm text-zinc-400 mt-1 truncate">
+                        <span className="text-zinc-500">URL:</span> {(agent as Agent).url}
+                      </p>
+                    )}
+                    {(agent as Agent).target_element?.text && (
+                      <p className="text-xs text-zinc-500 mt-0.5 truncate">
+                        Element: {(agent as Agent).target_element?.text}
+                      </p>
+                    )}
+                    {!(agent as Agent).url && (agent as Agent).main_kpi && (
+                      <p className="text-sm text-zinc-400 mt-1">
+                        <span className="text-zinc-500">Main KPI:</span> {(agent as Agent).main_kpi}
                       </p>
                     )}
                   </div>
-                  <span className="text-xs text-zinc-500 shrink-0">
-                    {new Date(agent.created_at).toLocaleDateString()}
-                  </span>
+                  <div className="shrink-0 text-right">
+                    <span className="text-xs text-zinc-500 block">
+                      {(agent as Agent).status || 'Analyzing'}
+                    </span>
+                    <span className="text-xs text-zinc-500 block mt-0.5">
+                      {new Date(agent.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
               </Link>
             </li>

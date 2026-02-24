@@ -3,48 +3,59 @@
 interface LogoProps {
   className?: string
   size?: number
+  /** Render mark + "NorthStar" wordmark with 10px gap (e.g. for nav) */
+  wordmark?: boolean
+  /** Mark color: 'white' | 'purple'. Default white when wordmark, else inherit (currentColor) */
+  color?: 'white' | 'purple'
 }
 
 /**
- * North Star logo: eight-pointed star with dark red center and lighter red points.
- * Flat design matching the brand mark.
+ * NorthStar logo: four-point star (✦), sharp geometric, slightly elongated on vertical axis.
+ * Optional wordmark "NorthStar" in DM Sans Medium, 0.05em letter-spacing.
  */
-export function Logo({ className = '', size = 24 }: LogoProps) {
-  const cx = size / 2
-  const cy = size / 2
-  const innerR = size * 0.18  // center circle
-  const midR = size * 0.22    // base of each point
-  const outerR = size * 0.48  // tip of each point
+export function Logo({
+  className = '',
+  size = 24,
+  wordmark = false,
+  color,
+}: LogoProps) {
+  const s = Math.min(32, Math.max(28, size))
+  const cx = s / 2
+  const cy = s / 2
+  const ry = s * 0.48
+  const rx = s * 0.42
+  const fill = color === 'purple' ? '#7C3AED' : color === 'white' ? '#fff' : 'currentColor'
 
-  const deg = (d: number) => (d * Math.PI) / 180
+  const points = [
+    [cx, cy - ry],
+    [cx + rx, cy],
+    [cx, cy + ry],
+    [cx - rx, cy],
+  ]
+  const pts = points.map(([x, y]) => `${x},${y}`).join(' ')
 
-  return (
+  const mark = (
     <svg
-      viewBox={`0 0 ${size} ${size}`}
-      width={size}
-      height={size}
+      viewBox={`0 0 ${s} ${s}`}
+      width={s}
+      height={s}
       className={className}
       aria-hidden
     >
-      {/* 8 radiating points (lighter red) */}
-      <g fill="#eb554f">
-        {[...Array(8)].map((_, i) => {
-          const a = i * 45
-          const a1 = a - 22.5
-          const a2 = a + 22.5
-          const x0 = cx + midR * Math.cos(deg(a1))
-          const y0 = cy + midR * Math.sin(deg(a1))
-          const x1 = cx + midR * Math.cos(deg(a2))
-          const y1 = cy + midR * Math.sin(deg(a2))
-          const x2 = cx + outerR * Math.cos(deg(a))
-          const y2 = cy + outerR * Math.sin(deg(a))
-          return (
-            <polygon key={i} points={`${x0},${y0} ${x1},${y1} ${x2},${y2}`} />
-          )
-        })}
-      </g>
-      {/* Center circle (darker red) */}
-      <circle cx={cx} cy={cy} r={innerR} fill="#b72b2a" />
+      <polygon points={pts} fill={fill} />
     </svg>
   )
+
+  if (wordmark) {
+    return (
+      <div className="inline-flex items-center gap-[10px]">
+        {mark}
+        <span className="font-medium tracking-[0.05em] font-sans text-[15px] sm:text-base text-inherit">
+          NorthStar
+        </span>
+      </div>
+    )
+  }
+
+  return mark
 }
