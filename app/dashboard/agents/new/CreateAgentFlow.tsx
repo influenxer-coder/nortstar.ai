@@ -48,20 +48,34 @@ export default function CreateAgentFlow() {
   const [selectedElement, setSelectedElement] = useState<CrawlElement | null>(null)
   const [submitLoading, setSubmitLoading] = useState(false)
   const [screenshotScale, setScreenshotScale] = useState<{ scaleX: number; scaleY: number } | null>(null)
+  const [githubRepos, setGithubRepos] = useState<{ full_name: string; name: string; private: boolean }[]>([])
+  const [githubReposLoading, setGithubReposLoading] = useState(false)
 
-  const githubRepoFromUrl = searchParams.get('github_repo')
-  useEffect(() => {
-    if (githubRepoFromUrl) {
-      setGithubRepo(decodeURIComponent(githubRepoFromUrl))
-      setStep(2)
-      router.replace('/dashboard/agents/new?step=2', { scroll: false })
-    }
-  }, [githubRepoFromUrl, router])
-
+  // Sync step from URL only (form state is preserved when navigating back)
   useEffect(() => {
     const s = searchParams.get('step')
     if (s) setStep(Math.min(STEPS, Math.max(1, parseInt(s, 10) || 1)))
   }, [searchParams])
+
+  // Fetch GitHub repos when on step 2: after OAuth (github=connected) or when list empty (e.g. refresh)
+  useEffect(() => {
+    if (step !== 2) return
+    const fromOAuth = searchParams.get('github') === 'connected'
+    if (!fromOAuth && githubRepos.length > 0) return
+    let cancelled = false
+    setGithubReposLoading(true)
+    fetch('/api/github/repos')
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        setGithubRepos(data.repos ?? [])
+        if (fromOAuth) router.replace('/dashboard/agents/new?step=2', { scroll: false })
+      })
+      .finally(() => {
+        if (!cancelled) setGithubReposLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [step, searchParams.get('github'), router, githubRepos.length])
 
   const canContinueStep1 = name.trim() && url.trim() && validateUrl(url)
   const canContinueStep2 = !!githubRepo
@@ -243,10 +257,31 @@ export default function CreateAgentFlow() {
             <h1 className="text-2xl font-sans font-bold text-zinc-100 mb-2">Connect your codebase</h1>
             <p className="text-zinc-400 text-sm mb-6">We need read/write access to ship code changes.</p>
             <div className="space-y-6">
-              {githubRepo ? (
-                <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 px-4 py-3 text-white">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-                  <span className="font-mono text-sm">{githubRepo}</span>
+              {githubReposLoading ? (
+                <div className="flex items-center gap-2 text-zinc-400 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading repositories…
+                </div>
+              ) : githubRepos.length > 0 ? (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">Choose repository</label>
+                  <select
+                    value={githubRepo}
+                    onChange={(e) => setGithubRepo(e.target.value)}
+                    className="w-full h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                  >
+                    <option value="">Select a repository</option>
+                    {githubRepos.map((r) => (
+                      <option key={r.full_name} value={r.full_name}>
+                        {r.full_name} {r.private ? '(private)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {githubRepo && (
+                    <div className="flex items-center gap-2 mt-2 text-emerald-400 text-sm">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span className="font-mono">{githubRepo}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <a

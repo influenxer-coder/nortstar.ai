@@ -57,17 +57,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`${next}&error=no_token`, request.url))
   }
 
-  const reposRes = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!reposRes.ok) {
-    return NextResponse.redirect(new URL(`${next}&error=repos`, request.url))
-  }
-
-  const repos: { full_name?: string }[] = await reposRes.json()
-  const firstRepo = Array.isArray(repos) && repos.length > 0 ? repos[0]?.full_name : null
-  const githubRepo = firstRepo || ''
-
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -85,8 +74,6 @@ export async function GET(request: Request) {
     { onConflict: 'user_id,context_type,key' }
   )
 
-  const redirectUrl = githubRepo
-    ? `${next}${next.includes('?') ? '&' : '?'}github_repo=${encodeURIComponent(githubRepo)}`
-    : next
+  const redirectUrl = `${next}${next.includes('?') ? '&' : '?'}github=connected`
   return NextResponse.redirect(new URL(redirectUrl, request.url))
 }
