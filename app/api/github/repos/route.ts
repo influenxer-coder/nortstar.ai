@@ -23,26 +23,37 @@ export async function GET() {
 
   const auth = { Authorization: `Bearer ${token}` }
   const allRepos: { full_name?: string; name?: string; private?: boolean }[] = []
-  let url: string | null = 'https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member'
+  let url: string | null =
+    'https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member'
 
-  while (url) {
-    const res: Response = await fetch(url, { headers: auth })
-    if (!res.ok) {
-      return NextResponse.json({ repos: [], connected: false }, { status: 200 })
+  // Abort the entire pagination loop after 10 seconds
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10_000)
+
+  try {
+    let page = 0
+    while (url && page < 5) {
+      page++
+      const res: Response = await fetch(url, {
+        headers: auth,
+        signal: controller.signal,
+      })
+      if (!res.ok) break
+      const items: { full_name?: string; name?: string; private?: boolean }[] = await res.json()
+      allRepos.push(...items)
+      const link = res.headers.get('Link')
+      const nextMatch = link?.match(/<([^>]+)>;\s*rel="next"/)
+      url = nextMatch ? nextMatch[1] : null
     }
-    const page: { full_name?: string; name?: string; private?: boolean }[] = await res.json()
-    allRepos.push(...page)
-
-    const link = res.headers.get('Link')
-    const nextMatch = link?.match(/<([^>]+)>;\s*rel="next"/)
-    url = nextMatch ? nextMatch[1] : null
+  } catch {
+    // Timeout or network error — return whatever we have
+  } finally {
+    clearTimeout(timeoutId)
   }
 
-  const list = allRepos.map((r) => ({
-    full_name: r.full_name || '',
-    name: r.name || '',
-    private: r.private ?? false,
-  })).filter((r) => r.full_name)
+  const list = allRepos
+    .map((r) => ({ full_name: r.full_name || '', name: r.name || '', private: r.private ?? false }))
+    .filter((r) => r.full_name)
 
   return NextResponse.json({ repos: list, connected: true })
 }

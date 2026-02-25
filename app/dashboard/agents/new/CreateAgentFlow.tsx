@@ -65,7 +65,9 @@ export default function CreateAgentFlow() {
     if (!fromOAuth && githubRepos.length > 0) return
     let cancelled = false
     setGithubReposLoading(true)
-    fetch('/api/github/repos')
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 12_000)
+    fetch('/api/github/repos', { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return
@@ -73,10 +75,12 @@ export default function CreateAgentFlow() {
         setGithubConnected(data.connected ?? false)
         if (fromOAuth) router.replace('/dashboard/agents/new?step=2', { scroll: false })
       })
+      .catch(() => { /* timeout or network error — loading will stop in finally */ })
       .finally(() => {
+        clearTimeout(timeoutId)
         if (!cancelled) setGithubReposLoading(false)
       })
-    return () => { cancelled = true }
+    return () => { cancelled = true; controller.abort() }
   }, [step, searchParams.get('github'), router, githubRepos.length])
 
   const canContinueStep1 = name.trim() && url.trim() && validateUrl(url)
