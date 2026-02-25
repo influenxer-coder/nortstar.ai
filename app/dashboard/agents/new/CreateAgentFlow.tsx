@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,10 @@ export default function CreateAgentFlow() {
   const [githubRepos, setGithubRepos] = useState<{ full_name: string; name: string; private: boolean }[]>([])
   const [githubReposLoading, setGithubReposLoading] = useState(false)
   const [githubConnected, setGithubConnected] = useState(false)
+  // Incremented each time OAuth completes — triggers a fresh repo fetch
+  const [oauthCount, setOauthCount] = useState(0)
+  const didFetchRef = useRef(false)
+  const lastOauthCountRef = useRef(0)
 
   // Sync step from URL only (form state is preserved when navigating back)
   useEffect(() => {
@@ -58,30 +62,47 @@ export default function CreateAgentFlow() {
     if (s) setStep(Math.min(STEPS, Math.max(1, parseInt(s, 10) || 1)))
   }, [searchParams])
 
-  // Fetch GitHub repos when on step 2: after OAuth (github=connected) or when list empty (e.g. refresh)
+  // Effect 1: detect OAuth return, clean up the URL, signal a refetch.
+  // Kept separate so the URL change never races with the fetch below.
+  useEffect(() => {
+    if (step === 2 && searchParams.get('github') === 'connected') {
+      router.replace('/dashboard/agents/new?step=2', { scroll: false })
+      setOauthCount((c) => c + 1)
+    }
+  }, [step, searchParams, router])
+
+  // Effect 2: fetch repos — deps are [step, oauthCount] only.
+  // searchParams is intentionally excluded so router.replace() cannot
+  // trigger a cleanup that sets `alive = false` mid-fetch.
   useEffect(() => {
     if (step !== 2) return
-    const fromOAuth = searchParams.get('github') === 'connected'
-    if (!fromOAuth && githubRepos.length > 0) return
-    let cancelled = false
+    const isInitial = !didFetchRef.current
+    const isOAuthRefetch = oauthCount > lastOauthCountRef.current
+    if (!isInitial && !isOAuthRefetch) return
+
+    didFetchRef.current = true
+    lastOauthCountRef.current = oauthCount
+
+    let alive = true
     setGithubReposLoading(true)
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 12_000)
+
     fetch('/api/github/repos', { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
-        if (cancelled) return
+        if (!alive) return
         setGithubRepos(data.repos ?? [])
         setGithubConnected(data.connected ?? false)
-        if (fromOAuth) router.replace('/dashboard/agents/new?step=2', { scroll: false })
       })
-      .catch(() => { /* timeout or network error — loading will stop in finally */ })
+      .catch(() => {})
       .finally(() => {
         clearTimeout(timeoutId)
-        if (!cancelled) setGithubReposLoading(false)
+        if (alive) setGithubReposLoading(false)
       })
-    return () => { cancelled = true; controller.abort() }
-  }, [step, searchParams.get('github'), router, githubRepos.length])
+
+    return () => { alive = false; controller.abort() }
+  }, [step, oauthCount])
 
   const canContinueStep1 = name.trim() && url.trim() && validateUrl(url)
   const canContinueStep2 = !!githubRepo
