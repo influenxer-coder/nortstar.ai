@@ -204,7 +204,7 @@ export default function CreateAgentFlow() {
 
         {step === 1 && (
           <>
-            <h1 className="text-2xl font-display font-bold text-zinc-100 mb-2">Agent basics</h1>
+            <h1 className="text-2xl font-sans font-bold text-zinc-100 mb-2">Agent basics</h1>
             <div className="space-y-6 mt-8">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">Agent name</label>
@@ -240,7 +240,7 @@ export default function CreateAgentFlow() {
 
         {step === 2 && (
           <>
-            <h1 className="text-2xl font-display font-bold text-zinc-100 mb-2">Connect your codebase</h1>
+            <h1 className="text-2xl font-sans font-bold text-zinc-100 mb-2">Connect your codebase</h1>
             <p className="text-zinc-400 text-sm mb-6">We need read/write access to ship code changes.</p>
             <div className="space-y-6">
               {githubRepo ? (
@@ -278,7 +278,7 @@ export default function CreateAgentFlow() {
 
         {step === 3 && (
           <>
-            <h1 className="text-2xl font-display font-bold text-zinc-100 mb-2">Connect your analytics</h1>
+            <h1 className="text-2xl font-sans font-bold text-zinc-100 mb-2">Connect your analytics</h1>
             <p className="text-zinc-400 text-sm mb-6">We read user behavior signals to form hypotheses.</p>
             <div className="space-y-6">
               <div>
@@ -332,7 +332,7 @@ export default function CreateAgentFlow() {
 
         {step === 4 && (
           <>
-            <h1 className="text-2xl font-display font-bold text-zinc-100 mb-2">What do you want to improve?</h1>
+            <h1 className="text-2xl font-sans font-bold text-zinc-100 mb-2">What do you want to improve?</h1>
             <p className="text-zinc-400 text-sm mb-6">We&apos;ll crawl your page and show you what we found.</p>
 
             {crawlLoading && (

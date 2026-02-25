@@ -69,7 +69,7 @@ export default function LandingPage() {
       {/* SECTION 2: THE PROBLEM */}
       <section id="problem" className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-zinc-100 mb-8">
+          <h2 className="font-sans text-3xl md:text-4xl font-bold text-zinc-100 mb-8">
             Your best features are frozen.
           </h2>
           <p className="text-zinc-400 text-base md:text-lg max-w-[580px] mx-auto leading-relaxed mb-16">
@@ -77,15 +77,15 @@ export default function LandingPage() {
           </p>
           <div className="grid sm:grid-cols-3 gap-6">
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6 text-center">
-              <div className="font-display text-2xl font-bold text-zinc-100">8 weeks</div>
+              <div className="font-sans text-2xl font-bold text-zinc-100">8 weeks</div>
               <p className="text-sm text-zinc-500 mt-1">avg improvement cycle today</p>
             </div>
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6 text-center">
-              <div className="font-display text-2xl font-bold text-zinc-100">3 features</div>
+              <div className="font-sans text-2xl font-bold text-zinc-100">3 features</div>
               <p className="text-sm text-zinc-500 mt-1">shipped per quarter without NorthStar</p>
             </div>
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6 text-center">
-              <div className="font-display text-2xl font-bold text-[#7C3AED]">1%</div>
+              <div className="font-sans text-2xl font-bold text-[#7C3AED]">1%</div>
               <p className="text-sm text-zinc-500 mt-1">weekly compounding improvement with NorthStar</p>
             </div>
           </div>
@@ -98,34 +98,34 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-24 px-6">
         <div className="max-w-4xl mx-auto">
           <p className="text-[#7C3AED] text-xs font-medium uppercase tracking-widest mb-2">The loop</p>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-zinc-100 mb-16">
+          <h2 className="font-sans text-3xl md:text-4xl font-bold text-zinc-100 mb-16">
             Four steps. Runs forever.
           </h2>
           <div className="grid sm:grid-cols-2 gap-6 mb-12">
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6">
               <span className="text-xs font-mono text-zinc-500">01</span>
-              <h3 className="font-display text-lg font-semibold text-zinc-100 mt-2 mb-3">Connect</h3>
+              <h3 className="font-sans text-lg font-semibold text-zinc-100 mt-2 mb-3">Connect</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Point NorthStar at any public URL. Connect your GitHub repo in one OAuth click.
               </p>
             </div>
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6">
               <span className="text-xs font-mono text-zinc-500">02</span>
-              <h3 className="font-display text-lg font-semibold text-zinc-100 mt-2 mb-3">Select</h3>
+              <h3 className="font-sans text-lg font-semibold text-zinc-100 mt-2 mb-3">Select</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 NorthStar crawls your page and maps every interactive element. You pick the one thing to improve.
               </p>
             </div>
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6">
               <span className="text-xs font-mono text-zinc-500">03</span>
-              <h3 className="font-display text-lg font-semibold text-zinc-100 mt-2 mb-3">Run</h3>
+              <h3 className="font-sans text-lg font-semibold text-zinc-100 mt-2 mb-3">Run</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 The agent reads behavior signals, forms a hypothesis, ships a code change to 10% of traffic, and measures the outcome — all within 48 hours.
               </p>
             </div>
             <div className="rounded-xl border border-[#1a1a1a] bg-[#0A0A0A] p-6">
               <span className="text-xs font-mono text-zinc-500">04</span>
-              <h3 className="font-display text-lg font-semibold text-zinc-100 mt-2 mb-3">Compound</h3>
+              <h3 className="font-sans text-lg font-semibold text-zinc-100 mt-2 mb-3">Compound</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Every cycle makes the next hypothesis smarter. The feature gets 1% better every week. Compounding continuously.
               </p>
@@ -142,17 +142,17 @@ export default function LandingPage() {
       {/* SECTION 4: THE MATH */}
       <section className="py-24 px-6">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-zinc-100 mb-16">
+          <h2 className="font-sans text-3xl md:text-4xl font-bold text-zinc-100 mb-16">
             Small improvements. Massive revenue impact.
           </h2>
           <div className="space-y-6 mb-8">
             <div>
-              <div className="font-display text-5xl md:text-6xl font-bold text-[#7C3AED]">2%</div>
+              <div className="font-sans text-5xl md:text-6xl font-bold text-[#7C3AED]">2%</div>
               <p className="text-zinc-500 mt-1">conversion improvement</p>
             </div>
             <div className="text-zinc-600">↓</div>
             <div>
-              <div className="font-display text-5xl md:text-6xl font-bold text-zinc-100">$10M</div>
+              <div className="font-sans text-5xl md:text-6xl font-bold text-zinc-100">$10M</div>
               <p className="text-zinc-500 mt-1">on a $500M revenue surface</p>
             </div>
           </div>
@@ -167,12 +167,12 @@ export default function LandingPage() {
       {/* SECTION 5: WHO IT'S FOR */}
       <section id="who-its-for" className="py-24 px-6">
         <div className="max-w-4xl mx-auto">
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-zinc-100 text-center mb-16">
+          <h2 className="font-sans text-3xl md:text-4xl font-bold text-zinc-100 text-center mb-16">
             Built for companies with high-traffic surfaces<br className="hidden sm:block" /> and slow improvement cycles.
           </h2>
           <div className="grid md:grid-cols-2 gap-12 md:gap-16">
             <div>
-              <h3 className="font-display text-lg font-semibold text-zinc-200 mb-4">Right fit</h3>
+              <h3 className="font-sans text-lg font-semibold text-zinc-200 mb-4">Right fit</h3>
               <ul className="space-y-3 text-sm text-zinc-400">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 mt-0.5">✓</span>
@@ -193,7 +193,7 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h3 className="font-display text-lg font-semibold text-zinc-200 mb-4">What you get</h3>
+              <h3 className="font-sans text-lg font-semibold text-zinc-200 mb-4">What you get</h3>
               <ul className="space-y-3 text-sm text-zinc-400">
                 <li className="flex items-start gap-2">
                   <span className="text-[#7C3AED] mt-0.5">→</span>
@@ -224,7 +224,7 @@ export default function LandingPage() {
         <div className="max-w-xl mx-auto">
           <div className="rounded-2xl border border-[#7C3AED]/30 bg-[#0A0A0A] p-8 md:p-10 text-center shadow-[0_0_60px_-12px_rgba(124,58,237,0.25)]">
             <p className="text-[#7C3AED] text-xs font-medium uppercase tracking-widest mb-4">Closed pilot</p>
-            <h2 className="font-display text-2xl md:text-3xl font-bold text-zinc-100 mb-6 leading-tight">
+            <h2 className="font-sans text-2xl md:text-3xl font-bold text-zinc-100 mb-6 leading-tight">
               We&apos;re running a closed pilot<br /> with 5 companies.
             </h2>
             <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
