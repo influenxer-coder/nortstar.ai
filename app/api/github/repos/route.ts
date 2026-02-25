@@ -21,16 +21,24 @@ export async function GET() {
     return NextResponse.json({ repos: [], connected: false }, { status: 200 })
   }
 
-  const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  const auth = { Authorization: `Bearer ${token}` }
+  const allRepos: { full_name?: string; name?: string; private?: boolean }[] = []
+  let url: string | null = 'https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member'
 
-  if (!res.ok) {
-    return NextResponse.json({ repos: [], connected: false }, { status: 200 })
+  while (url) {
+    const res = await fetch(url, { headers: auth })
+    if (!res.ok) {
+      return NextResponse.json({ repos: [], connected: false }, { status: 200 })
+    }
+    const page: { full_name?: string; name?: string; private?: boolean }[] = await res.json()
+    allRepos.push(...page)
+
+    const link = res.headers.get('Link')
+    const nextMatch = link?.match(/<([^>]+)>;\s*rel="next"/)
+    url = nextMatch ? nextMatch[1] : null
   }
 
-  const repos: { full_name?: string; name?: string; private?: boolean }[] = await res.json()
-  const list = repos.map((r) => ({
+  const list = allRepos.map((r) => ({
     full_name: r.full_name || '',
     name: r.name || '',
     private: r.private ?? false,
