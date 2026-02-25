@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const next = searchParams.get('next') || '/dashboard/agents/new'
   const clientId = process.env.GITHUB_CLIENT_ID
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET
   const origin = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin') || ''
   const redirectUri = `${origin.replace(/\/$/, '')}/api/auth/github/callback`
 
@@ -19,6 +20,45 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.redirect(new URL(`/auth/signin?next=${encodeURIComponent(request.url)}`, request.url))
+  }
+
+  // Revoke any existing GitHub token so GitHub always shows the full
+  // authorization screen (with the private-repo permission checkbox).
+  // Without this, GitHub silently reuses the old cached authorization
+  // and skips the consent screen entirely.
+  if (clientSecret) {
+    const { data: row } = await supabase
+      .from('user_context')
+      .select('value')
+      .eq('user_id', user.id)
+      .eq('context_type', 'github')
+      .eq('key', 'access_token')
+      .maybeSingle()
+
+    if (row?.value) {
+      // Best-effort revocation — don't block the OAuth redirect on failure
+      try {
+        await fetch(`https://api.github.com/applications/${clientId}/token`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ access_token: row.value }),
+        })
+      } catch {
+        // Ignore revocation errors
+      }
+
+      // Remove the stale token from our DB so we don't show stale data
+      await supabase
+        .from('user_context')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('context_type', 'github')
+        .eq('key', 'access_token')
+    }
   }
 
   const state = Buffer.from(JSON.stringify({ next, userId: user.id })).toString('base64url')
