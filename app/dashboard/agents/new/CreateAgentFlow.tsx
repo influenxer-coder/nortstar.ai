@@ -50,6 +50,7 @@ export default function CreateAgentFlow() {
   const [screenshotScale, setScreenshotScale] = useState<{ scaleX: number; scaleY: number } | null>(null)
   const [githubRepos, setGithubRepos] = useState<{ full_name: string; name: string; private: boolean }[]>([])
   const [githubReposLoading, setGithubReposLoading] = useState(false)
+  const [githubConnected, setGithubConnected] = useState(false)
 
   // Sync step from URL only (form state is preserved when navigating back)
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function CreateAgentFlow() {
       .then((data) => {
         if (cancelled) return
         setGithubRepos(data.repos ?? [])
+        setGithubConnected(data.connected ?? false)
         if (fromOAuth) router.replace('/dashboard/agents/new?step=2', { scroll: false })
       })
       .finally(() => {
@@ -263,7 +265,15 @@ export default function CreateAgentFlow() {
                 </div>
               ) : githubRepos.length > 0 ? (
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">Choose repository</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-zinc-300">Choose repository</label>
+                    <a
+                      href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2"
+                    >
+                      Reconnect GitHub
+                    </a>
+                  </div>
                   <select
                     value={githubRepo}
                     onChange={(e) => setGithubRepo(e.target.value)}
