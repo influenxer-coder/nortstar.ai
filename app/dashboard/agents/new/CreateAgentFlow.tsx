@@ -51,6 +51,7 @@ export default function CreateAgentFlow() {
   const [githubRepos, setGithubRepos] = useState<{ full_name: string; name: string; private: boolean }[]>([])
   const [githubReposLoading, setGithubReposLoading] = useState(false)
   const [githubNeedsReauth, setGithubNeedsReauth] = useState(false)
+  const [githubNeedsAppPermission, setGithubNeedsAppPermission] = useState(false)
   const [githubScope, setGithubScope] = useState('')
   // Incremented each time OAuth completes — triggers a fresh repo fetch
   const [oauthCount, setOauthCount] = useState(0)
@@ -87,6 +88,7 @@ export default function CreateAgentFlow() {
         if (!alive) return
         setGithubRepos(data.repos ?? [])
         setGithubNeedsReauth(data.needsReauth ?? false)
+        setGithubNeedsAppPermission(data.needsAppPermission ?? false)
         setGithubScope(data.scope ?? '')
       })
       .catch(() => {})
@@ -284,11 +286,29 @@ export default function CreateAgentFlow() {
                 </div>
               ) : githubRepos.length > 0 ? (
                 <div className="space-y-3">
+                  {githubNeedsAppPermission && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+                      <p className="font-medium mb-1">Private repositories not visible</p>
+                      <p className="text-amber-500/80 text-xs leading-relaxed">
+                        Your GitHub App needs the <strong className="text-amber-400">Repository contents</strong> permission.
+                        Go to{' '}
+                        <a
+                          href="https://github.com/settings/developers"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline hover:text-amber-300"
+                        >
+                          GitHub → Developer Settings → GitHub Apps → NorthStar AI → Permissions
+                        </a>
+                        {' '}and set <strong className="text-amber-400">Contents → Read &amp; Write</strong>, then reconnect.
+                      </p>
+                    </div>
+                  )}
                   {githubNeedsReauth && (
                     <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
                       <p className="font-medium mb-1">Private repositories not visible</p>
-                      <p className="text-amber-500/80 text-xs leading-relaxed mb-2">
-                        Only public repos are shown (granted scope: <code className="font-mono">{githubScope || 'none'}</code>).{' '}
+                      <p className="text-amber-500/80 text-xs leading-relaxed">
+                        Only public repos are shown (scope: <code className="font-mono">{githubScope}</code>).{' '}
                         <a
                           href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
                           className="underline hover:text-amber-300"

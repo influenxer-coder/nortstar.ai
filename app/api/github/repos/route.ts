@@ -16,7 +16,7 @@ export async function GET() {
     .eq('key', 'access_token')
     .maybeSingle()
 
-  const token = row?.value
+  const token = row?.value?.trim()
   if (!token) {
     return NextResponse.json({ repos: [], connected: false }, { status: 200 })
   }
@@ -30,6 +30,9 @@ export async function GET() {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 10_000)
 
+  // X-OAuth-Scopes is only present for OAuth App tokens, not GitHub App tokens.
+  // For GitHub Apps, scope is determined by the app's configured permissions,
+  // so we detect private-repo access by checking if private repos appear in results.
   let rawScope = ''
 
   try {
@@ -39,11 +42,10 @@ export async function GET() {
       const res: Response = await fetch(url, {
         headers: auth,
         signal: controller.signal,
+        cache: 'no-store',
       })
       if (!res.ok) break
 
-      // Capture the granted scope from the first page for reporting back to the client.
-      // Do NOT break early — always fetch all repos so at minimum public repos show.
       if (page === 1) {
         rawScope = res.headers.get('X-OAuth-Scopes') || ''
       }
@@ -64,14 +66,23 @@ export async function GET() {
     .map((r) => ({ full_name: r.full_name || '', name: r.name || '', private: r.private ?? false }))
     .filter((r) => r.full_name)
 
-  // Check if the token has full repo (private) access.
+  // For OAuth Apps: check X-OAuth-Scopes header.
+  // For GitHub Apps: X-OAuth-Scopes is always empty; check if private repos are in the results.
   const grantedScopes = rawScope.split(',').map((s) => s.trim()).filter(Boolean)
-  const hasFullRepoAccess = grantedScopes.includes('repo')
+  const hasOAuthRepoScope = grantedScopes.includes('repo')
+  const hasPrivateRepos = list.some((r) => r.private)
+  const isGitHubApp = rawScope === '' // GitHub Apps don't return X-OAuth-Scopes
+
+  // needsReauth is only true for OAuth Apps with insufficient scope.
+  // For GitHub Apps, private access is configured in app settings, not here.
+  const needsReauth = !isGitHubApp && !hasOAuthRepoScope
+  const needsAppPermission = isGitHubApp && !hasPrivateRepos
 
   return NextResponse.json({
     repos: list,
     connected: true,
-    needsReauth: !hasFullRepoAccess,
-    scope: rawScope, // exposed for debugging
+    needsReauth,
+    needsAppPermission,
+    scope: rawScope || (isGitHubApp ? '(GitHub App — no scope header)' : 'none'),
   })
 }
