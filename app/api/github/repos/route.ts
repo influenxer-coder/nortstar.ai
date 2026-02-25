@@ -26,7 +26,7 @@ export async function GET() {
   let url: string | null = 'https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member'
 
   while (url) {
-    const res = await fetch(url, { headers: auth })
+    const res: Response = await fetch(url, { headers: auth })
     if (!res.ok) {
       return NextResponse.json({ repos: [], connected: false }, { status: 200 })
     }
