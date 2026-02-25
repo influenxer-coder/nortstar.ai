@@ -51,6 +51,7 @@ export default function CreateAgentFlow() {
   const [githubRepos, setGithubRepos] = useState<{ full_name: string; name: string; private: boolean }[]>([])
   const [githubReposLoading, setGithubReposLoading] = useState(false)
   const [githubNeedsReauth, setGithubNeedsReauth] = useState(false)
+  const [githubScope, setGithubScope] = useState('')
   // Incremented each time OAuth completes — triggers a fresh repo fetch
   const [oauthCount, setOauthCount] = useState(0)
 
@@ -86,6 +87,7 @@ export default function CreateAgentFlow() {
         if (!alive) return
         setGithubRepos(data.repos ?? [])
         setGithubNeedsReauth(data.needsReauth ?? false)
+        setGithubScope(data.scope ?? '')
       })
       .catch(() => {})
       .finally(() => {
@@ -280,62 +282,51 @@ export default function CreateAgentFlow() {
                 <div className="flex items-center gap-2 text-zinc-400 py-2">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading repositories…
                 </div>
-              ) : githubNeedsReauth ? (
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-                    <p className="font-medium mb-1">Private repository access not granted</p>
-                    <p className="text-amber-500/80 text-xs leading-relaxed">
-                      Your GitHub connection doesn&apos;t include private repositories. Click below,
-                      then on GitHub&apos;s authorization page make sure to approve
-                      <strong className="text-amber-400"> &quot;Access your private repositories&quot;</strong>.
-                      If you don&apos;t see that prompt, first{' '}
-                      <a
-                        href="https://github.com/settings/applications"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline hover:text-amber-300"
-                      >
-                        revoke this app&apos;s access on GitHub
-                      </a>{' '}
-                      and reconnect.
-                    </p>
-                  </div>
-                  <a
-                    href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
-                    className="inline-flex items-center justify-center rounded-md bg-[#7C3AED] hover:bg-[#6D28D9] text-white h-11 px-6 text-sm font-medium"
-                  >
-                    Reconnect GitHub with private access
-                  </a>
-                </div>
               ) : githubRepos.length > 0 ? (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-zinc-300">Choose repository</label>
-                    <a
-                      href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
-                      className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2"
-                    >
-                      Reconnect GitHub
-                    </a>
-                  </div>
-                  <select
-                    value={githubRepo}
-                    onChange={(e) => setGithubRepo(e.target.value)}
-                    className="w-full h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                  >
-                    <option value="">Select a repository</option>
-                    {githubRepos.map((r) => (
-                      <option key={r.full_name} value={r.full_name}>
-                        {r.full_name} {r.private ? '(private)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {githubRepo && (
-                    <div className="flex items-center gap-2 mt-2 text-emerald-400 text-sm">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      <span className="font-mono">{githubRepo}</span>
+                <div className="space-y-3">
+                  {githubNeedsReauth && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+                      <p className="font-medium mb-1">Private repositories not visible</p>
+                      <p className="text-amber-500/80 text-xs leading-relaxed mb-2">
+                        Only public repos are shown (granted scope: <code className="font-mono">{githubScope || 'none'}</code>).{' '}
+                        <a
+                          href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
+                          className="underline hover:text-amber-300"
+                        >
+                          Reconnect for private access →
+                        </a>
+                      </p>
                     </div>
                   )}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-zinc-300">Choose repository</label>
+                      <a
+                        href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2"
+                      >
+                        Reconnect GitHub
+                      </a>
+                    </div>
+                    <select
+                      value={githubRepo}
+                      onChange={(e) => setGithubRepo(e.target.value)}
+                      className="w-full h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                    >
+                      <option value="">Select a repository</option>
+                      {githubRepos.map((r) => (
+                        <option key={r.full_name} value={r.full_name}>
+                          {r.full_name} {r.private ? '(private)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {githubRepo && (
+                      <div className="flex items-center gap-2 mt-2 text-emerald-400 text-sm">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span className="font-mono">{githubRepo}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <a

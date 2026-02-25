@@ -30,7 +30,7 @@ export async function GET() {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 10_000)
 
-  let needsReauth = false
+  let rawScope = ''
 
   try {
     let page = 0
@@ -42,16 +42,10 @@ export async function GET() {
       })
       if (!res.ok) break
 
-      // On the first page, check that the token actually has `repo` scope.
-      // GitHub returns the token's granted scopes in every response header.
+      // Capture the granted scope from the first page for reporting back to the client.
+      // Do NOT break early — always fetch all repos so at minimum public repos show.
       if (page === 1) {
-        const grantedScopes = (res.headers.get('X-OAuth-Scopes') || '')
-          .split(',')
-          .map((s) => s.trim())
-        if (!grantedScopes.includes('repo')) {
-          needsReauth = true
-          break
-        }
+        rawScope = res.headers.get('X-OAuth-Scopes') || ''
       }
 
       const items: { full_name?: string; name?: string; private?: boolean }[] = await res.json()
@@ -66,13 +60,18 @@ export async function GET() {
     clearTimeout(timeoutId)
   }
 
-  if (needsReauth) {
-    return NextResponse.json({ repos: [], connected: true, needsReauth: true })
-  }
-
   const list = allRepos
     .map((r) => ({ full_name: r.full_name || '', name: r.name || '', private: r.private ?? false }))
     .filter((r) => r.full_name)
 
-  return NextResponse.json({ repos: list, connected: true })
+  // Check if the token has full repo (private) access.
+  const grantedScopes = rawScope.split(',').map((s) => s.trim()).filter(Boolean)
+  const hasFullRepoAccess = grantedScopes.includes('repo')
+
+  return NextResponse.json({
+    repos: list,
+    connected: true,
+    needsReauth: !hasFullRepoAccess,
+    scope: rawScope, // exposed for debugging
+  })
 }
