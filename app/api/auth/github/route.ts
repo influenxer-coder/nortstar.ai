@@ -36,9 +36,12 @@ export async function GET(request: Request) {
       .maybeSingle()
 
     if (row?.value) {
-      // Best-effort revocation — don't block the OAuth redirect on failure
+      // Delete the OAuth *grant* (not just the token) so GitHub removes the
+      // cached authorization entirely and always shows the full consent screen.
+      // DELETE /token only removes the token; the grant stays and GitHub
+      // silently re-issues a token with the old scopes without user interaction.
       try {
-        await fetch(`https://api.github.com/applications/${clientId}/token`, {
+        await fetch(`https://api.github.com/applications/${clientId}/grant`, {
           method: 'DELETE',
           headers: {
             Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
