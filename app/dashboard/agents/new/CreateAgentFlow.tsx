@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -50,12 +50,9 @@ export default function CreateAgentFlow() {
   const [screenshotScale, setScreenshotScale] = useState<{ scaleX: number; scaleY: number } | null>(null)
   const [githubRepos, setGithubRepos] = useState<{ full_name: string; name: string; private: boolean }[]>([])
   const [githubReposLoading, setGithubReposLoading] = useState(false)
-  const [githubConnected, setGithubConnected] = useState(false)
   const [githubNeedsReauth, setGithubNeedsReauth] = useState(false)
   // Incremented each time OAuth completes — triggers a fresh repo fetch
   const [oauthCount, setOauthCount] = useState(0)
-  const didFetchRef = useRef(false)
-  const lastOauthCountRef = useRef(0)
 
   // Sync step from URL only (form state is preserved when navigating back)
   useEffect(() => {
@@ -72,17 +69,11 @@ export default function CreateAgentFlow() {
     }
   }, [step, searchParams, router])
 
-  // Effect 2: fetch repos — deps are [step, oauthCount] only.
+  // Effect 2: fetch repos whenever step is 2 or oauthCount changes.
   // searchParams is intentionally excluded so router.replace() cannot
   // trigger a cleanup that sets `alive = false` mid-fetch.
   useEffect(() => {
     if (step !== 2) return
-    const isInitial = !didFetchRef.current
-    const isOAuthRefetch = oauthCount > lastOauthCountRef.current
-    if (!isInitial && !isOAuthRefetch) return
-
-    didFetchRef.current = true
-    lastOauthCountRef.current = oauthCount
 
     let alive = true
     setGithubReposLoading(true)
@@ -94,7 +85,6 @@ export default function CreateAgentFlow() {
       .then((data) => {
         if (!alive) return
         setGithubRepos(data.repos ?? [])
-        setGithubConnected(data.connected ?? false)
         setGithubNeedsReauth(data.needsReauth ?? false)
       })
       .catch(() => {})
