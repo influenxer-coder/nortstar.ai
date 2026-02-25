@@ -30,6 +30,8 @@ export async function GET() {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 10_000)
 
+  let needsReauth = false
+
   try {
     let page = 0
     while (url && page < 5) {
@@ -39,6 +41,19 @@ export async function GET() {
         signal: controller.signal,
       })
       if (!res.ok) break
+
+      // On the first page, check that the token actually has `repo` scope.
+      // GitHub returns the token's granted scopes in every response header.
+      if (page === 1) {
+        const grantedScopes = (res.headers.get('X-OAuth-Scopes') || '')
+          .split(',')
+          .map((s) => s.trim())
+        if (!grantedScopes.includes('repo')) {
+          needsReauth = true
+          break
+        }
+      }
+
       const items: { full_name?: string; name?: string; private?: boolean }[] = await res.json()
       allRepos.push(...items)
       const link = res.headers.get('Link')
@@ -49,6 +64,10 @@ export async function GET() {
     // Timeout or network error — return whatever we have
   } finally {
     clearTimeout(timeoutId)
+  }
+
+  if (needsReauth) {
+    return NextResponse.json({ repos: [], connected: true, needsReauth: true })
   }
 
   const list = allRepos
