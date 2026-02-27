@@ -81,7 +81,20 @@ export default async ({ page }) => {
     }
     return result;
   });
-  return { data: { screenshot, elements }, type: 'application/json' };
+  const analyticsDetected = await page.evaluate(() => {
+    return {
+      posthog:   typeof window.posthog !== 'undefined',
+      mixpanel:  typeof window.mixpanel !== 'undefined',
+      amplitude: typeof window.amplitude !== 'undefined',
+      segment:   typeof window.analytics !== 'undefined',
+      ga4:       typeof window.gtag !== 'undefined' ||
+                 (Array.isArray(window.dataLayer) && window.dataLayer.length > 0),
+      heap:      typeof window.heap !== 'undefined',
+      fullstory: typeof window.FS !== 'undefined',
+      hotjar:    typeof window.hj !== 'undefined',
+    };
+  });
+  return { data: { screenshot, elements, analyticsDetected }, type: 'application/json' };
 };
 `
 
@@ -120,9 +133,19 @@ export default async ({ page }) => {
         }))
       : []
 
+    const rawAnalytics = data?.analyticsDetected && typeof data.analyticsDetected === 'object'
+      ? data.analyticsDetected as Record<string, unknown>
+      : {}
+    const detected: Record<string, boolean> = {}
+    for (const key of ['posthog','mixpanel','amplitude','segment','ga4','heap','fullstory','hotjar']) {
+      detected[key] = Boolean(rawAnalytics[key])
+    }
+    const hasAny = Object.values(detected).some(Boolean)
+
     return NextResponse.json({
       screenshot: typeof screenshot === 'string' ? screenshot : '',
       elements,
+      analytics: { detected, hasAny },
     })
   } catch (err) {
     console.error('[crawl] error:', err)

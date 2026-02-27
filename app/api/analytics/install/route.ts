@@ -1,0 +1,250 @@
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+
+const POSTHOG_HOST = 'https://app.posthog.com'
+const BROWSERLESS_BASE = 'https://chrome.browserless.io'
+
+function buildPosthogScript(apiKey: string): string {
+  return `<!-- NorthStar Analytics -->
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var m=(p=document.createElement("script")).type="text/javascript";p.async=!0,p.src=s.api_host+"/static/array.js",(r=document.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString()+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init('${apiKey}', {
+    api_host: 'https://us.i.posthog.com',
+    capture_pageview: true,
+    capture_pageleave: true,
+    autocapture: true,
+  });
+</script>`
+}
+
+function injectScript(content: string, fileType: string, script: string): string {
+  if (fileType === 'nextjs-app') {
+    // Self-closing <head /> (very common in App Router layouts)
+    if (content.includes('<head />')) {
+      return content.replace('<head />', `<head>\n        ${script}\n      </head>`)
+    }
+    if (content.includes('</head>')) {
+      return content.replace('</head>', `${script}\n</head>`)
+    }
+    // No explicit head — inject before <body
+    if (content.includes('<body')) {
+      return content.replace('<body', `${script}\n      <body`)
+    }
+  }
+  if (fileType === 'nextjs-pages') {
+    if (content.includes('</Head>')) {
+      return content.replace('</Head>', `        ${script}\n        </Head>`)
+    }
+    if (content.includes('</head>')) {
+      return content.replace('</head>', `${script}\n</head>`)
+    }
+  }
+  // Static HTML / fallback
+  if (content.includes('</head>')) {
+    return content.replace('</head>', `${script}\n</head>`)
+  }
+  // Last resort: append
+  return content + '\n' + script
+}
+
+export async function POST(request: Request) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let body: { github_repo: string; agent_id: string; url?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const { github_repo, agent_id } = body
+  if (!github_repo || !agent_id) {
+    return NextResponse.json({ error: 'github_repo and agent_id are required' }, { status: 400 })
+  }
+
+  const [owner, repo] = github_repo.split('/')
+  if (!owner || !repo) {
+    return NextResponse.json({ error: 'Invalid github_repo format (expected owner/repo)' }, { status: 400 })
+  }
+
+  // Fetch GitHub token
+  const { data: tokenRow } = await supabase
+    .from('user_context')
+    .select('value')
+    .eq('user_id', user.id)
+    .eq('context_type', 'github')
+    .eq('key', 'access_token')
+    .maybeSingle()
+
+  const githubToken = tokenRow?.value
+  if (!githubToken) {
+    return NextResponse.json({ error: 'GitHub not connected. Please reconnect in step 2.' }, { status: 400 })
+  }
+
+  const ghHeaders = {
+    Authorization: `Bearer ${githubToken}`,
+    Accept: 'application/vnd.github+json',
+    'Content-Type': 'application/json',
+  }
+
+  // --- 1. Create PostHog project under master account (if env vars present) ---
+  let posthogApiKey = ''
+  let posthogProjectId = ''
+
+  const masterApiKey = process.env.POSTHOG_MASTER_API_KEY
+  const masterOrgId = process.env.POSTHOG_MASTER_ORG_ID || '@current'
+
+  if (masterApiKey) {
+    try {
+      const { data: agentRow } = await supabase.from('agents').select('name').eq('id', agent_id).single()
+      const projectName = `NorthStar: ${agentRow?.name || agent_id}`
+      const phRes = await fetch(`${POSTHOG_HOST}/api/organizations/${masterOrgId}/projects/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${masterApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: projectName }),
+      })
+      if (phRes.ok) {
+        const phData = await phRes.json()
+        posthogApiKey = phData.api_token || ''
+        posthogProjectId = String(phData.id || '')
+      }
+    } catch {
+      // Non-fatal — continue without managed PostHog
+    }
+  }
+
+  // Fallback: use a placeholder key (PR still ships, user replaces the key)
+  if (!posthogApiKey) {
+    posthogApiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY || 'REPLACE_WITH_YOUR_POSTHOG_KEY'
+  }
+
+  const script = buildPosthogScript(posthogApiKey)
+
+  // --- 2. Detect framework and find target file ---
+  const candidateFiles = [
+    { path: 'app/layout.tsx', type: 'nextjs-app' },
+    { path: 'app/layout.jsx', type: 'nextjs-app' },
+    { path: 'pages/_document.tsx', type: 'nextjs-pages' },
+    { path: 'pages/_document.jsx', type: 'nextjs-pages' },
+    { path: 'index.html', type: 'static' },
+    { path: 'public/index.html', type: 'static' },
+  ]
+
+  // Get default branch first
+  const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: ghHeaders })
+  if (!repoRes.ok) {
+    return NextResponse.json({ error: 'Could not access repository. Make sure the token has repo scope.' }, { status: 400 })
+  }
+  const repoData = await repoRes.json()
+  const defaultBranch: string = repoData.default_branch || 'main'
+
+  let targetFile: { path: string; type: string; content: string; sha: string } | null = null
+  for (const { path, type } of candidateFiles) {
+    const fileRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${defaultBranch}`,
+      { headers: ghHeaders }
+    )
+    if (fileRes.ok) {
+      const fileData = await fileRes.json()
+      const content = Buffer.from(fileData.content, 'base64').toString('utf-8')
+      targetFile = { path, type, content, sha: fileData.sha }
+      break
+    }
+  }
+
+  if (!targetFile) {
+    return NextResponse.json({
+      error: 'Could not detect framework. Expected one of: app/layout.tsx, pages/_document.tsx, index.html',
+    }, { status: 400 })
+  }
+
+  // --- 3. Inject script ---
+  const newContent = injectScript(targetFile.content, targetFile.type, script)
+  if (newContent === targetFile.content) {
+    return NextResponse.json({ error: 'Could not find a suitable injection point in the file.' }, { status: 400 })
+  }
+
+  // --- 4. Create branch ---
+  const branchSuffix = agent_id.slice(0, 8)
+  const branchName = `northstar/add-analytics-${branchSuffix}`
+
+  const refRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${defaultBranch}`,
+    { headers: ghHeaders }
+  )
+  if (!refRes.ok) {
+    return NextResponse.json({ error: 'Could not get branch reference' }, { status: 400 })
+  }
+  const refData = await refRes.json()
+  const headSha: string = refData.object?.sha
+
+  const createBranchRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+    {
+      method: 'POST',
+      headers: ghHeaders,
+      body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: headSha }),
+    }
+  )
+  if (!createBranchRes.ok) {
+    const errJson = await createBranchRes.json()
+    // Ignore "already exists" so retries work
+    if (!errJson.message?.toLowerCase().includes('already exists')) {
+      return NextResponse.json({ error: `Could not create branch: ${errJson.message}` }, { status: 400 })
+    }
+  }
+
+  // --- 5. Commit updated file ---
+  const updateRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${targetFile.path}`,
+    {
+      method: 'PUT',
+      headers: ghHeaders,
+      body: JSON.stringify({
+        message: 'feat: add NorthStar behavioral analytics',
+        content: Buffer.from(newContent).toString('base64'),
+        sha: targetFile.sha,
+        branch: branchName,
+      }),
+    }
+  )
+  if (!updateRes.ok) {
+    const errJson = await updateRes.json()
+    return NextResponse.json({ error: `Could not commit file: ${errJson.message}` }, { status: 400 })
+  }
+
+  // --- 6. Create PR ---
+  const prRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/pulls`,
+    {
+      method: 'POST',
+      headers: ghHeaders,
+      body: JSON.stringify({
+        title: 'NorthStar: Add behavioral tracking',
+        body: `## NorthStar Analytics Setup\n\nThis PR adds PostHog analytics to enable your NorthStar agent to read user behavior signals.\n\n**What this adds:**\n- Click tracking on all interactive elements\n- Scroll depth measurement\n- Session recordings\n- Page view tracking\n\n**Managed by NorthStar** — no account needed.\n\nMerge this PR to activate your agent.`,
+        head: branchName,
+        base: defaultBranch,
+      }),
+    }
+  )
+  if (!prRes.ok) {
+    const errJson = await prRes.json()
+    return NextResponse.json({ error: `Could not create PR: ${errJson.message}` }, { status: 400 })
+  }
+  const prData = await prRes.json()
+
+  // --- 7. Save PostHog credentials to agent ---
+  if (posthogProjectId) {
+    await supabase.from('agents').update({
+      posthog_api_key: posthogApiKey,
+      posthog_project_id: posthogProjectId,
+    }).eq('id', agent_id)
+  }
+
+  return NextResponse.json({ pr_url: prData.html_url, pr_number: prData.number })
+}

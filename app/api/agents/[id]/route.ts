@@ -13,7 +13,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('agents')
-    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, status, step, created_at')
+    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, created_at')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
@@ -42,6 +42,7 @@ export async function PATCH(
     posthog_api_key?: string
     posthog_project_id?: string
     target_element?: { type: string; text: string; position: Record<string, number> }
+    analytics_config?: Record<string, Record<string, string>>
     status?: string
     step?: number
   }
@@ -59,6 +60,15 @@ export async function PATCH(
   if ('posthog_api_key' in body) update.posthog_api_key = typeof body.posthog_api_key === 'string' ? body.posthog_api_key.trim() : null
   if ('posthog_project_id' in body) update.posthog_project_id = typeof body.posthog_project_id === 'string' ? body.posthog_project_id.trim() : null
   if ('target_element' in body) update.target_element = body.target_element ?? null
+  if ('analytics_config' in body) {
+    update.analytics_config = body.analytics_config ?? null
+    // Also promote PostHog credentials to dedicated columns for backward compat
+    const phConfig = body.analytics_config?.posthog
+    if (phConfig) {
+      if (phConfig.api_key) update.posthog_api_key = phConfig.api_key
+      if (phConfig.project_id) update.posthog_project_id = phConfig.project_id
+    }
+  }
   if (typeof body.step === 'number') update.step = body.step
   if (typeof body.status === 'string') update.status = body.status
 
