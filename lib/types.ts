@@ -154,6 +154,7 @@ export interface Agent {
   posthog_project_id: string | null
   target_element: { type?: string; text?: string; position?: Record<string, number> } | null
   status: string | null
+  step?: number
   created_at: string
   updated_at: string
   google_drive_roadmap_url?: string | null

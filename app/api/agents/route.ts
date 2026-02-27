@@ -35,6 +35,8 @@ export async function POST(request: Request) {
     posthog_api_key?: string
     posthog_project_id?: string
     target_element?: { type: string; text: string; position: Record<string, number> }
+    status?: string
+    step?: number
   }
   try {
     body = await request.json()
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
   const target_element = body.target_element && typeof body.target_element === 'object'
     ? body.target_element
     : null
+  const status = body.status === 'draft' ? 'draft' : 'Analyzing'
+  const step = typeof body.step === 'number' ? body.step : 0
 
   if (!name) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
@@ -65,11 +69,12 @@ export async function POST(request: Request) {
       posthog_api_key,
       posthog_project_id,
       target_element,
-      status: 'Analyzing',
+      status,
+      step,
       main_kpi: 'Conversion', // legacy column; new flow uses target_element
       google_drive_roadmap_url: null,
     })
-    .select('id, name, url, status, created_at')
+    .select('id, name, url, status, step, created_at')
     .single()
 
   if (error) {

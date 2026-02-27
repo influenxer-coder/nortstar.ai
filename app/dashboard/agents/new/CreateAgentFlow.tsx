@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -29,8 +29,14 @@ export default function CreateAgentFlow() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const stepParam = searchParams.get('step')
+  const draftParam = searchParams.get('draft')
   const initialStep = Math.min(Math.max(1, parseInt(stepParam || '1', 10) || 1), STEPS)
   const [step, setStep] = useState(initialStep)
+
+  // Draft ID persisted in URL (?draft=uuid)
+  const [draftId, setDraftId] = useState<string | null>(draftParam)
+  // Prevent double-save on rapid clicks
+  const savingRef = useRef(false)
 
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -55,25 +61,50 @@ export default function CreateAgentFlow() {
   const [githubScope, setGithubScope] = useState('')
   // Incremented each time OAuth completes — triggers a fresh repo fetch
   const [oauthCount, setOauthCount] = useState(0)
+  // Whether draft was loaded (to avoid re-loading on re-renders)
+  const draftLoadedRef = useRef(false)
 
-  // Sync step from URL only (form state is preserved when navigating back)
+  // Load draft from DB on mount if ?draft= is present
+  useEffect(() => {
+    if (!draftParam || draftLoadedRef.current) return
+    draftLoadedRef.current = true
+    fetch(`/api/agents/${draftParam}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) return
+        if (data.name) setName(data.name)
+        if (data.url) setUrl(data.url)
+        if (data.github_repo) setGithubRepo(data.github_repo)
+        if (data.posthog_api_key) setPosthogApiKey(data.posthog_api_key)
+        if (data.posthog_project_id) setPosthogProjectId(data.posthog_project_id)
+        // Resume to the next incomplete step (step saved = last completed)
+        const lastStep = typeof data.step === 'number' ? data.step : 0
+        const resumeStep = Math.min(lastStep + 1, STEPS)
+        setStep(resumeStep)
+        router.replace(`/dashboard/agents/new?draft=${draftParam}&step=${resumeStep}`, { scroll: false })
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftParam])
+
+  // Sync step from URL (excluding the draft load above)
   useEffect(() => {
     const s = searchParams.get('step')
     if (s) setStep(Math.min(STEPS, Math.max(1, parseInt(s, 10) || 1)))
   }, [searchParams])
 
   // Effect 1: detect OAuth return, clean up the URL, signal a refetch.
-  // Kept separate so the URL change never races with the fetch below.
   useEffect(() => {
     if (step === 2 && searchParams.get('github') === 'connected') {
-      router.replace('/dashboard/agents/new?step=2', { scroll: false })
+      const base = draftId
+        ? `/dashboard/agents/new?draft=${draftId}&step=2`
+        : '/dashboard/agents/new?step=2'
+      router.replace(base, { scroll: false })
       setOauthCount((c) => c + 1)
     }
-  }, [step, searchParams, router])
+  }, [step, searchParams, router, draftId])
 
   // Effect 2: fetch repos whenever step is 2 or oauthCount changes.
-  // searchParams is intentionally excluded so router.replace() cannot
-  // trigger a cleanup that sets `alive = false` mid-fetch.
   useEffect(() => {
     if (step !== 2) return
 
@@ -179,29 +210,118 @@ export default function CreateAgentFlow() {
     }
   }, [step, url, crawlPage, screenshot, crawlLoading])
 
+  // Save draft progress to DB. Creates a new draft on first call, updates on subsequent calls.
+  const saveDraft = useCallback(async (stepCompleted: number, extra: Record<string, unknown> = {}) => {
+    if (savingRef.current) return null
+    savingRef.current = true
+    try {
+      if (!draftId) {
+        // Create new draft
+        const res = await fetch('/api/agents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name.trim(),
+            url: url.trim() || undefined,
+            status: 'draft',
+            step: stepCompleted,
+            ...extra,
+          }),
+        })
+        if (!res.ok) return null
+        const data = await res.json()
+        setDraftId(data.id)
+        return data.id as string
+      } else {
+        // Update existing draft
+        await fetch(`/api/agents/${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name.trim(),
+            url: url.trim() || undefined,
+            step: stepCompleted,
+            ...extra,
+          }),
+        })
+        return draftId
+      }
+    } catch {
+      return null
+    } finally {
+      savingRef.current = false
+    }
+  }, [draftId, name, url])
+
+  const goToStep = useCallback(async (s: number, saveData?: Record<string, unknown>) => {
+    const currentStep = step
+    if (s > currentStep) {
+      // Save progress before advancing
+      const id = await saveDraft(currentStep, saveData)
+      const idToUse = id ?? draftId
+      setStep(s)
+      const query = idToUse
+        ? `/dashboard/agents/new?draft=${idToUse}&step=${s}`
+        : `/dashboard/agents/new?step=${s}`
+      router.replace(query, { scroll: false })
+    } else {
+      // Going back — no save needed
+      setStep(s)
+      const query = draftId
+        ? `/dashboard/agents/new?draft=${draftId}&step=${s}`
+        : `/dashboard/agents/new?step=${s}`
+      router.replace(query, { scroll: false })
+    }
+  }, [step, draftId, saveDraft, router])
+
   const handleSubmit = async () => {
     if (!selectedElement || !name.trim() || !url.trim()) return
     setSubmitLoading(true)
     try {
-      const res = await fetch('/api/agents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          url: url.trim(),
-          github_repo: githubRepo || undefined,
-          posthog_api_key: posthogApiKey.trim() || undefined,
-          posthog_project_id: posthogProjectId.trim() || undefined,
-          target_element: {
-            type: selectedElement.type,
-            text: selectedElement.text,
-            position: selectedElement.position,
-          },
-        }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to create agent')
+      if (draftId) {
+        // Finalize the existing draft
+        const res = await fetch(`/api/agents/${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            github_repo: githubRepo || undefined,
+            posthog_api_key: posthogApiKey.trim() || undefined,
+            posthog_project_id: posthogProjectId.trim() || undefined,
+            target_element: {
+              type: selectedElement.type,
+              text: selectedElement.text,
+              position: selectedElement.position,
+            },
+            status: 'Analyzing',
+            step: 4,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Failed to create agent')
+        }
+      } else {
+        // No draft yet — create agent directly
+        const res = await fetch('/api/agents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name.trim(),
+            url: url.trim(),
+            github_repo: githubRepo || undefined,
+            posthog_api_key: posthogApiKey.trim() || undefined,
+            posthog_project_id: posthogProjectId.trim() || undefined,
+            target_element: {
+              type: selectedElement.type,
+              text: selectedElement.text,
+              position: selectedElement.position,
+            },
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Failed to create agent')
+        }
       }
       router.push('/dashboard/agents')
       router.refresh()
@@ -212,10 +332,13 @@ export default function CreateAgentFlow() {
     }
   }
 
-  const goToStep = (s: number) => {
-    setStep(s)
-    router.replace(`/dashboard/agents/new?step=${s}`, { scroll: false })
-  }
+  // Build the GitHub OAuth URL, preserving draft ID so it survives the redirect
+  const githubOauthUrl = (next: string) =>
+    `/api/auth/github?next=${encodeURIComponent(next)}`
+
+  const step2Next = draftId
+    ? `/dashboard/agents/new?draft=${draftId}&step=2`
+    : '/dashboard/agents/new?step=2'
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-zinc-100">
@@ -310,7 +433,7 @@ export default function CreateAgentFlow() {
                       <p className="text-amber-500/80 text-xs leading-relaxed">
                         Only public repos are shown (scope: <code className="font-mono">{githubScope}</code>).{' '}
                         <a
-                          href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
+                          href={githubOauthUrl(step2Next)}
                           className="underline hover:text-amber-300"
                         >
                           Reconnect for private access →
@@ -322,7 +445,7 @@ export default function CreateAgentFlow() {
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-zinc-300">Choose repository</label>
                       <a
-                        href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
+                        href={githubOauthUrl(step2Next)}
                         className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2"
                       >
                         Reconnect GitHub
@@ -350,7 +473,7 @@ export default function CreateAgentFlow() {
                 </div>
               ) : (
                 <a
-                  href={`/api/auth/github?next=${encodeURIComponent('/dashboard/agents/new?step=2')}`}
+                  href={githubOauthUrl(step2Next)}
                   className="inline-flex items-center justify-center rounded-md bg-[#7C3AED] hover:bg-[#6D28D9] text-white h-11 px-6 text-sm font-medium"
                 >
                   Connect GitHub
@@ -365,7 +488,7 @@ export default function CreateAgentFlow() {
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
                 <Button
-                  onClick={() => goToStep(3)}
+                  onClick={() => goToStep(3, { github_repo: githubRepo })}
                   disabled={!canContinueStep2}
                   className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
                 >
@@ -419,7 +542,10 @@ export default function CreateAgentFlow() {
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
                 <Button
-                  onClick={() => goToStep(4)}
+                  onClick={() => goToStep(4, {
+                    posthog_api_key: posthogApiKey.trim(),
+                    posthog_project_id: posthogProjectId.trim(),
+                  })}
                   disabled={!canContinueStep3}
                   className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
                 >
