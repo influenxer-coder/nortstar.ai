@@ -2,6 +2,7 @@ import { createHmac } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 
 // Use service-role client (no user session in Slack events)
 function getServiceClient() {
@@ -103,8 +104,8 @@ export async function POST(request: Request) {
 
   if (!userMessage) return NextResponse.json({ ok: true })
 
-  // Process asynchronously so we return 200 to Slack within 3 seconds
-  void (async () => {
+  // Process asynchronously — waitUntil keeps the Vercel function alive after returning 200
+  waitUntil((async () => {
     try {
       const supabase = getServiceClient()
 
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
     } catch (err) {
       console.error('[slack/events] error:', err)
     }
-  })()
+  })())
 
   return NextResponse.json({ ok: true })
 }
