@@ -250,6 +250,25 @@ export async function POST(request: Request) {
   )
   if (!prRes.ok) {
     const errJson = await prRes.json()
+    // "Validation Failed" usually means a PR already exists for this branch — find and return it.
+    const isAlreadyExists =
+      errJson.message === 'Validation Failed' ||
+      (errJson.errors as { message?: string }[] | undefined)?.some(e =>
+        e.message?.toLowerCase().includes('pull request already exists')
+      )
+    if (isAlreadyExists) {
+      const existingRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/pulls?head=${owner}:${branchName}&base=${defaultBranch}&state=open`,
+        { headers: ghHeaders }
+      )
+      if (existingRes.ok) {
+        const existing = await existingRes.json()
+        if (Array.isArray(existing) && existing[0]?.html_url) {
+          const pr = existing[0]
+          return NextResponse.json({ pr_url: pr.html_url, pr_number: pr.number })
+        }
+      }
+    }
     return NextResponse.json({ error: `Could not create PR: ${errJson.message}` }, { status: 400 })
   }
   const prData = await prRes.json()
