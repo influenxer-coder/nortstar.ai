@@ -159,4 +159,29 @@ export interface Agent {
   updated_at: string
   google_drive_roadmap_url?: string | null
   main_kpi?: string
+  // Slack integration
+  slack_bot_token?: string | null
+  slack_team_id?: string | null
+  slack_user_id?: string | null
+  slack_channel_id?: string | null
+  // RAG context
+  system_instructions?: string | null
+}
+
+export interface AgentDocument {
+  id: string
+  agent_id: string
+  file_name: string
+  chunk_index: number
+  content: string
+  created_at: string
+}
+
+export interface SlackMessage {
+  id: string
+  agent_id: string
+  role: 'user' | 'assistant'
+  content: string
+  slack_ts: string | null
+  created_at: string
 }

@@ -13,7 +13,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('agents')
-    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, created_at')
+    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, slack_team_id, slack_user_id, slack_channel_id, system_instructions, created_at')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
@@ -45,6 +45,11 @@ export async function PATCH(
     analytics_config?: Record<string, Record<string, string>>
     status?: string
     step?: number
+    slack_bot_token?: string | null
+    slack_team_id?: string | null
+    slack_user_id?: string | null
+    slack_channel_id?: string | null
+    system_instructions?: string | null
   }
   try {
     body = await request.json()
@@ -71,6 +76,11 @@ export async function PATCH(
   }
   if (typeof body.step === 'number') update.step = body.step
   if (typeof body.status === 'string') update.status = body.status
+  if ('slack_bot_token' in body) update.slack_bot_token = body.slack_bot_token ?? null
+  if ('slack_team_id' in body) update.slack_team_id = body.slack_team_id ?? null
+  if ('slack_user_id' in body) update.slack_user_id = body.slack_user_id ?? null
+  if ('slack_channel_id' in body) update.slack_channel_id = body.slack_channel_id ?? null
+  if ('system_instructions' in body) update.system_instructions = body.system_instructions ?? null
 
   const { data, error } = await supabase
     .from('agents')

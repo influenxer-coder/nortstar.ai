@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Loader2, CheckCircle2, ExternalLink, GitBranch } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle2, ExternalLink, GitBranch, MessageSquare } from 'lucide-react'
 
-const STEPS = 4
+const STEPS = 5
 const PURPLE = '#7C3AED'
 
 function validateUrl(rawUrl: string): boolean {
@@ -151,6 +151,9 @@ export default function CreateAgentFlow() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
+  // ── Step 5 — Slack connection ─────────────────────────────────────────────
+  const [slackConnected, setSlackConnected] = useState(searchParams.get('slack') === 'connected')
+
   // ── Draft resume ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!draftParam || draftLoadedRef.current) return
@@ -280,6 +283,8 @@ export default function CreateAgentFlow() {
   const anyToolConnected = Object.values(analyticsConnected).some(Boolean)
   const canContinueStep3 = anyToolConnected
   const canContinueStep4 = !!selectedElement
+  // Slack is optional — user can always submit from step 5
+  const canContinueStep5 = true
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -926,13 +931,80 @@ export default function CreateAgentFlow() {
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
               <Button
-                onClick={handleSubmit}
-                disabled={!canContinueStep4 || submitLoading}
+                onClick={() => goToStep(5)}
+                disabled={!canContinueStep4}
                 className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
               >
-                {submitLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Create agent
+                Next →
               </Button>
             </div>
+          </>
+        )}
+
+        {/* ── STEP 5: Connect Slack ──────────────────────────────────────── */}
+        {step === 5 && (
+          <>
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2">Connect Slack</h1>
+            <p className="text-zinc-400 text-sm mb-6">
+              Your agent will chat with you directly in Slack — answer questions, share insights, and learn from your feedback.
+            </p>
+
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 mb-6">
+              {slackConnected ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-emerald-400">Slack connected</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Check your Slack DMs — your agent sent a welcome message.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <ul className="space-y-1.5 mb-4">
+                    {[
+                      'Bi-directional DM chat with your agent',
+                      'Ask questions about your product and users',
+                      'Upload docs and give feedback to train your agent',
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-zinc-400">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={draftId ? `/api/auth/slack?agent_id=${draftId}` : '#'}
+                    className={`flex items-center justify-center gap-2 w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors ${draftId ? 'bg-[#4A154B] hover:bg-[#3a0f3b]' : 'bg-zinc-700 cursor-not-allowed'}`}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Connect Slack
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {submitError && <p className="text-sm text-red-400 mb-4">{submitError}</p>}
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => goToStep(4)} className="border-zinc-700 text-zinc-300">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={!canContinueStep5 || submitLoading}
+                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+              >
+                {submitLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {slackConnected ? 'Create agent' : 'Create agent'}
+              </Button>
+            </div>
+            {!slackConnected && (
+              <p className="text-xs text-zinc-600 mt-3">
+                Slack is optional — you can connect it later from the agent page.
+              </p>
+            )}
           </>
         )}
 
