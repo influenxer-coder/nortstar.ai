@@ -2,49 +2,55 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 const POSTHOG_HOST = 'https://app.posthog.com'
-const BROWSERLESS_BASE = 'https://chrome.browserless.io'
 
-function buildPosthogScript(apiKey: string): string {
-  return `<!-- NorthStar Analytics -->
-<script>
-  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var m=(p=document.createElement("script")).type="text/javascript";p.async=!0,p.src=s.api_host+"/static/array.js",(r=document.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString()+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-  posthog.init('${apiKey}', {
-    api_host: 'https://us.i.posthog.com',
-    capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: true,
-  });
-</script>`
+// Raw PostHog JS using only single-quoted strings so it can be safely
+// embedded in a double-quoted JSX attribute or an HTML <script> tag.
+function buildPosthogRawJs(apiKey: string): string {
+  return `!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split('.');2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var m=(p=document.createElement('script')).type='text/javascript';p.async=!0,p.src=s.api_host+'/static/array.js',(r=document.getElementsByTagName('script')[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a='posthog',u.people=u.people||[],u.toString=function(t){var e='posthog';return'posthog'!==a&&(e+='.'+a),t||(e+=' (stub)'),e},u.people.toString=function(){return u.toString()+' (stub)'},o='capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId'.split(' '),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);posthog.init('${apiKey}',{api_host:'https://us.i.posthog.com',capture_pageview:!0,capture_pageleave:!0,autocapture:!0})`
 }
 
-function injectScript(content: string, fileType: string, script: string): string {
+// For Next.js JSX/TSX files: generates a JSX element with dangerouslySetInnerHTML.
+// JSON.stringify produces a properly escaped double-quoted JS string.
+function buildJsxScriptElement(apiKey: string): string {
+  const raw = buildPosthogRawJs(apiKey)
+  return `<script dangerouslySetInnerHTML={{ __html: ${JSON.stringify(raw)} }} />`
+}
+
+// For static HTML files: generates a plain <script> tag.
+function buildHtmlScriptTag(apiKey: string): string {
+  return `<!-- NorthStar Analytics -->\n<script>\n${buildPosthogRawJs(apiKey)}\n</script>`
+}
+
+function injectScript(content: string, fileType: string, apiKey: string): string {
   if (fileType === 'nextjs-app') {
-    // Self-closing <head /> (very common in App Router layouts)
+    const jsx = buildJsxScriptElement(apiKey)
+    // Self-closing <head /> → expand to include the script
     if (content.includes('<head />')) {
-      return content.replace('<head />', `<head>\n        ${script}\n      </head>`)
+      return content.replace('<head />', `<head>\n        ${jsx}\n      </head>`)
     }
     if (content.includes('</head>')) {
-      return content.replace('</head>', `${script}\n</head>`)
+      return content.replace('</head>', `      ${jsx}\n      </head>`)
     }
-    // No explicit head — inject before <body
+    // No explicit head — inject immediately before <body (valid JSX inside <html>)
     if (content.includes('<body')) {
-      return content.replace('<body', `${script}\n      <body`)
+      return content.replace('<body', `${jsx}\n      <body`)
     }
   }
   if (fileType === 'nextjs-pages') {
+    const jsx = buildJsxScriptElement(apiKey)
     if (content.includes('</Head>')) {
-      return content.replace('</Head>', `        ${script}\n        </Head>`)
+      return content.replace('</Head>', `        ${jsx}\n        </Head>`)
     }
     if (content.includes('</head>')) {
-      return content.replace('</head>', `${script}\n</head>`)
+      return content.replace('</head>', `      ${jsx}\n      </head>`)
     }
   }
-  // Static HTML / fallback
+  // Static HTML
+  const html = buildHtmlScriptTag(apiKey)
   if (content.includes('</head>')) {
-    return content.replace('</head>', `${script}\n</head>`)
+    return content.replace('</head>', `${html}\n</head>`)
   }
-  // Last resort: append
-  return content + '\n' + script
+  return content + '\n' + html
 }
 
 export async function POST(request: Request) {
@@ -123,8 +129,6 @@ export async function POST(request: Request) {
     posthogApiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY || 'REPLACE_WITH_YOUR_POSTHOG_KEY'
   }
 
-  const script = buildPosthogScript(posthogApiKey)
-
   // --- 2. Detect framework and find target file ---
   const candidateFiles = [
     { path: 'app/layout.tsx', type: 'nextjs-app' },
@@ -164,7 +168,7 @@ export async function POST(request: Request) {
   }
 
   // --- 3. Inject script ---
-  const newContent = injectScript(targetFile.content, targetFile.type, script)
+  const newContent = injectScript(targetFile.content, targetFile.type, posthogApiKey)
   if (newContent === targetFile.content) {
     return NextResponse.json({ error: 'Could not find a suitable injection point in the file.' }, { status: 400 })
   }
