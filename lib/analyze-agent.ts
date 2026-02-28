@@ -1,11 +1,12 @@
 /**
- * Agent analysis pipeline — runs in the background after Slack is connected.
+ * Agent analysis pipeline — runs in the background after agent creation.
  *
  * Steps:
  * 1. Fetch the last 30 GitHub commits for the agent's repo
- * 2. Ask Claude to synthesize what the team has been working on + why
- * 3. Ask Claude to research the best optimization frameworks for this page type
- * 4. Store the combined insight as agent.context_summary so every Slack reply is informed
+ * 2. Fetch user behavior from PostHog (last 7 days): sessions, pageviews, top events
+ * 3. Ask Claude to synthesize what the team has been working on + why
+ * 4. Ask Claude to research the best optimization frameworks for this page type
+ * 5. Store the combined insight as agent.context_summary so every Slack reply is informed
  *
  * Each step writes a row to agent_logs so the UI can stream progress in real time.
  */
@@ -20,6 +21,8 @@ export interface AgentInfo {
   name: string
   url: string | null
   github_repo: string | null
+  posthog_api_key?: string | null
+  posthog_project_id?: string | null
   target_element: { type?: string; text?: string } | null
   main_kpi: string | null
 }
@@ -48,6 +51,36 @@ async function updateLog(
   status: 'done' | 'error'
 ): Promise<void> {
   await supabase.from('agent_logs').update({ message, status }).eq('id', logId)
+}
+
+// PostHog management API base (Query API lives here, not on the ingestion host)
+const POSTHOG_API_BASE = (
+  (process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.posthog.com')
+    .replace('us.i.posthog.com', 'us.posthog.com')
+    .replace('eu.i.posthog.com', 'eu.posthog.com')
+    .replace(/\/$/, '')
+)
+
+async function queryPostHog(
+  apiKey: string,
+  projectId: string,
+  sql: string
+): Promise<unknown[][] | null> {
+  try {
+    const res = await fetch(`${POSTHOG_API_BASE}/api/projects/${projectId}/query/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: { kind: 'HogQLQuery', query: sql } }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return Array.isArray(data.results) ? data.results : null
+  } catch {
+    return null
+  }
 }
 
 // ── Main pipeline ──────────────────────────────────────────────────────────────
@@ -99,7 +132,61 @@ export async function analyzeAgent(
     }
   }
 
-  // ── Step 2: Analyze commits with Claude ─────────────────────────────────────
+  // ── Step 2: Fetch PostHog behavior data ──────────────────────────────────────
+  let posthogSummary = ''
+  if (agent.posthog_api_key && agent.posthog_project_id) {
+    const phLogId = await addLog(
+      supabase, agentId, 'posthog',
+      'Fetching user behavior from PostHog (last 7 days)…', 'running'
+    )
+    try {
+      const [sessionRows, eventRows] = await Promise.all([
+        queryPostHog(
+          agent.posthog_api_key,
+          agent.posthog_project_id,
+          `SELECT count(distinct $session_id) as sessions, count() as pageviews
+           FROM events
+           WHERE timestamp > now() - interval 7 day AND event = '$pageview'`
+        ),
+        queryPostHog(
+          agent.posthog_api_key,
+          agent.posthog_project_id,
+          `SELECT event, count() as cnt
+           FROM events
+           WHERE timestamp > now() - interval 7 day AND event NOT LIKE '$%'
+           GROUP BY event ORDER BY cnt DESC LIMIT 10`
+        ),
+      ])
+
+      if (sessionRows) {
+        const [sessions, pageviews] = (sessionRows[0] as [number, number]) ?? [0, 0]
+        const topEvents = (eventRows ?? []).map(
+          (row) => `  • ${row[0]}: ${row[1]}`
+        )
+
+        posthogSummary = [
+          `Sessions (last 7 days): ${sessions.toLocaleString()}`,
+          `Pageviews (last 7 days): ${pageviews.toLocaleString()}`,
+          topEvents.length > 0
+            ? `Top custom events:\n${topEvents.join('\n')}`
+            : null,
+        ].filter(Boolean).join('\n')
+
+        if (phLogId) await updateLog(
+          supabase, phLogId,
+          `Watching — seen ${sessions.toLocaleString()} sessions and ${pageviews.toLocaleString()} pageviews in the last 7 days`,
+          'done'
+        )
+      } else {
+        if (phLogId) await updateLog(supabase, phLogId, 'Could not fetch PostHog data — check API key and project ID', 'error')
+      }
+    } catch (e) {
+      if (phLogId) await updateLog(supabase, phLogId, 'PostHog connection failed', 'error')
+      console.error('[analyze-agent] posthog fetch error:', e)
+    }
+  }
+
+  // ── Step 3: Analyze commits with Claude ─────────────────────────────────────
   let codeAnalysis = ''
   if (commitContext) {
     const logId = await addLog(supabase, agentId, 'code_analysis', 'Analyzing code changes…', 'running')
@@ -139,8 +226,8 @@ Be specific — reference commit message language directly. Skip generic observa
     }
   }
 
-  // ── Step 3: Research optimization frameworks ─────────────────────────────────
-  const logId3 = await addLog(
+  // ── Step 4: Research optimization frameworks ─────────────────────────────────
+  const logId4 = await addLog(
     supabase, agentId, 'research',
     `Researching what drives improvements for this type of feature…`, 'running'
   )
@@ -177,16 +264,19 @@ The agent will use this brief to answer questions from the product team in Slack
       }]
     })
     researchInsights = resp.content[0].type === 'text' ? resp.content[0].text : ''
-    if (logId3) await updateLog(supabase, logId3, 'Research complete — optimization playbook ready', 'done')
+    if (logId4) await updateLog(supabase, logId4, 'Research complete — optimization playbook ready', 'done')
   } catch (e) {
-    if (logId3) await updateLog(supabase, logId3, 'Research failed', 'error')
+    if (logId4) await updateLog(supabase, logId4, 'Research failed', 'error')
     console.error('[analyze-agent] research error:', e)
   }
 
-  // ── Step 4: Synthesize and store ─────────────────────────────────────────────
-  const logId4 = await addLog(supabase, agentId, 'synthesis', 'Building agent context…', 'running')
+  // ── Step 5: Synthesize and store ─────────────────────────────────────────────
+  const logId5 = await addLog(supabase, agentId, 'synthesis', 'Building agent context…', 'running')
   try {
     const parts: string[] = []
+    if (posthogSummary) {
+      parts.push(`## User behavior (last 7 days)\n${posthogSummary}`)
+    }
     if (codeAnalysis) {
       parts.push(`## What the team has been shipping\n${codeAnalysis}`)
     }
@@ -197,12 +287,12 @@ The agent will use this brief to answer questions from the product team in Slack
     const contextSummary = parts.join('\n\n---\n\n')
     if (contextSummary) {
       await supabase.from('agents').update({ context_summary: contextSummary }).eq('id', agentId)
-      if (logId4) await updateLog(supabase, logId4, 'Agent is fully briefed — ready to help in Slack', 'done')
+      if (logId5) await updateLog(supabase, logId5, 'Agent is fully briefed — ready to help in Slack', 'done')
     } else {
-      if (logId4) await updateLog(supabase, logId4, 'No context generated — connect GitHub for richer analysis', 'error')
+      if (logId5) await updateLog(supabase, logId5, 'No context generated — connect GitHub or PostHog for richer analysis', 'error')
     }
   } catch (e) {
-    if (logId4) await updateLog(supabase, logId4, 'Synthesis failed', 'error')
+    if (logId5) await updateLog(supabase, logId5, 'Synthesis failed', 'error')
     console.error('[analyze-agent] synthesis error:', e)
   }
 }

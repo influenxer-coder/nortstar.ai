@@ -14,6 +14,7 @@ interface Log {
 
 const STEP_ICONS: Record<string, string> = {
   github: '⬡',
+  posthog: '◎',
   code_analysis: '◈',
   research: '◉',
   synthesis: '◆',
@@ -135,10 +136,10 @@ export default function AgentAnalysisLogs({ agentId, hasGithubRepo }: Props) {
           {/* Description */}
           <p className="text-xs text-zinc-500">
             {noLogs
-              ? `Analyzes your GitHub commits and researches optimization frameworks for this page — gives your agent deep context to answer questions intelligently.`
+              ? `Analyzes GitHub commits, reads PostHog behavior data, and researches optimization frameworks — gives your agent deep context to answer questions intelligently.`
               : isRunning
-              ? `Building your agent's knowledge base. This takes about 30 seconds.`
-              : `Your agent has been briefed on your codebase and optimization research.`
+              ? `Building your agent's knowledge base. This takes about 30–60 seconds.`
+              : `Your agent has been briefed on your codebase, user behavior, and optimization research.`
             }
           </p>
 
