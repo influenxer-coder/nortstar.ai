@@ -59,11 +59,6 @@ async function findRelevantChunks(
 export async function POST(request: Request) {
   const body = await request.text()
 
-  // Verify Slack signature
-  if (!verifySlackSignature(body, request.headers)) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-  }
-
   let payload: Record<string, unknown>
   try {
     payload = JSON.parse(body)
@@ -71,9 +66,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Slack URL verification challenge (one-time on setup)
+  // Handle URL verification challenge BEFORE signature check —
+  // Slack sends this once during app setup to confirm we control the URL.
   if (payload.type === 'url_verification') {
     return NextResponse.json({ challenge: payload.challenge })
+  }
+
+  // Verify Slack signature for all real events
+  if (!verifySlackSignature(body, request.headers)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
   // Only handle message events — respond immediately with 200 then process async
