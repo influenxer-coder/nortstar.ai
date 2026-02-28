@@ -27,7 +27,13 @@ export async function GET(request: Request) {
   const functionCode = `
 export default async ({ page }) => {
   await page.goto(${JSON.stringify(agent.url)}, { waitUntil: 'networkidle0', timeout: 20000 });
-  const installed = await page.evaluate(() => typeof window.posthog !== 'undefined');
+  const installed = await page.evaluate(() => {
+    if (typeof window.posthog !== 'undefined') return true;
+    const scriptText = Array.from(document.querySelectorAll('script'))
+      .map(s => (s.src || '') + (s.textContent || ''))
+      .join(' ');
+    return ['posthog.init(', 'posthog-js', 'us.i.posthog.com'].some(p => scriptText.includes(p));
+  });
   return { data: { installed }, type: 'application/json' };
 };`
 

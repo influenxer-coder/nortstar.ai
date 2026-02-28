@@ -204,6 +204,18 @@ export async function POST(request: Request) {
   }
 
   // --- 5. Commit updated file ---
+  // Re-fetch the file's SHA from the branch (not default branch) in case the branch
+  // already existed from a previous attempt and the file was already modified there.
+  let commitSha = targetFile.sha
+  const branchFileRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${targetFile.path}?ref=${branchName}`,
+    { headers: ghHeaders }
+  )
+  if (branchFileRes.ok) {
+    const branchFileData = await branchFileRes.json()
+    if (branchFileData.sha) commitSha = branchFileData.sha
+  }
+
   const updateRes = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/contents/${targetFile.path}`,
     {
@@ -212,7 +224,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         message: 'feat: add NorthStar behavioral analytics',
         content: Buffer.from(newContent).toString('base64'),
-        sha: targetFile.sha,
+        sha: commitSha,
         branch: branchName,
       }),
     }

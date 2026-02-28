@@ -82,16 +82,23 @@ export default async ({ page }) => {
     return result;
   });
   const analyticsDetected = await page.evaluate(() => {
+    // Scan all script tags (src + inline content) as a fallback for async setups
+    // where the global might not be attached yet (e.g. React hydration, CDN blocked).
+    const scriptText = Array.from(document.querySelectorAll('script'))
+      .map(s => (s.src || '') + (s.textContent || ''))
+      .join(' ');
+    const has = (...patterns) => patterns.some(p => scriptText.includes(p));
     return {
-      posthog:   typeof window.posthog !== 'undefined',
-      mixpanel:  typeof window.mixpanel !== 'undefined',
-      amplitude: typeof window.amplitude !== 'undefined',
-      segment:   typeof window.analytics !== 'undefined',
+      posthog:   typeof window.posthog !== 'undefined' || has('posthog.init(', 'posthog-js', 'us.i.posthog.com'),
+      mixpanel:  typeof window.mixpanel !== 'undefined' || has('mixpanel.init(', 'cdn.mxpnl.com'),
+      amplitude: typeof window.amplitude !== 'undefined' || has('amplitude.getInstance(', 'cdn.amplitude.com'),
+      segment:   typeof window.analytics !== 'undefined' || has('analytics.load(', 'cdn.segment.com'),
       ga4:       typeof window.gtag !== 'undefined' ||
-                 (Array.isArray(window.dataLayer) && window.dataLayer.length > 0),
-      heap:      typeof window.heap !== 'undefined',
-      fullstory: typeof window.FS !== 'undefined',
-      hotjar:    typeof window.hj !== 'undefined',
+                 (Array.isArray(window.dataLayer) && window.dataLayer.length > 0) ||
+                 has('googletagmanager.com', 'google-analytics.com', 'gtag('),
+      heap:      typeof window.heap !== 'undefined' || has('heap.load(', 'heapanalytics.com'),
+      fullstory: typeof window.FS !== 'undefined' || has('fullstory.com'),
+      hotjar:    typeof window.hj !== 'undefined' || has('hotjar.com', 'hjid'),
     };
   });
   return { data: { screenshot, elements, analyticsDetected }, type: 'application/json' };
