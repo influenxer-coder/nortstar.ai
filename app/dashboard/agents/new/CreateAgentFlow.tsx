@@ -215,6 +215,15 @@ export default function CreateAgentFlow() {
       })
   }, [])
 
+  // ── Auto-start crawl whenever we're past step 1 and have a valid URL ────────
+  // Handles draft resume, page refresh, and direct URL navigation to step 2+.
+  useEffect(() => {
+    if (step < 2) return
+    const trimmed = url.trim()
+    if (!trimmed || !validateUrl(trimmed)) return
+    startCrawl(trimmed)
+  }, [url, step, startCrawl])
+
   // ── GitHub OAuth cleanup (Effect 1) ───────────────────────────────────────
   useEffect(() => {
     if (step === 2 && searchParams.get('github') === 'connected') {
@@ -802,8 +811,8 @@ export default function CreateAgentFlow() {
               >
                 Continue
               </Button>
-              {/* Skip link — only shown in Scenario B (no tools, waiting for PR) */}
-              {crawlData && !crawlData.analytics.hasAny && !anyToolConnected && (
+              {/* Skip link — always available while no tool is connected */}
+              {!anyToolConnected && (
                 <button
                   type="button"
                   onClick={() => goToStep(4)}
