@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 
 const CHUNK_SIZE = 500   // ~500 tokens per chunk
 const CHUNK_OVERLAP = 50 // overlap to preserve context across chunks
@@ -68,10 +67,10 @@ export async function POST(
   // Split into chunks
   const chunks = chunkText(text)
 
-  // Embed chunks (requires OPENAI_API_KEY)
-  const openaiKey = process.env.OPENAI_API_KEY
-  if (!openaiKey) {
-    // Store without embeddings — still searchable via text, RAG won't work
+  // Embed chunks via Voyage AI (voyage-3-lite, 1024 dims, free tier)
+  const voyageKey = process.env.VOYAGE_API_KEY
+  if (!voyageKey) {
+    // Store without embeddings — RAG won't work but text is saved
     const rows = chunks.map((content, chunk_index) => ({
       agent_id: params.id,
       file_name: file.name,
@@ -82,23 +81,23 @@ export async function POST(
     return NextResponse.json({ chunks: rows.length, embedded: false })
   }
 
-  const openai = new OpenAI({ apiKey: openaiKey })
-
-  // Embed in batches of 20
+  // Embed in batches of 128 (Voyage max per request)
   const rows: { agent_id: string; file_name: string; chunk_index: number; content: string; embedding: number[] }[] = []
-  for (let i = 0; i < chunks.length; i += 20) {
-    const batch = chunks.slice(i, i + 20)
-    const res = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: batch,
+  for (let i = 0; i < chunks.length; i += 128) {
+    const batch = chunks.slice(i, i + 128)
+    const res = await fetch('https://api.voyageai.com/v1/embeddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${voyageKey}` },
+      body: JSON.stringify({ input: batch, model: 'voyage-3-lite' }),
     })
+    const data = await res.json()
     for (let j = 0; j < batch.length; j++) {
       rows.push({
         agent_id: params.id,
         file_name: file.name,
         chunk_index: i + j,
         content: batch[j],
-        embedding: res.data[j].embedding,
+        embedding: data.data[j].embedding,
       })
     }
   }

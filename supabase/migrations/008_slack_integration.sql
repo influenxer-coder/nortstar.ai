@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.agent_documents (
   file_name TEXT NOT NULL,
   chunk_index INTEGER NOT NULL,
   content TEXT NOT NULL,
-  embedding VECTOR(1536),
+  embedding VECTOR(1024),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -40,7 +40,7 @@ CREATE POLICY "Users manage own agent documents"
 -- Vector similarity search function (used by Slack events handler)
 CREATE OR REPLACE FUNCTION match_agent_documents(
   agent_id_param UUID,
-  query_embedding VECTOR(1536),
+  query_embedding VECTOR(1024),
   match_count INT DEFAULT 3
 )
 RETURNS TABLE(id UUID, content TEXT, similarity FLOAT)

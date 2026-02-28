@@ -1,7 +1,6 @@
 import { createHmac } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 
 // Use service-role client (no user session in Slack events)
@@ -29,12 +28,13 @@ function verifySlackSignature(body: string, headers: Headers): boolean {
 }
 
 async function embedText(text: string): Promise<number[]> {
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  const res = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: text,
+  const res = await fetch('https://api.voyageai.com/v1/embeddings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.VOYAGE_API_KEY}` },
+    body: JSON.stringify({ input: [text], model: 'voyage-3-lite' }),
   })
-  return res.data[0].embedding
+  const data = await res.json()
+  return data.data[0].embedding
 }
 
 async function findRelevantChunks(
@@ -123,9 +123,9 @@ export async function POST(request: Request) {
         .order('created_at', { ascending: true })
         .limit(10)
 
-      // Find relevant document chunks via pgvector (if OpenAI key present)
+      // Find relevant document chunks via pgvector (if Voyage key present)
       let docChunks: string[] = []
-      if (process.env.OPENAI_API_KEY) {
+      if (process.env.VOYAGE_API_KEY) {
         docChunks = await findRelevantChunks(supabase, agent.id, userMessage)
       }
 
