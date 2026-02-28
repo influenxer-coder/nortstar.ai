@@ -79,6 +79,8 @@ export async function POST(request: Request) {
 
   // Only handle message events — respond immediately with 200 then process async
   const event = payload.event as Record<string, unknown> | undefined
+  console.log('[slack/events] payload.type:', payload.type, 'event.type:', event?.type, 'channel_type:', event?.channel_type, 'bot_id:', event?.bot_id, 'subtype:', event?.subtype)
+
   if (payload.type !== 'event_callback' || !event) {
     return NextResponse.json({ ok: true })
   }
