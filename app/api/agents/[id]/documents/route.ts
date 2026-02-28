@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import pdfParse from 'pdf-parse'
 
 const CHUNK_SIZE = 500   // ~500 tokens per chunk
 const CHUNK_OVERLAP = 50 // overlap to preserve context across chunks
@@ -20,6 +19,8 @@ function chunkText(text: string): string[] {
 async function extractText(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer())
   if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+    // Dynamic import avoids pdf-parse running its self-test at build time
+    const pdfParse = (await import('pdf-parse')).default
     const parsed = await pdfParse(buffer)
     return parsed.text
   }
