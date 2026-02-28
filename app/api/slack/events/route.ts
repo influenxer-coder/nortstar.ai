@@ -67,8 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Handle URL verification challenge BEFORE signature check —
-  // Slack sends this once during app setup to confirm we control the URL.
+  // Handle URL verification challenge BEFORE signature check
   if (payload.type === 'url_verification') {
     return NextResponse.json({ challenge: payload.challenge })
   }
@@ -78,16 +77,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  // Only handle message events — respond immediately with 200 then process async
   const event = payload.event as Record<string, unknown> | undefined
-  console.log('[slack/events] payload.type:', payload.type, 'event.type:', event?.type, 'channel_type:', event?.channel_type, 'bot_id:', event?.bot_id, 'subtype:', event?.subtype)
 
   if (payload.type !== 'event_callback' || !event) {
     return NextResponse.json({ ok: true })
   }
 
-  // Ignore bot messages, message edits, deletions
-  // Accept messages from private channels (group) — each agent gets its own channel
+  // Ignore bot messages, message edits/deletions, non-channel messages
+  // Accept private channels (group) — each agent gets its own channel
   if (
     event.type !== 'message' ||
     (event.channel_type !== 'im' && event.channel_type !== 'group') ||
@@ -104,7 +101,7 @@ export async function POST(request: Request) {
 
   if (!userMessage) return NextResponse.json({ ok: true })
 
-  // Process asynchronously — waitUntil keeps the Vercel function alive after returning 200
+  // Process async — waitUntil keeps the Vercel function alive after returning 200
   waitUntil((async () => {
     try {
       const supabase = getServiceClient()
@@ -112,20 +109,43 @@ export async function POST(request: Request) {
       // Route to the right agent by (team_id, channel_id)
       const { data: agent } = await supabase
         .from('agents')
-        .select('id, name, url, target_element, system_instructions, slack_bot_token')
+        .select('id, name, url, github_repo, target_element, main_kpi, system_instructions, context_summary, slack_bot_token')
         .eq('slack_team_id', teamId)
         .eq('slack_channel_id', channelId)
         .single()
 
       if (!agent?.slack_bot_token) return
 
-      // Fetch conversation history (last 10 messages)
+      // Check if analysis is still running (affects how we frame the response)
+      const { data: runningLogs } = await supabase
+        .from('agent_logs')
+        .select('id')
+        .eq('agent_id', agent.id)
+        .eq('status', 'running')
+        .limit(1)
+      const isAnalyzing = (runningLogs?.length ?? 0) > 0
+
+      // If analysis is running and we have no context yet, send a quick heads-up first
+      if (isAnalyzing && !agent.context_summary) {
+        await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
+          body: JSON.stringify({
+            channel: channelId,
+            text: `I'm still warming up — analyzing your page and codebase in the background. I'll answer your question with full context in just a moment.`,
+            username: agent.name,
+            icon_emoji: ':robot_face:',
+          }),
+        })
+      }
+
+      // Fetch conversation history (last 12 messages for good context window)
       const { data: history } = await supabase
         .from('slack_messages')
         .select('role, content')
         .eq('agent_id', agent.id)
         .order('created_at', { ascending: true })
-        .limit(10)
+        .limit(12)
 
       // Find relevant document chunks via pgvector (if Voyage key present)
       let docChunks: string[] = []
@@ -133,19 +153,46 @@ export async function POST(request: Request) {
         docChunks = await findRelevantChunks(supabase, agent.id, userMessage)
       }
 
-      // Build system prompt
+      // ── Build rich system prompt ─────────────────────────────────────────────
       const targetEl = agent.target_element as { type?: string; text?: string } | null
-      let systemPrompt = `You are ${agent.name}, a NorthStar AI agent helping optimize ${agent.url || 'this product'}.`
-      if (targetEl?.text) {
-        systemPrompt += `\nGoal: improve the "${targetEl.text}" ${targetEl.type || 'element'} conversion rate.`
+      const targetDesc = targetEl?.text
+        ? `"${targetEl.text}" ${targetEl.type || 'element'}`
+        : 'the primary conversion action'
+
+      let systemPrompt = `You are ${agent.name}, an AI product analyst and optimization specialist built by NorthStar.`
+
+      systemPrompt += `\n\nYour mission: help this team optimize ${targetDesc} on ${agent.url || 'their product page'}`
+      if (agent.main_kpi) {
+        systemPrompt += ` and improve ${agent.main_kpi}`
       }
+      systemPrompt += `.`
+
+      // Deep context from the analysis pipeline
+      if (agent.context_summary) {
+        systemPrompt += `\n\n## What I know about this product\n${agent.context_summary}`
+      } else if (isAnalyzing) {
+        systemPrompt += `\n\nNote: I'm still analyzing the codebase and researching optimization frameworks for this product — my answers will get richer once that completes. Answer as helpfully as possible with general product knowledge for now.`
+      }
+
+      // Team-written instructions
       if (agent.system_instructions) {
-        systemPrompt += `\n\n${agent.system_instructions}`
+        systemPrompt += `\n\n## Instructions from the team\n${agent.system_instructions}`
       }
-      systemPrompt += `\n\nYou are communicating via Slack. Keep replies concise, use bullet points when listing, and avoid markdown headers.`
+
+      // Relevant uploaded documents
       if (docChunks.length > 0) {
-        systemPrompt += `\n\nRelevant knowledge:\n${docChunks.join('\n\n---\n\n')}`
+        systemPrompt += `\n\n## Relevant context from team documents\n${docChunks.join('\n\n---\n\n')}`
       }
+
+      systemPrompt += `\n\n## How to respond
+- You're in Slack. Be direct, specific, and immediately useful.
+- Lead with the insight or recommendation — not with caveats.
+- Use bullet points for lists; avoid markdown headers (## ###).
+- When you have context about recent code changes, reference them specifically.
+- When you recommend something, explain the mechanism — why it works.
+- If you don't know something about this specific product, say so, and offer what you do know about similar products.
+- Suggest concrete next steps or experiments, not vague advice.
+- Aim for the quality of a senior product consultant, not a generic chatbot.`
 
       // Build message history for Claude
       const messages: Anthropic.MessageParam[] = [
@@ -156,11 +203,11 @@ export async function POST(request: Request) {
         { role: 'user', content: userMessage },
       ]
 
-      // Call Claude
+      // Call Claude — higher token limit for thorough answers
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         system: systemPrompt,
         messages,
       })
@@ -168,7 +215,7 @@ export async function POST(request: Request) {
       const reply = response.content[0].type === 'text' ? response.content[0].text : ''
       if (!reply) return
 
-      // Post reply to Slack — show agent name so each agent feels like its own person
+      // Post reply to Slack
       await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
@@ -180,7 +227,7 @@ export async function POST(request: Request) {
         }),
       })
 
-      // Save conversation to history
+      // Persist conversation history
       await supabase.from('slack_messages').insert([
         { agent_id: agent.id, role: 'user', content: userMessage, slack_ts: slackTs },
         { agent_id: agent.id, role: 'assistant', content: reply },

@@ -166,6 +166,8 @@ export interface Agent {
   slack_channel_id?: string | null
   // RAG context
   system_instructions?: string | null
+  // Analysis pipeline output
+  context_summary?: string | null
 }
 
 export interface AgentDocument {

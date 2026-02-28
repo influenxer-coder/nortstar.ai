@@ -1,0 +1,208 @@
+/**
+ * Agent analysis pipeline — runs in the background after Slack is connected.
+ *
+ * Steps:
+ * 1. Fetch the last 30 GitHub commits for the agent's repo
+ * 2. Ask Claude to synthesize what the team has been working on + why
+ * 3. Ask Claude to research the best optimization frameworks for this page type
+ * 4. Store the combined insight as agent.context_summary so every Slack reply is informed
+ *
+ * Each step writes a row to agent_logs so the UI can stream progress in real time.
+ */
+
+import Anthropic from '@anthropic-ai/sdk'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ServiceClient = SupabaseClient<any, any, any>
+
+export interface AgentInfo {
+  name: string
+  url: string | null
+  github_repo: string | null
+  target_element: { type?: string; text?: string } | null
+  main_kpi: string | null
+}
+
+// ── Log helpers ────────────────────────────────────────────────────────────────
+
+async function addLog(
+  supabase: ServiceClient,
+  agentId: string,
+  stepName: string,
+  message: string,
+  status: 'running' | 'done' | 'error'
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('agent_logs')
+    .insert({ agent_id: agentId, step_name: stepName, message, status })
+    .select('id')
+    .single()
+  return data?.id ?? null
+}
+
+async function updateLog(
+  supabase: ServiceClient,
+  logId: string,
+  message: string,
+  status: 'done' | 'error'
+): Promise<void> {
+  await supabase.from('agent_logs').update({ message, status }).eq('id', logId)
+}
+
+// ── Main pipeline ──────────────────────────────────────────────────────────────
+
+export async function analyzeAgent(
+  supabase: ServiceClient,
+  agentId: string,
+  agent: AgentInfo,
+  githubToken: string | null
+): Promise<void> {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+
+  // Clear stale logs before re-running
+  await supabase.from('agent_logs').delete().eq('agent_id', agentId)
+
+  // ── Step 1: Fetch GitHub commits ─────────────────────────────────────────────
+  let commitContext = ''
+  if (agent.github_repo && githubToken) {
+    const logId = await addLog(
+      supabase, agentId, 'github',
+      `Fetching recent commits from ${agent.github_repo}…`, 'running'
+    )
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${agent.github_repo}/commits?per_page=30`,
+        { headers: { Authorization: `token ${githubToken}`, Accept: 'application/vnd.github.v3+json' } }
+      )
+      if (res.ok) {
+        const commits = await res.json() as Array<{
+          sha: string
+          commit: { message: string; author: { date: string; name: string } }
+        }>
+        commitContext = commits.slice(0, 25).map(c =>
+          `${c.commit.author.date.split('T')[0]} [${c.commit.author.name}]: ${c.commit.message.split('\n')[0]}`
+        ).join('\n')
+        if (logId) await updateLog(supabase, logId, `Fetched ${commits.length} commits from ${agent.github_repo}`, 'done')
+      } else {
+        const errBody = await res.json().catch(() => ({}))
+        const msg = res.status === 404
+          ? `Repo ${agent.github_repo} not found — check the repo name`
+          : res.status === 401
+          ? `GitHub token expired — reconnect GitHub in settings`
+          : `GitHub returned ${res.status}: ${(errBody as { message?: string }).message ?? 'unknown error'}`
+        if (logId) await updateLog(supabase, logId, msg, 'error')
+      }
+    } catch (e) {
+      if (logId) await updateLog(supabase, logId, `Could not reach GitHub — skipping commit history`, 'error')
+      console.error('[analyze-agent] github fetch error:', e)
+    }
+  }
+
+  // ── Step 2: Analyze commits with Claude ─────────────────────────────────────
+  let codeAnalysis = ''
+  if (commitContext) {
+    const logId = await addLog(supabase, agentId, 'code_analysis', 'Analyzing code changes…', 'running')
+    try {
+      const targetDesc = agent.target_element?.text
+        ? `"${agent.target_element.text}" (${agent.target_element.type || 'element'})`
+        : 'the main CTA'
+
+      const resp = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        system: `You are a senior product analyst reading commit history to understand what a team has been working on and why. Be specific, incisive, and connect the dots.`,
+        messages: [{
+          role: 'user',
+          content: `Agent context:
+- Product: ${agent.url || 'unknown URL'}
+- Target feature: ${targetDesc}
+- Primary KPI: ${agent.main_kpi || 'not specified'}
+
+Recent commit log (newest first):
+${commitContext}
+
+In 4-6 bullet points:
+• What has the team shipped recently, grouped by theme?
+• What product problems or hypotheses are these changes addressing?
+• What does this tell us about the team's current bets?
+• Are there any patterns in the types of changes being made (UI, backend, analytics, A/B tests)?
+
+Be specific — reference commit message language directly. Skip generic observations.`
+        }]
+      })
+      codeAnalysis = resp.content[0].type === 'text' ? resp.content[0].text : ''
+      if (logId) await updateLog(supabase, logId, 'Code analysis complete — identified recent product changes', 'done')
+    } catch (e) {
+      if (logId) await updateLog(supabase, logId, 'Code analysis failed', 'error')
+      console.error('[analyze-agent] code analysis error:', e)
+    }
+  }
+
+  // ── Step 3: Research optimization frameworks ─────────────────────────────────
+  const logId3 = await addLog(
+    supabase, agentId, 'research',
+    `Researching what drives improvements for this type of feature…`, 'running'
+  )
+  let researchInsights = ''
+  try {
+    const targetDesc = agent.target_element?.text
+      ? `"${agent.target_element.text}" ${agent.target_element.type || 'element'}`
+      : 'the primary conversion action'
+
+    const resp = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1200,
+      system: `You are a CRO strategist and product optimization expert. You have studied hundreds of A/B tests, growth experiments, and conversion case studies across SaaS and e-commerce. Give specific, evidence-backed advice — not platitudes.`,
+      messages: [{
+        role: 'user',
+        content: `I need you to brief an AI agent that will advise a product team on optimizing their page.
+
+Product URL: ${agent.url || 'a web product'}
+Target: ${targetDesc}
+Primary metric: ${agent.main_kpi || 'conversion rate'}
+${agent.github_repo ? `Codebase: ${agent.github_repo}` : ''}
+
+Answer these four questions in structured bullet points:
+
+1. **High-impact frameworks**: What are the 3-5 most proven optimization frameworks for this type of feature? (e.g., JTBD, friction audits, value prop clarity, urgency/scarcity, social proof placement) — and which specific aspect of each is most often overlooked?
+
+2. **What moves the needle**: Based on published case studies and A/B test results from the past few years, what types of changes have driven 10%+ lifts on similar pages? Be specific about the mechanic (not just "better copy" — what about the copy, exactly?).
+
+3. **Common mistakes**: What mistakes do teams typically make when optimizing this feature that kill conversion? What should we investigate first to rule out?
+
+4. **First questions to ask**: If this agent were advising this team, what are the top 5 questions it should ask to diagnose the current state before making recommendations?
+
+The agent will use this brief to answer questions from the product team in Slack. Be specific and opinionated.`
+      }]
+    })
+    researchInsights = resp.content[0].type === 'text' ? resp.content[0].text : ''
+    if (logId3) await updateLog(supabase, logId3, 'Research complete — optimization playbook ready', 'done')
+  } catch (e) {
+    if (logId3) await updateLog(supabase, logId3, 'Research failed', 'error')
+    console.error('[analyze-agent] research error:', e)
+  }
+
+  // ── Step 4: Synthesize and store ─────────────────────────────────────────────
+  const logId4 = await addLog(supabase, agentId, 'synthesis', 'Building agent context…', 'running')
+  try {
+    const parts: string[] = []
+    if (codeAnalysis) {
+      parts.push(`## What the team has been shipping\n${codeAnalysis}`)
+    }
+    if (researchInsights) {
+      parts.push(`## Optimization research for this page type\n${researchInsights}`)
+    }
+
+    const contextSummary = parts.join('\n\n---\n\n')
+    if (contextSummary) {
+      await supabase.from('agents').update({ context_summary: contextSummary }).eq('id', agentId)
+      if (logId4) await updateLog(supabase, logId4, 'Agent is fully briefed — ready to help in Slack', 'done')
+    } else {
+      if (logId4) await updateLog(supabase, logId4, 'No context generated — connect GitHub for richer analysis', 'error')
+    }
+  } catch (e) {
+    if (logId4) await updateLog(supabase, logId4, 'Synthesis failed', 'error')
+    console.error('[analyze-agent] synthesis error:', e)
+  }
+}

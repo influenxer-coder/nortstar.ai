@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Bot, MessageSquare, CheckCircle2 } from 'lucide-react'
 import type { Agent } from '@/lib/types'
 import AgentSlackSection from './AgentSlackSection'
+import AgentAnalysisLogs from './AgentAnalysisLogs'
 
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -72,6 +73,12 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         </dl>
       </div>
 
+      {/* Analysis logs — live briefing stream */}
+      <AgentAnalysisLogs
+        agentId={typedAgent.id}
+        hasGithubRepo={!!typedAgent.github_repo}
+      />
+
       {/* Slack section */}
       <div className="border border-zinc-800 rounded-xl p-6 bg-zinc-900/50">
         <div className="flex items-center gap-2 mb-4">
@@ -85,7 +92,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <div className="text-sm">
               <p className="text-emerald-400 font-medium">Connected</p>
               <p className="text-zinc-500 mt-0.5 text-xs">
-                Your agent is active in Slack. DM it to ask questions or share feedback.
+                Your agent is active in Slack. Message it in the private channel to ask questions.
               </p>
               <a
                 href={`/api/auth/slack?agent_id=${typedAgent.id}`}
@@ -98,7 +105,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-zinc-400">
-              Connect Slack so your agent can chat with you directly via DM.
+              Connect Slack so your agent can chat with you directly in a private channel.
             </p>
             <a
               href={`/api/auth/slack?agent_id=${typedAgent.id}`}
@@ -111,7 +118,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         )}
       </div>
 
-      {/* Agent instructions + knowledge base (client component for interactivity) */}
+      {/* Agent instructions + knowledge base */}
       <AgentSlackSection
         agentId={typedAgent.id}
         initialInstructions={typedAgent.system_instructions ?? ''}

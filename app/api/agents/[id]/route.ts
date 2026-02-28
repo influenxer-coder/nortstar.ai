@@ -13,7 +13,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('agents')
-    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, slack_team_id, slack_user_id, slack_channel_id, system_instructions, created_at')
+    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, slack_team_id, slack_user_id, slack_channel_id, system_instructions, context_summary, created_at')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()

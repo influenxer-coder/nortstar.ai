@@ -420,6 +420,7 @@ export default function CreateAgentFlow() {
     }
 
     try {
+      let agentId = draftId
       if (draftId) {
         const res = await fetch(`/api/agents/${draftId}`, {
           method: 'PATCH',
@@ -440,6 +441,12 @@ export default function CreateAgentFlow() {
           const data = await res.json()
           throw new Error(data.error || 'Failed to create agent')
         }
+        const created = await res.json()
+        agentId = created.id ?? agentId
+      }
+      // Kick off background analysis immediately — no Slack connection needed
+      if (agentId) {
+        fetch(`/api/agents/${agentId}/analyze`, { method: 'POST' }).catch(() => {})
       }
       router.push('/dashboard/agents')
       router.refresh()

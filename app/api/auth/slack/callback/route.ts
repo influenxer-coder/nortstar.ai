@@ -89,7 +89,7 @@ export async function GET(request: Request) {
 
   // Send welcome message in the new channel
   if (channelId) {
-    const welcomeText = `👋 Hi! I'm *${agent.name}*, your NorthStar agent.\n\nI'm here to help you optimize ${agent.url || 'your product'}. Ask me anything about user behavior, conversion, or product strategy.`
+    const welcomeText = `👋 Hi! I'm *${agent.name}*, your NorthStar agent. Ask me anything about user behavior, conversion, or product strategy — I've been briefed on your product.`
     await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${botToken}` },
