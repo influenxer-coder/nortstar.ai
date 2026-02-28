@@ -49,14 +49,35 @@ export async function GET(request: Request) {
   const teamId: string = tokenData.team?.id
   const slackUserId: string = tokenData.authed_user?.id
 
-  // Open DM channel with the user who installed the app
-  const dmRes = await fetch('https://slack.com/api/conversations.open', {
+  // Create a private channel dedicated to this agent
+  // e.g. "Checkout Optimizer" → "northstar-checkout-optimizer"
+  const channelName = `northstar-${agent.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 75)}`
+  const createRes = await fetch('https://slack.com/api/conversations.create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${botToken}` },
-    body: JSON.stringify({ users: slackUserId }),
+    body: JSON.stringify({ name: channelName, is_private: true }),
   })
-  const dmData = await dmRes.json()
-  const channelId: string = dmData.channel?.id
+  const createData = await createRes.json()
+
+  // If channel name already exists (reconnect), look up the existing channel
+  let channelId: string = createData.channel?.id
+  if (!channelId && createData.error === 'name_taken') {
+    const listRes = await fetch(`https://slack.com/api/conversations.list?types=private_channel&exclude_archived=true&limit=200`, {
+      headers: { Authorization: `Bearer ${botToken}` },
+    })
+    const listData = await listRes.json()
+    const existing = (listData.channels || []).find((c: { name: string; id: string }) => c.name === channelName)
+    channelId = existing?.id
+  }
+
+  // Invite the user who installed the app into the channel
+  if (channelId && slackUserId) {
+    await fetch('https://slack.com/api/conversations.invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${botToken}` },
+      body: JSON.stringify({ channel: channelId, users: slackUserId }),
+    })
+  }
 
   // Save Slack credentials on the agent
   await supabase.from('agents').update({
@@ -66,13 +87,13 @@ export async function GET(request: Request) {
     slack_channel_id: channelId,
   }).eq('id', agentId)
 
-  // Send welcome DM
+  // Send welcome message in the new channel
   if (channelId) {
     const welcomeText = `👋 Hi! I'm *${agent.name}*, your NorthStar agent.\n\nI'm here to help you optimize ${agent.url || 'your product'}. Ask me anything about user behavior, conversion, or product strategy.`
     await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${botToken}` },
-      body: JSON.stringify({ channel: channelId, text: welcomeText }),
+      body: JSON.stringify({ channel: channelId, text: welcomeText, username: agent.name, icon_emoji: ':robot_face:' }),
     })
   }
 

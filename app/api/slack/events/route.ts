@@ -84,9 +84,10 @@ export async function POST(request: Request) {
   }
 
   // Ignore bot messages, message edits, deletions
+  // Accept messages from private channels (group) — each agent gets its own channel
   if (
     event.type !== 'message' ||
-    event.channel_type !== 'im' ||
+    (event.channel_type !== 'im' && event.channel_type !== 'group') ||
     event.bot_id ||
     event.subtype
   ) {
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
       if (agent.system_instructions) {
         systemPrompt += `\n\n${agent.system_instructions}`
       }
-      systemPrompt += `\n\nYou are communicating via Slack DM. Keep replies concise, use bullet points when listing, and avoid markdown headers.`
+      systemPrompt += `\n\nYou are communicating via Slack. Keep replies concise, use bullet points when listing, and avoid markdown headers.`
       if (docChunks.length > 0) {
         systemPrompt += `\n\nRelevant knowledge:\n${docChunks.join('\n\n---\n\n')}`
       }
@@ -164,11 +165,16 @@ export async function POST(request: Request) {
       const reply = response.content[0].type === 'text' ? response.content[0].text : ''
       if (!reply) return
 
-      // Post reply to Slack
+      // Post reply to Slack — show agent name so each agent feels like its own person
       await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
-        body: JSON.stringify({ channel: channelId, text: reply, thread_ts: slackTs }),
+        body: JSON.stringify({
+          channel: channelId,
+          text: reply,
+          username: agent.name,
+          icon_emoji: ':robot_face:',
+        }),
       })
 
       // Save conversation to history
