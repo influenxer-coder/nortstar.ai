@@ -167,7 +167,16 @@ export async function POST(request: Request) {
     }, { status: 400 })
   }
 
-  // --- 3. Inject script ---
+  // --- 3. Check if PostHog already in the default branch ---
+  const alreadyInRepo =
+    targetFile.content.includes('posthog.init(') ||
+    targetFile.content.includes('us.i.posthog.com') ||
+    targetFile.content.includes('posthog-js')
+  if (alreadyInRepo) {
+    return NextResponse.json({ already_installed: true })
+  }
+
+  // --- 3b. Inject script ---
   const newContent = injectScript(targetFile.content, targetFile.type, posthogApiKey)
   if (newContent === targetFile.content) {
     return NextResponse.json({ error: 'Could not find a suitable injection point in the file.' }, { status: 400 })
@@ -204,34 +213,43 @@ export async function POST(request: Request) {
   }
 
   // --- 5. Commit updated file ---
-  // Re-fetch the file's SHA from the branch (not default branch) in case the branch
-  // already existed from a previous attempt and the file was already modified there.
+  // Re-fetch from the branch to get the current SHA. Also check if the branch content
+  // already matches what we'd commit (no-op case from a previous retry) to skip the commit.
   let commitSha = targetFile.sha
+  let skipCommit = false
   const branchFileRes = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/contents/${targetFile.path}?ref=${branchName}`,
     { headers: ghHeaders }
   )
   if (branchFileRes.ok) {
     const branchFileData = await branchFileRes.json()
-    if (branchFileData.sha) commitSha = branchFileData.sha
+    if (branchFileData.sha) {
+      commitSha = branchFileData.sha
+      try {
+        const branchContent = Buffer.from(branchFileData.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+        if (branchContent === newContent) skipCommit = true
+      } catch { /* ignore decode errors, just commit */ }
+    }
   }
 
-  const updateRes = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/${targetFile.path}`,
-    {
-      method: 'PUT',
-      headers: ghHeaders,
-      body: JSON.stringify({
-        message: 'feat: add NorthStar behavioral analytics',
-        content: Buffer.from(newContent).toString('base64'),
-        sha: commitSha,
-        branch: branchName,
-      }),
+  if (!skipCommit) {
+    const updateRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${targetFile.path}`,
+      {
+        method: 'PUT',
+        headers: ghHeaders,
+        body: JSON.stringify({
+          message: 'feat: add NorthStar behavioral analytics',
+          content: Buffer.from(newContent).toString('base64'),
+          sha: commitSha,
+          branch: branchName,
+        }),
+      }
+    )
+    if (!updateRes.ok) {
+      const errJson = await updateRes.json()
+      return NextResponse.json({ error: `Could not commit file: ${errJson.message}` }, { status: 400 })
     }
-  )
-  if (!updateRes.ok) {
-    const errJson = await updateRes.json()
-    return NextResponse.json({ error: `Could not commit file: ${errJson.message}` }, { status: 400 })
   }
 
   // --- 6. Create PR ---
@@ -258,7 +276,7 @@ export async function POST(request: Request) {
       )
     if (isAlreadyExists) {
       const existingRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/pulls?head=${owner}:${branchName}&base=${defaultBranch}&state=open`,
+        `https://api.github.com/repos/${owner}/${repo}/pulls?head=${owner}:${branchName}&base=${defaultBranch}&state=all`,
         { headers: ghHeaders }
       )
       if (existingRes.ok) {

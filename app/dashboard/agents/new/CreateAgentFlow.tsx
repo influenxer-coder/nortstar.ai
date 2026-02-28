@@ -143,6 +143,7 @@ export default function CreateAgentFlow() {
   const [installPrUrl, setInstallPrUrl] = useState<string | null>(null)
   const [installPolling, setInstallPolling] = useState(false)
   const [installError, setInstallError] = useState('')
+  const [installAlreadyInRepo, setInstallAlreadyInRepo] = useState(false)
 
   // ── Step 4 — Element selection ────────────────────────────────────────────
   const [selectedElement, setSelectedElement] = useState<CrawlElement | null>(null)
@@ -324,6 +325,11 @@ export default function CreateAgentFlow() {
       const data = await res.json()
       if (!res.ok || data.error) {
         setInstallError(data.error || 'Failed to open PR')
+        return
+      }
+      if (data.already_installed) {
+        setInstallAlreadyInRepo(true)
+        setInstallPolling(true)
         return
       }
       setInstallPrUrl(data.pr_url)
@@ -746,7 +752,15 @@ export default function CreateAgentFlow() {
                         ))}
                       </ul>
 
-                      {!installPrUrl ? (
+                      {installAlreadyInRepo ? (
+                        <div className="rounded-lg border border-blue-600/30 bg-blue-950/20 px-4 py-3 space-y-2">
+                          <p className="text-sm text-blue-400 font-medium">PostHog already in your repo</p>
+                          <div className="flex items-center gap-2 text-zinc-400 text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#7C3AED]" />
+                            <span>Checking if it&apos;s live on your page…</span>
+                          </div>
+                        </div>
+                      ) : !installPrUrl ? (
                         <>
                           {installError && (
                             <p className="text-xs text-red-400 mb-3">{installError}</p>
