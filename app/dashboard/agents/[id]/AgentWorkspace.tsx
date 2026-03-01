@@ -116,6 +116,12 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Briefing collapse state ────────────────────────────────────────────────
   const [briefingOpen, setBriefingOpen] = useState(!!agent.context_summary)
 
+  // ── Project picker collapse state ──────────────────────────────────────────
+  const [projectsOpen, setProjectsOpen] = useState(false)
+
+  // ── Expanded hypothesis row ────────────────────────────────────────────────
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+
   // ── PostHog connect state ────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
   const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
@@ -293,37 +299,43 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
       {/* ── Left panel ──────────────────────────────────────────────────────── */}
       <div className="w-60 shrink-0 border-r border-zinc-800 flex flex-col overflow-hidden">
 
-        {/* Agent picker */}
-        <div className="border-b border-zinc-800 p-3">
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-2 px-1">Projects</p>
-          <div className="space-y-0.5">
-            {agents.map(a => (
+        {/* Agent picker — collapsible */}
+        <div className="border-b border-zinc-800">
+          <button
+            onClick={() => setProjectsOpen(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-zinc-900/40 transition-colors"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-5 h-5 rounded shrink-0 flex items-center justify-center text-[10px] font-bold bg-violet-500 text-white">
+                {agent.name.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-zinc-200 truncate">{agent.name}</span>
+            </div>
+            <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 shrink-0 transition-transform duration-150 ${projectsOpen ? 'rotate-90' : ''}`} />
+          </button>
+          {projectsOpen && (
+            <div className="pb-2 px-2 space-y-0.5">
+              {agents.filter(a => a.id !== agent.id).map(a => (
+                <Link
+                  key={a.id}
+                  href={`/dashboard/agents/${a.id}`}
+                  className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+                >
+                  <div className="w-5 h-5 rounded shrink-0 flex items-center justify-center text-[10px] font-bold bg-zinc-700 text-zinc-400">
+                    {a.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-xs truncate font-medium">{a.name}</span>
+                </Link>
+              ))}
               <Link
-                key={a.id}
-                href={`/dashboard/agents/${a.id}`}
-                className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors group ${
-                  a.id === agent.id
-                    ? 'bg-violet-500/15 text-zinc-100'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60'
-                }`}
+                href="/dashboard/agents/new"
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/40 transition-colors"
               >
-                <div className={`w-5 h-5 rounded shrink-0 flex items-center justify-center text-[10px] font-bold ${
-                  a.id === agent.id ? 'bg-violet-500 text-white' : 'bg-zinc-700 text-zinc-400'
-                }`}>
-                  {a.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-xs truncate font-medium">{a.name}</span>
-                {a.id === agent.id && <ChevronRight className="h-3 w-3 ml-auto shrink-0 text-violet-400" />}
+                <Plus className="h-3.5 w-3.5" />
+                <span className="text-xs">New agent</span>
               </Link>
-            ))}
-            <Link
-              href="/dashboard/agents/new"
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/40 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="text-xs">New agent</span>
-            </Link>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Sources */}
@@ -612,50 +624,39 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
           {/* ── Hypothesis table (expanded) ──────────────────────────────────── */}
           {view === 'hypotheses' && (
             <div className="border-b border-zinc-800/60">
+              {/* Table header — always shown */}
+              <div className={`flex items-center gap-3 px-5 py-2.5 border-b border-zinc-800 ${hasHypotheses ? 'sticky top-0 z-10' : ''} bg-zinc-950`}>
+                <div className="w-4 shrink-0" />
+                <div className="flex-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Improvement</div>
+                <div className="w-28 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Source</div>
+                <div className="w-16 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Impact</div>
+                <div className="w-20 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Status</div>
+              </div>
+
               {!hasHypotheses ? (
-                <>
-                  {/* Table header - always shown */}
-                  <div className="bg-zinc-950 border-b border-zinc-800">
-                    <div className="grid gap-0 px-5 py-2.5" style={{ gridTemplateColumns: '2fr 1fr 3fr 2.5fr 70px 110px 80px' }}>
-                      {['Improvement', 'Source', 'Hypothesis', 'Suggested Change', 'Impact', 'Status', ''].map(col => (
-                        <div key={col} className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest pr-3">
-                          {col}
-                        </div>
-                      ))}
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Sparkles className="h-6 w-6 text-zinc-700" />
+                  <p className="text-sm text-zinc-500 font-medium">No hypotheses yet</p>
+                  <p className="text-xs text-zinc-600 text-center max-w-xs">
+                    Click <span className="text-zinc-400">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
+                  </p>
+                  {reanalyzing && (
+                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                      Generating hypotheses — this takes about 60 seconds…
                     </div>
-                  </div>
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <Sparkles className="h-6 w-6 text-zinc-700" />
-                    <p className="text-sm text-zinc-500 font-medium">No hypotheses yet</p>
-                    <p className="text-xs text-zinc-600 text-center max-w-xs">
-                      Click <span className="text-zinc-400">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
-                    </p>
-                    {reanalyzing && (
-                      <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-                        Generating hypotheses — this takes about 60 seconds…
-                      </div>
-                    )}
-                  </div>
-                </>
+                  )}
+                </div>
               ) : (
                 <>
-                  {/* Table header */}
-                  <div className="sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800">
-                    <div className="grid gap-0 px-5 py-2.5" style={{ gridTemplateColumns: '2fr 1fr 3fr 2.5fr 70px 110px 80px' }}>
-                      {['Improvement', 'Source', 'Hypothesis', 'Suggested Change', 'Impact', 'Status', ''].map(col => (
-                        <div key={col} className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest pr-3">
-                          {col}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                   <div className="divide-y divide-zinc-800/50">
                     {hypotheses.map(h => (
                       <HypothesisRow
                         key={h.id}
                         hypothesis={h}
-                        agentId={agent.id}
+                        agentKpi={agent.main_kpi ?? ''}
+                        isExpanded={expandedRowId === h.id}
+                        onToggleExpand={() => setExpandedRowId(expandedRowId === h.id ? null : h.id)}
                         isAsking={askHypId === h.id}
                         chatMsgs={chatHistory[h.id] ?? []}
                         chatInputVal={chatInput[h.id] ?? ''}
@@ -865,7 +866,9 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
 
 function HypothesisRow({
   hypothesis: h,
-  agentId: _agentId,
+  agentKpi,
+  isExpanded,
+  onToggleExpand,
   isAsking,
   chatMsgs,
   chatInputVal,
@@ -879,7 +882,9 @@ function HypothesisRow({
   onCopy,
 }: {
   hypothesis: Hypothesis
-  agentId: string
+  agentKpi: string
+  isExpanded: boolean
+  onToggleExpand: () => void
   isAsking: boolean
   chatMsgs: ChatMsg[]
   chatInputVal: string
@@ -900,169 +905,175 @@ function HypothesisRow({
 
   const isRejected = h.status === 'rejected'
   const isAccepted = h.status === 'accepted' || h.status === 'shipped'
+  const impact = impactInfo(h.impact_score, agentKpi)
 
   return (
-    <div className={`transition-colors ${isRejected ? 'opacity-40' : 'hover:bg-zinc-900/30'}`}>
-      {/* Main row */}
+    <div className={isRejected ? 'opacity-40' : ''}>
+      {/* ── Collapsed row (always visible) ─────────────────────────────────── */}
       <div
-        className="group grid gap-0 px-5 py-3.5 cursor-default"
-        style={{ gridTemplateColumns: '2fr 1fr 3fr 2.5fr 70px 110px 80px' }}
+        onClick={onToggleExpand}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${
+          isExpanded ? 'bg-zinc-900/50' : 'hover:bg-zinc-900/30'
+        }`}
       >
-        {/* Title */}
-        <div className="pr-4 flex items-start">
-          <p className={`text-sm font-medium text-zinc-100 leading-snug ${isRejected ? 'line-through' : ''}`}>
-            {h.title}
-          </p>
-        </div>
-
-        {/* Source */}
-        <div className="pr-3 flex items-start pt-0.5">
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 whitespace-nowrap">
-            {h.source}
-          </span>
-        </div>
-
-        {/* Hypothesis */}
-        <div className="pr-4 flex items-start">
-          <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">{h.hypothesis}</p>
-        </div>
-
-        {/* Suggested change */}
-        <div className="pr-4 flex items-start">
-          <p className="text-xs text-zinc-500 font-mono leading-relaxed line-clamp-3">
-            {h.suggested_change ?? '—'}
-          </p>
-        </div>
-
-        {/* Impact */}
-        <div className="flex items-start pt-1">
+        <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 shrink-0 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
+        <p className={`flex-1 text-sm font-medium leading-snug ${isRejected ? 'line-through text-zinc-500' : 'text-zinc-100'}`}>
+          {h.title}
+        </p>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 whitespace-nowrap w-28 text-center truncate shrink-0">
+          {h.source}
+        </span>
+        <div className="w-16 shrink-0">
           <ImpactDots score={h.impact_score} />
         </div>
-
-        {/* Status */}
-        <div className="flex items-start pt-0.5">
+        <div className="w-20 shrink-0">
           <StatusBadge status={h.status} />
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-start gap-1 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onToggleAsk}
-            title="Ask questions"
-            className={`w-6 h-6 rounded flex items-center justify-center text-xs transition-colors ${
-              isAsking
-                ? 'bg-violet-500/20 text-violet-400'
-                : 'text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10'
-            }`}
-          >
-            <Sparkles className="h-3 w-3" />
-          </button>
-          {h.status !== 'rejected' && (
-            <button
-              onClick={onReject}
-              title="Reject"
-              className="w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <XCircle className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {h.status === 'proposed' && (
-            <button
-              onClick={onAccept}
-              title="Accept"
-              className="w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Accepted: code/change panel */}
-      {isAccepted && !isAsking && h.suggested_change && (
-        <div className="border-t border-emerald-800/30 bg-emerald-950/10 px-5 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider">Suggested change</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onCopy(h.suggested_change!)}
-                className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300"
-              >
-                {copied === h.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                {copied === h.id ? 'Copied' : 'Copy'}
-              </button>
-              <button
-                className="flex items-center gap-1 text-[10px] text-zinc-600 border border-zinc-700 rounded px-2 py-0.5 hover:border-zinc-500 hover:text-zinc-400"
-                title="Coming soon"
-                disabled
-              >
-                <GitBranch className="h-3 w-3" />
-                Create PR
-              </button>
-            </div>
+      {/* ── Expanded detail panel ───────────────────────────────────────────── */}
+      {isExpanded && (
+        <div className="border-t border-zinc-800/60 bg-zinc-900/20 px-9 py-5 space-y-5">
+
+          {/* What we're improving */}
+          <div>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">What we're improving</p>
+            <p className="text-sm font-medium text-zinc-200">{h.title}</p>
           </div>
-          <pre className="text-xs text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-md p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-            {h.suggested_change}
-          </pre>
-        </div>
-      )}
 
-      {/* Ask: inline chat panel */}
-      {isAsking && (
-        <div className="border-t border-zinc-800 bg-zinc-900/40 px-5 py-4">
-          <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-3">
-            Ask about this hypothesis
-          </p>
+          {/* Why we're proposing this */}
+          <div>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Why we're proposing this</p>
+            <p className="text-xs text-zinc-400 leading-relaxed">{h.hypothesis}</p>
+          </div>
 
-          {/* Chat history */}
-          {chatMsgs.length > 0 && (
-            <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
-              {chatMsgs.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-violet-600 text-white'
-                      : 'bg-zinc-800 text-zinc-300'
-                  }`}>
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-              {chatIsLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
-                    <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
-                    Thinking…
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
+          {/* Suggested change */}
+          {h.suggested_change && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Suggested change</p>
+                <button
+                  onClick={() => onCopy(h.suggested_change!)}
+                  className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors"
+                >
+                  {copied === h.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  {copied === h.id ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800 rounded-md px-3 py-2.5">
+                {h.suggested_change}
+              </p>
             </div>
           )}
 
-          {/* Input */}
-          <div className="flex gap-2">
-            <input
-              value={chatInputVal}
-              onChange={e => onChatInputChange(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && onAsk()}
-              placeholder={
-                chatMsgs.length === 0
-                  ? 'Where did this come from? What data supports it?'
-                  : 'Ask a follow-up…'
-              }
-              className="flex-1 bg-zinc-950 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
-            />
-            <button
-              onClick={onAsk}
-              disabled={!chatInputVal.trim() || chatIsLoading}
-              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-md disabled:opacity-40 transition-colors"
-            >
-              Ask
-            </button>
+          {/* Expected impact on KPI */}
+          <div>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">
+              Expected impact{agentKpi ? ` on ${agentKpi}` : ''}
+            </p>
+            <div className="flex items-start gap-3">
+              <ImpactDots score={h.impact_score} />
+              <div>
+                <p className={`text-xs font-semibold ${impact.color}`}>{impact.level}</p>
+                <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{impact.reason}</p>
+              </div>
+            </div>
           </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/60">
+            <button
+              onClick={e => { e.stopPropagation(); onToggleAsk() }}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                isAsking
+                  ? 'border-violet-600 bg-violet-500/10 text-violet-400'
+                  : 'border-zinc-700 text-zinc-400 hover:border-violet-600 hover:text-violet-400'
+              }`}
+            >
+              <Sparkles className="h-3 w-3" /> Ask Claude
+            </button>
+            {h.status === 'proposed' && (
+              <button
+                onClick={e => { e.stopPropagation(); onAccept() }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 transition-colors"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Accept
+              </button>
+            )}
+            {isAccepted && (
+              <button
+                onClick={e => { e.stopPropagation(); onCopy(h.suggested_change ?? '') }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                <GitBranch className="h-3 w-3" /> Create PR
+              </button>
+            )}
+            {h.status !== 'rejected' && (
+              <button
+                onClick={e => { e.stopPropagation(); onReject() }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-500 hover:border-red-700 hover:text-red-400 transition-colors ml-auto"
+              >
+                <XCircle className="h-3.5 w-3.5" /> Reject
+              </button>
+            )}
+          </div>
+
+          {/* Ask Claude chat panel */}
+          {isAsking && (
+            <div className="border border-zinc-800 rounded-lg bg-zinc-950/60 p-4">
+              <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-3">
+                Ask about this hypothesis
+              </p>
+              {chatMsgs.length > 0 && (
+                <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
+                  {chatMsgs.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                        msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300'
+                      }`}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {chatIsLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
+                        <Loader2 className="h-3 w-3 animate-spin inline mr-1" /> Thinking…
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={chatInputVal}
+                  onChange={e => onChatInputChange(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && onAsk()}
+                  placeholder={chatMsgs.length === 0 ? 'Where did this come from? What data supports it?' : 'Ask a follow-up…'}
+                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+                />
+                <button
+                  onClick={onAsk}
+                  disabled={!chatInputVal.trim() || chatIsLoading}
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-md disabled:opacity-40 transition-colors"
+                >
+                  Ask
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   )
+}
+
+function impactInfo(score: number, kpi: string): { level: string; color: string; reason: string } {
+  const k = kpi || 'your KPI'
+  if (score >= 5) return { level: 'Very high', color: 'text-violet-400', reason: `Expected to move ${k} significantly. High-confidence change with strong supporting evidence from research and behaviour data.` }
+  if (score >= 4) return { level: 'High', color: 'text-violet-300', reason: `Strong potential to improve ${k}. Backed by proven patterns in similar products and the data from your connected sources.` }
+  if (score >= 3) return { level: 'Medium', color: 'text-amber-400', reason: `Moderate, validated pattern. Likely to produce a measurable lift on ${k} — worth prioritising in the next sprint.` }
+  if (score >= 2) return { level: 'Low', color: 'text-zinc-400', reason: `Incremental gain expected. May have a modest effect on ${k} — good for a quick experiment but not the highest leverage.` }
+  return { level: 'Very low', color: 'text-zinc-500', reason: `Minor improvement at best. Treat as an early assumption to validate before investing further effort.` }
 }
