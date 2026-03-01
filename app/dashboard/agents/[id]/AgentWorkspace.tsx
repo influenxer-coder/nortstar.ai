@@ -213,12 +213,14 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   const targetDesc = agent.target_element?.text ?? null
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#09090B]">
+    <div className="flex flex-col min-h-screen overflow-hidden bg-[#09090B]">
 
-      {/* ── Left sources panel ───────────────────────────────────────────────── */}
-      <div className="w-56 shrink-0 border-r border-zinc-800 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-3 space-y-5">
+      {/* ── Single column: integrations first, then agent content below ────────── */}
+      <div className="flex flex-col overflow-y-auto flex-1">
+        {/* Integrations / sources panel (top) */}
+        <div className="shrink-0 border-b border-zinc-800 p-4">
 
+          <div className="space-y-5">
           {/* Analytics */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
@@ -350,11 +352,11 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             </button>
           </div>
 
+          </div>
         </div>
-      </div>
 
-      {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ── Agent content: header, briefing, hypotheses (below integrations) ─── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="border-b border-zinc-800 h-14 px-6 flex items-center justify-between shrink-0">
@@ -526,6 +528,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
           )}
 
+        </div>
         </div>
       </div>
     </div>
