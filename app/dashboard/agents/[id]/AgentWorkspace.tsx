@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   CheckCircle2, XCircle, MessageSquare, GitBranch, BarChart2,
   FileText, Upload, Trash2, Loader2, RefreshCw, ChevronRight,
@@ -413,7 +415,14 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             {briefingOpen && (
               <div className="px-6 pb-5">
                 {agent.context_summary ? (
-                  <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line mb-3">{agent.context_summary}</p>
+                  <div className="prose prose-invert prose-sm max-w-none mb-3 text-xs
+                    prose-headings:text-zinc-200 prose-headings:font-semibold prose-headings:tracking-tight
+                    prose-p:text-zinc-400 prose-p:leading-relaxed prose-p:my-1.5
+                    prose-ul:text-zinc-400 prose-ol:text-zinc-400 prose-li:my-0.5
+                    prose-strong:text-zinc-200 prose-code:text-zinc-300 prose-code:bg-zinc-800/60 prose-code:px-1 prose-code:rounded
+                    prose-hr:border-zinc-700">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{agent.context_summary}</ReactMarkdown>
+                  </div>
                 ) : (
                   <p className="text-xs text-zinc-600 italic mb-3">
                     No briefing yet — run analysis to generate insights from your connected sources.
@@ -714,7 +723,9 @@ function HypothesisRow({
           </div>
           <div>
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Why we&apos;re proposing this</p>
-            <p className="text-xs text-zinc-400 leading-relaxed">{h.hypothesis}</p>
+            <div className="prose prose-invert prose-sm max-w-none text-xs text-zinc-400 prose-p:my-1 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-strong:text-zinc-300">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{h.hypothesis}</ReactMarkdown>
+            </div>
           </div>
           {h.suggested_change && (
             <div>
@@ -726,7 +737,9 @@ function HypothesisRow({
                   {copied === h.id ? 'Copied' : 'Copy'}
                 </button>
               </div>
-              <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800 rounded-md px-3 py-2.5">{h.suggested_change}</p>
+              <div className="prose prose-invert prose-sm max-w-none text-xs text-zinc-300 prose-p:my-1 prose-p:leading-relaxed prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-strong:text-zinc-200 bg-zinc-950/60 border border-zinc-800 rounded-md px-3 py-2.5">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{h.suggested_change}</ReactMarkdown>
+              </div>
             </div>
           )}
           <div>
@@ -775,7 +788,15 @@ function HypothesisRow({
                   {chatMsgs.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs leading-relaxed ${msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300'}`}>
-                        {msg.content}
+                        {msg.role === 'user' ? (
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        ) : (
+                          <div className="prose prose-invert prose-sm max-w-none
+                            prose-p:my-1 prose-p:text-zinc-300 prose-ul:my-1 prose-ol:my-1 prose-li:my-0
+                            prose-strong:text-zinc-100 prose-code:text-zinc-200 prose-code:bg-zinc-900/50 prose-code:px-1 prose-code:rounded prose-code:text-[11px]">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
