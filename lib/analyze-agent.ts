@@ -198,7 +198,7 @@ export async function analyzeAgent(
       const resp = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 800,
-        system: `You are a senior product analyst reading commit history to understand what a team has been working on and why. Be specific, incisive, and connect the dots.`,
+        system: `You are a senior product analyst reading commit history to understand what a team has been working on and why. Focus specifically on changes that affect user-facing pages and features — UI, copy, flows, layout, and front-end behaviour. Skip backend/infrastructure/devops changes unless they directly affect the user experience on the target page.`,
         messages: [{
           role: 'user',
           content: `Agent context:
@@ -209,13 +209,13 @@ export async function analyzeAgent(
 Recent commit log (newest first):
 ${commitContext}
 
-In 4-6 bullet points:
-• What has the team shipped recently, grouped by theme?
-• What product problems or hypotheses are these changes addressing?
-• What does this tell us about the team's current bets?
-• Are there any patterns in the types of changes being made (UI, backend, analytics, A/B tests)?
+In 4-6 bullet points, focusing ONLY on page and feature-level changes:
+• What UI, copy, or flow changes has the team shipped recently?
+• Which of these directly affect the target feature (${targetDesc})?
+• What user problems or conversion hypotheses are these changes addressing?
+• Are there recent A/B tests, feature flags, or experiments related to this page?
 
-Be specific — reference commit message language directly. Skip generic observations.`
+Ignore database migrations, CI/CD, dependency bumps, and server-side-only changes. Be specific — reference commit message language directly.`
         }]
       })
       codeAnalysis = resp.content[0].type === 'text' ? resp.content[0].text : ''
@@ -311,12 +311,19 @@ ${contextSummary}
 
 Generate 5-7 specific improvement hypotheses grounded in the context above. Order by impact_score descending.
 
+IMPORTANT: Every hypothesis and suggested change must be scoped to the target page or feature (${targetDesc}). Do NOT suggest backend refactors, database changes, or infrastructure work. Focus on:
+- Copy and messaging changes on the page
+- UI layout or visual hierarchy changes
+- User flow or interaction changes
+- A/B test ideas for specific page elements
+- Feature-level behaviour the user sees
+
 Return a JSON array where each item has exactly these fields:
 {
-  "title": "Short title max 8 words starting with a verb",
+  "title": "Short title max 8 words starting with a verb (page/feature focused)",
   "source": "PostHog data | GitHub commits | CRO research | Behavior analysis",
-  "hypothesis": "2-3 sentences: what problem exists, why this change would help, what metric it would move",
-  "suggested_change": "Specific concrete change — copy, layout, code logic, or A/B test (be precise, not generic)",
+  "hypothesis": "2-3 sentences: what problem exists on this page/feature, why this change would help, what metric it would move",
+  "suggested_change": "Specific change to copy, layout, UI element, or user flow — describe exactly what to change on the page (not backend code)",
   "impact_score": 1-5
 }`
           }]

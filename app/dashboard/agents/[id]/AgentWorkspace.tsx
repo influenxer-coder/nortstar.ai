@@ -208,8 +208,9 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Re-analyze ─────────────────────────────────────────────────────────────
   const handleReanalyze = useCallback(async () => {
     setReanalyzing(true)
+    setHypotheses([])  // clear stale results so poll waits for fresh ones
     await fetch(`/api/agents/${agent.id}/analyze`, { method: 'POST' })
-    // Poll for new hypotheses
+    // Poll for new hypotheses — pipeline deletes old rows then inserts new ones
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(async () => {
       const res = await fetch(`/api/agents/${agent.id}/hypotheses`)
@@ -222,6 +223,14 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
         }
       }
     }, 4000)
+  }, [agent.id])
+
+  // ── Fetch hypotheses on mount (pick up any generated after SSR) ────────────
+  useEffect(() => {
+    fetch(`/api/agents/${agent.id}/hypotheses`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setHypotheses(data) })
+      .catch(() => {})
   }, [agent.id])
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
@@ -703,7 +712,7 @@ interface AnalyticsData {
   funnel: { total_sessions: number; kpi_events: number; kpi_users: number; kpi_text: string } | null
 }
 
-function AnalyticsView({ agentId, kpiText }: { agentId: string; kpiText: string }) {
+function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -856,7 +865,7 @@ function AnalyticsView({ agentId, kpiText }: { agentId: string; kpiText: string 
 
 function HypothesisRow({
   hypothesis: h,
-  agentId,
+  agentId: _agentId,
   isAsking,
   chatMsgs,
   chatInputVal,
