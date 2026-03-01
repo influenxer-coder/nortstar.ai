@@ -295,8 +295,6 @@ The agent will use this brief to answer questions from the product team in Slack
         const targetDesc = agent.target_element?.text
           ? `"${agent.target_element.text}" (${agent.target_element.type || 'element'})`
           : 'the primary conversion element'
-        const mainAction = agent.target_element?.text ?? 'the primary conversion action'
-        const kpi = agent.main_kpi ?? 'conversion rate'
 
         const hypResp = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
@@ -305,32 +303,27 @@ The agent will use this brief to answer questions from the product team in Slack
           messages: [{
             role: 'user',
             content: `Product: ${agent.url ?? 'unknown'}
-Target action (what users click / convert on): ${mainAction}
-KPI we are optimizing for: ${kpi}
+Target: ${targetDesc}
+KPI: ${agent.main_kpi ?? 'conversion rate'}
 
 Context:
 ${contextSummary}
 
 Generate 5-7 specific improvement hypotheses grounded in the context above. Order by impact_score descending.
 
-CRITICAL: Every hypothesis MUST directly relate to improving the target action ("${mainAction}") and the KPI (${kpi}). Do NOT suggest:
-- Generic marketing strategies (e.g. "find influencers", "run ads", "SEO")
-- Backend, database, or infrastructure changes
-- Features or pages unrelated to the target action
-
-Focus on changes that would make users more likely to complete "${mainAction}" on this page:
-- Copy and messaging on/around the CTA and page
-- UI layout, visual hierarchy, or placement of the target element
-- User flow leading to the action (e.g. form fields, friction, trust signals)
-- A/B tests for the CTA label, placement, or surrounding content
-- Clarity, urgency, or perceived value of the offer
+IMPORTANT: Every hypothesis and suggested change must be scoped to the target page or feature (${targetDesc}). Do NOT suggest backend refactors, database changes, or infrastructure work. Focus on:
+- Copy and messaging changes on the page
+- UI layout or visual hierarchy changes
+- User flow or interaction changes
+- A/B test ideas for specific page elements
+- Feature-level behaviour the user sees
 
 Return a JSON array where each item has exactly these fields:
 {
-  "title": "Short title max 8 words starting with a verb — must relate to improving ${mainAction}",
+  "title": "Short title max 8 words starting with a verb (page/feature focused)",
   "source": "PostHog data | GitHub commits | CRO research | Behavior analysis",
-  "hypothesis": "2-3 sentences: what blocks users from ${mainAction}, why this change would help, how it moves ${kpi}",
-  "suggested_change": "Specific change to copy, layout, UI element, or user flow on this page (not backend code)",
+  "hypothesis": "2-3 sentences: what problem exists on this page/feature, why this change would help, what metric it would move",
+  "suggested_change": "Specific change to copy, layout, UI element, or user flow — describe exactly what to change on the page (not backend code)",
   "impact_score": 1-5
 }`
           }]
