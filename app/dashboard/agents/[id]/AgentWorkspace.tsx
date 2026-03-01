@@ -744,26 +744,28 @@ function HypothesisRow({
           <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/60">
             <button onClick={e => { e.stopPropagation(); onToggleAsk() }}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-zinc-700 text-zinc-400 hover:border-violet-600 hover:text-violet-400'}`}>
-              <Sparkles className="h-3 w-3" /> Ask Claude
+              <Sparkles className="h-3 w-3" /> Update hypothesis
             </button>
-            {h.status === 'proposed' && (
-              <button onClick={e => { e.stopPropagation(); onAccept() }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 transition-colors">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Accept
-              </button>
-            )}
             {isAccepted && (
               <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change ?? '') }}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors">
                 <GitBranch className="h-3 w-3" /> Create PR
               </button>
             )}
-            {h.status !== 'rejected' && (
-              <button onClick={e => { e.stopPropagation(); onReject() }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-500 hover:border-red-700 hover:text-red-400 transition-colors ml-auto">
-                <XCircle className="h-3.5 w-3.5" /> Reject
-              </button>
-            )}
+            <div className="flex items-center gap-2 ml-auto">
+              {h.status === 'proposed' && (
+                <button onClick={e => { e.stopPropagation(); onAccept() }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 transition-colors">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Accept
+                </button>
+              )}
+              {h.status !== 'rejected' && (
+                <button onClick={e => { e.stopPropagation(); onReject() }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-500 hover:border-red-700 hover:text-red-400 transition-colors">
+                  <XCircle className="h-3.5 w-3.5" /> Reject
+                </button>
+              )}
+            </div>
           </div>
           {isAsking && (
             <div className="border border-zinc-800 rounded-lg bg-zinc-950/60 p-4">
