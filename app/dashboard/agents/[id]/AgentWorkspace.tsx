@@ -104,7 +104,7 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   const [instructionsSaved, setInstructionsSaved] = useState(false)
 
   // ── View state ─────────────────────────────────────────────────────────────
-  const [view, setView] = useState<'none' | 'hypotheses' | 'analytics'>('none')
+  const [view, setView] = useState<'none' | 'hypotheses' | 'analytics'>('hypotheses')
 
   // ── Analysis state ─────────────────────────────────────────────────────────
   const [reanalyzing, setReanalyzing] = useState(false)
@@ -574,9 +574,31 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
           {view === 'hypotheses' && (
             <div className="border-b border-zinc-800/60">
               {!hasHypotheses ? (
-                <div className="max-w-xl mx-auto py-10 px-6">
-                  <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
-                </div>
+                <>
+                  {/* Table header - always shown */}
+                  <div className="bg-zinc-950 border-b border-zinc-800">
+                    <div className="grid gap-0 px-5 py-2.5" style={{ gridTemplateColumns: '2fr 1fr 3fr 2.5fr 70px 110px 80px' }}>
+                      {['Improvement', 'Source', 'Hypothesis', 'Suggested Change', 'Impact', 'Status', ''].map(col => (
+                        <div key={col} className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest pr-3">
+                          {col}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <Sparkles className="h-6 w-6 text-zinc-700" />
+                    <p className="text-sm text-zinc-500 font-medium">No hypotheses yet</p>
+                    <p className="text-xs text-zinc-600 text-center max-w-xs">
+                      Click <span className="text-zinc-400">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
+                    </p>
+                    {reanalyzing && (
+                      <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                        Generating hypotheses — this takes about 60 seconds…
+                      </div>
+                    )}
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Table header */}
