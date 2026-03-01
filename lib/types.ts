@@ -187,3 +187,16 @@ export interface SlackMessage {
   slack_ts: string | null
   created_at: string
 }
+
+export interface Hypothesis {
+  id: string
+  agent_id: string
+  title: string
+  source: string
+  hypothesis: string
+  suggested_change: string | null
+  impact_score: number
+  status: 'proposed' | 'accepted' | 'rejected' | 'shipped'
+  pr_url: string | null
+  created_at: string
+}

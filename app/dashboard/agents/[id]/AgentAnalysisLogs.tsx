@@ -18,6 +18,7 @@ const STEP_ICONS: Record<string, string> = {
   code_analysis: '◈',
   research: '◉',
   synthesis: '◆',
+  hypotheses: '◇',
 }
 
 function LogLine({ log }: { log: Log }) {

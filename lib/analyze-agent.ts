@@ -288,6 +288,64 @@ The agent will use this brief to answer questions from the product team in Slack
     if (contextSummary) {
       await supabase.from('agents').update({ context_summary: contextSummary }).eq('id', agentId)
       if (logId5) await updateLog(supabase, logId5, 'Agent is fully briefed — ready to help in Slack', 'done')
+
+      // ── Step 6: Generate structured hypotheses ──────────────────────────────
+      const hypLogId = await addLog(supabase, agentId, 'hypotheses', 'Generating improvement hypotheses…', 'running')
+      try {
+        const targetDesc = agent.target_element?.text
+          ? `"${agent.target_element.text}" (${agent.target_element.type || 'element'})`
+          : 'the primary conversion element'
+
+        const hypResp = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2500,
+          system: `You are a product optimization expert generating specific, testable hypotheses for a product team. Each hypothesis must be grounded in actual data from the context. Return ONLY a valid JSON array — no markdown, no explanation, no code fences.`,
+          messages: [{
+            role: 'user',
+            content: `Product: ${agent.url ?? 'unknown'}
+Target: ${targetDesc}
+KPI: ${agent.main_kpi ?? 'conversion rate'}
+
+Context:
+${contextSummary}
+
+Generate 5-7 specific improvement hypotheses grounded in the context above. Order by impact_score descending.
+
+Return a JSON array where each item has exactly these fields:
+{
+  "title": "Short title max 8 words starting with a verb",
+  "source": "PostHog data | GitHub commits | CRO research | Behavior analysis",
+  "hypothesis": "2-3 sentences: what problem exists, why this change would help, what metric it would move",
+  "suggested_change": "Specific concrete change — copy, layout, code logic, or A/B test (be precise, not generic)",
+  "impact_score": 1-5
+}`
+          }]
+        })
+
+        const hypText = hypResp.content[0].type === 'text' ? hypResp.content[0].text : ''
+        const jsonMatch = hypText.match(/\[[\s\S]*\]/)
+        if (jsonMatch) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const hypotheses: Array<Record<string, any>> = JSON.parse(jsonMatch[0])
+          await supabase.from('agent_hypotheses').delete().eq('agent_id', agentId)
+          const rows = hypotheses.map(h => ({
+            agent_id: agentId,
+            title: String(h.title ?? '').slice(0, 200),
+            source: String(h.source ?? 'Analysis').slice(0, 100),
+            hypothesis: String(h.hypothesis ?? ''),
+            suggested_change: h.suggested_change ? String(h.suggested_change) : null,
+            impact_score: Math.min(5, Math.max(1, Number(h.impact_score) || 3)),
+            status: 'proposed',
+          }))
+          await supabase.from('agent_hypotheses').insert(rows)
+          if (hypLogId) await updateLog(supabase, hypLogId, `Generated ${rows.length} hypotheses — ready to review in workspace`, 'done')
+        } else {
+          if (hypLogId) await updateLog(supabase, hypLogId, 'Could not parse hypotheses — try re-analyzing', 'error')
+        }
+      } catch (e) {
+        if (hypLogId) await updateLog(supabase, hypLogId, 'Hypothesis generation failed', 'error')
+        console.error('[analyze-agent] hypotheses error:', e)
+      }
     } else {
       if (logId5) await updateLog(supabase, logId5, 'No context generated — connect GitHub or PostHog for richer analysis', 'error')
     }
