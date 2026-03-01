@@ -1,24 +1,22 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import Link from 'next/link'
 import {
   CheckCircle2, XCircle, MessageSquare, GitBranch, BarChart2,
-  FileText, Upload, Trash2, Loader2, Plus, RefreshCw, ChevronRight,
-  Sparkles, Copy, Check,
+  FileText, Upload, Trash2, Loader2, RefreshCw, ChevronRight,
+  Sparkles, Copy, Check, Settings2,
 } from 'lucide-react'
 import type { Agent, Hypothesis } from '@/lib/types'
 import AgentAnalysisLogs from './AgentAnalysisLogs'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface AgentStub { id: string; name: string; status: string | null }
 interface Doc { file_name: string; created_at: string }
 interface ChatMsg { role: 'user' | 'assistant'; content: string }
 
 interface Props {
   agent: Agent
-  agents: AgentStub[]
+  agents: { id: string; name: string; status: string | null }[]
   initialHypotheses: Hypothesis[]
 }
 
@@ -51,40 +49,9 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function SourceRow({
-  icon, label, connected, href, onAction, actionLabel,
-}: {
-  icon: React.ReactNode
-  label: string
-  connected: boolean
-  href?: string
-  onAction?: () => void
-  actionLabel?: string
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 py-1.5">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className={`shrink-0 ${connected ? 'text-emerald-400' : 'text-zinc-600'}`}>{icon}</span>
-        <span className={`text-xs truncate ${connected ? 'text-zinc-300' : 'text-zinc-500'}`}>{label}</span>
-        {connected && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-      </div>
-      {!connected && href && (
-        <a href={href} className="text-[10px] text-violet-400 hover:text-violet-300 shrink-0">
-          {actionLabel ?? 'Connect'}
-        </a>
-      )}
-      {!connected && onAction && (
-        <button onClick={onAction} className="text-[10px] text-violet-400 hover:text-violet-300 shrink-0">
-          {actionLabel ?? 'Connect'}
-        </button>
-      )}
-    </div>
-  )
-}
-
 // ─── Main workspace ───────────────────────────────────────────────────────────
 
-export default function AgentWorkspace({ agent, agents, initialHypotheses }: Props) {
+export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   // ── Hypothesis state ───────────────────────────────────────────────────────
   const [hypotheses, setHypotheses] = useState<Hypothesis[]>(initialHypotheses)
   const [askHypId, setAskHypId] = useState<string | null>(null)
@@ -113,16 +80,12 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Copy state ─────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState<string | null>(null)
 
-  // ── Briefing collapse state ────────────────────────────────────────────────
+  // ── Collapse states ────────────────────────────────────────────────────────
   const [briefingOpen, setBriefingOpen] = useState(!!agent.context_summary)
-
-  // ── Project picker collapse state ──────────────────────────────────────────
-  const [projectsOpen, setProjectsOpen] = useState(false)
-
-  // ── Expanded hypothesis row ────────────────────────────────────────────────
+  const [configOpen, setConfigOpen] = useState(false)
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
 
-  // ── PostHog connect state ────────────────────────────────────────────────
+  // ── PostHog connect state ──────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
   const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
   const [phKey, setPhKey] = useState<string | null>(resolvedPhKey)
@@ -214,9 +177,8 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Re-analyze ─────────────────────────────────────────────────────────────
   const handleReanalyze = useCallback(async () => {
     setReanalyzing(true)
-    setHypotheses([])  // clear stale results so poll waits for fresh ones
+    setHypotheses([])
     await fetch(`/api/agents/${agent.id}/analyze`, { method: 'POST' })
-    // Poll for new hypotheses — pipeline deletes old rows then inserts new ones
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(async () => {
       const res = await fetch(`/api/agents/${agent.id}/hypotheses`)
@@ -231,7 +193,7 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
     }, 4000)
   }, [agent.id])
 
-  // ── Fetch hypotheses on mount (pick up any generated after SSR) ────────────
+  // ── Fetch hypotheses on mount ──────────────────────────────────────────────
   useEffect(() => {
     fetch(`/api/agents/${agent.id}/hypotheses`)
       .then(r => r.json())
@@ -294,400 +256,361 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   const targetDesc = agent.target_element?.text ?? null
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#09090B]">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#09090B]">
 
-      {/* ── Left panel ──────────────────────────────────────────────────────── */}
-      <div className="w-60 shrink-0 border-r border-zinc-800 flex flex-col overflow-hidden">
-
-        {/* Agent picker — collapsible */}
-        <div className="border-b border-zinc-800">
-          <button
-            onClick={() => setProjectsOpen(v => !v)}
-            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-zinc-900/40 transition-colors"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-5 h-5 rounded shrink-0 flex items-center justify-center text-[10px] font-bold bg-violet-500 text-white">
-                {agent.name.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-xs font-medium text-zinc-200 truncate">{agent.name}</span>
-            </div>
-            <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 shrink-0 transition-transform duration-150 ${projectsOpen ? 'rotate-90' : ''}`} />
-          </button>
-          {projectsOpen && (
-            <div className="pb-2 px-2 space-y-0.5">
-              {agents.filter(a => a.id !== agent.id).map(a => (
-                <Link
-                  key={a.id}
-                  href={`/dashboard/agents/${a.id}`}
-                  className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
-                >
-                  <div className="w-5 h-5 rounded shrink-0 flex items-center justify-center text-[10px] font-bold bg-zinc-700 text-zinc-400">
-                    {a.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-xs truncate font-medium">{a.name}</span>
-                </Link>
-              ))}
-              <Link
-                href="/dashboard/agents/new"
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/40 transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="text-xs">New agent</span>
-              </Link>
-            </div>
+      {/* ── Header ───────────────────────────────────────────────────────────── */}
+      <div className="border-b border-zinc-800 h-14 px-6 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-sm font-semibold text-zinc-100 shrink-0">{agent.name}</h1>
+          {agent.status && (
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
+              agent.status === 'Ready' || agent.status === 'Analyzing'
+                ? 'bg-violet-500/20 text-violet-400'
+                : 'bg-zinc-800 text-zinc-400'
+            }`}>
+              {agent.status}
+            </span>
+          )}
+          {targetDesc && (
+            <span className="text-xs text-zinc-500 hidden sm:block shrink-0">
+              → <span className="text-zinc-400">{targetDesc}</span>
+            </span>
+          )}
+          {agent.url && (
+            <a href={agent.url} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-zinc-600 hover:text-zinc-400 truncate max-w-[200px] hidden md:block">
+              {agent.url}
+            </a>
           )}
         </div>
-
-        {/* Sources */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-5">
-
-          {/* Analytics */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
-            <div
-              className={phKey ? 'cursor-pointer' : ''}
-              onClick={phKey ? () => setView(v => v === 'analytics' ? 'hypotheses' : 'analytics') : undefined}
-            >
-              <SourceRow
-                icon={<BarChart2 className="h-3.5 w-3.5" />}
-                label={phKey ? `PostHog${phProject ? ` · ${phProject}` : ''}` : 'PostHog'}
-                connected={!!phKey}
-                onAction={!phKey ? () => setPhExpanded(v => !v) : undefined}
-                actionLabel="Connect"
-              />
-            </div>
-            {phExpanded && !phKey && (
-              <div className="mt-2 px-1 space-y-2">
-                <p className="text-[10px] text-zinc-500 leading-relaxed">
-                  Find your keys in PostHog → Settings → Project.
-                </p>
-                <input
-                  value={phForm.api_key}
-                  onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
-                  placeholder="API Key  (phx_...)"
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-                <input
-                  value={phForm.project_id}
-                  onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
-                  placeholder="Project ID  (e.g. 12345)"
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-                {phError && <p className="text-[10px] text-red-400">{phError}</p>}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handlePhConnect}
-                    disabled={phSaving}
-                    className="flex-1 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-medium disabled:opacity-50 transition-colors"
-                  >
-                    {phSaving ? 'Connecting…' : 'Connect'}
-                  </button>
-                  <button
-                    onClick={() => { setPhExpanded(false); setPhError(''); setPhForm({ api_key: '', project_id: '' }) }}
-                    className="px-2 py-1 rounded border border-zinc-700 text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Codebase */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Codebase</p>
-            <SourceRow
-              icon={<GitBranch className="h-3.5 w-3.5" />}
-              label={agent.github_repo ?? 'GitHub'}
-              connected={!!agent.github_repo}
-              href="/dashboard/agents/new"
-              actionLabel="Connect"
-            />
-          </div>
-
-          {/* Slack */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Slack</p>
-            <SourceRow
-              icon={<MessageSquare className="h-3.5 w-3.5" />}
-              label={agent.slack_channel_id ? 'Workspace connected' : 'Not connected'}
-              connected={!!agent.slack_channel_id}
-              href={`/api/auth/slack?agent_id=${agent.id}`}
-              actionLabel="Connect"
-            />
-            {agent.slack_channel_id && (
-              <a
-                href={`/api/auth/slack?agent_id=${agent.id}`}
-                className="text-[10px] text-zinc-600 hover:text-zinc-400 mt-1 block px-6"
-              >
-                Reconnect →
-              </a>
-            )}
-          </div>
-
-          {/* Documents */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Documents</p>
-            {docsLoading ? (
-              <div className="flex items-center gap-1.5 text-zinc-600 text-xs px-1 py-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {(docs ?? []).map(doc => (
-                  <div key={doc.file_name} className="flex items-center gap-2 group py-1 px-1 rounded hover:bg-zinc-800/40">
-                    <FileText className="h-3 w-3 text-zinc-600 shrink-0" />
-                    <span className="text-xs text-zinc-400 truncate flex-1">{doc.file_name}</span>
-                    <button
-                      onClick={() => handleDeleteDoc(doc.file_name)}
-                      className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 shrink-0 transition-opacity"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pdf,.txt,.md"
-                  onChange={handleUpload}
-                  className="hidden"
-                  id="ws-doc-upload"
-                />
-                <label
-                  htmlFor="ws-doc-upload"
-                  className={`flex items-center gap-1.5 text-xs px-1 py-1.5 rounded cursor-pointer transition-colors ${
-                    uploading ? 'text-zinc-600' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'
-                  }`}
-                >
-                  {uploading
-                    ? <><Loader2 className="h-3 w-3 animate-spin" /> Uploading…</>
-                    : <><Upload className="h-3 w-3" /> Upload file</>
-                  }
-                </label>
-                {uploadError && <p className="text-[10px] text-red-400 px-1">{uploadError}</p>}
-              </div>
-            )}
-          </div>
-
-          {/* Instructions */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Instructions</p>
-            <textarea
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              placeholder="e.g. Focus on sign-up rate. Be concise. Always suggest A/B ideas."
-              rows={3}
-              className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
-            />
-            <button
-              onClick={saveInstructions}
-              disabled={instructionsSaving}
-              className="mt-1.5 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50"
-            >
-              {instructionsSaving ? 'Saving…' : instructionsSaved ? '✓ Saved' : 'Save instructions'}
-            </button>
-          </div>
-
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setConfigOpen(o => !o)}
+            className={`flex items-center gap-1.5 text-xs border rounded-md px-3 py-1.5 transition-colors ${
+              configOpen
+                ? 'border-zinc-700 bg-zinc-800/60 text-zinc-300'
+                : 'border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+            }`}
+          >
+            <Settings2 className="h-3 w-3" />
+            Configure
+          </button>
+          <button
+            onClick={handleReanalyze}
+            disabled={reanalyzing}
+            className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
+            {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
+          </button>
         </div>
       </div>
 
-      {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* ── Scrollable content ───────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-auto">
 
-        {/* Header */}
-        <div className="border-b border-zinc-800 h-14 px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-semibold text-zinc-100">{agent.name}</h1>
-            {agent.status && (
-              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                agent.status === 'Ready' || agent.status === 'Analyzing'
-                  ? 'bg-violet-500/20 text-violet-400'
-                  : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {agent.status}
-              </span>
-            )}
-            {targetDesc && (
-              <span className="text-xs text-zinc-500 hidden sm:block">
-                → <span className="text-zinc-400">{targetDesc}</span>
-              </span>
-            )}
-            {agent.url && (
-              <a href={agent.url} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-zinc-600 hover:text-zinc-400 truncate max-w-[200px] hidden md:block">
-                {agent.url}
-              </a>
-            )}
-          </div>
-        </div>
+        {/* ── Configure panel (collapsible) ────────────────────────────────── */}
+        {configOpen && (
+          <div className="border-b border-zinc-800 bg-zinc-950/60">
+            <div className="max-w-3xl mx-auto px-6 py-5 grid grid-cols-2 gap-x-8 gap-y-5">
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-auto">
-
-          {/* ── Agent Briefing (collapsible) ────────────────────────────────── */}
-          <div className="border-b border-zinc-800/60">
-            {/* Header row — always visible */}
-            <div
-              className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
-              onClick={() => setBriefingOpen(o => !o)}
-            >
-              <div className="flex items-center gap-2">
-                <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform duration-150 ${briefingOpen ? 'rotate-90' : ''}`} />
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Agent Briefing</p>
-                {/* Source pills (compact, always visible) */}
-                <div className="flex items-center gap-1 ml-2">
-                  {[
-                    { label: 'GitHub', active: !!agent.github_repo },
-                    { label: 'PostHog', active: !!phKey },
-                    { label: 'Slack', active: !!agent.slack_channel_id },
-                    { label: `${docs?.length ?? 0} docs`, active: (docs?.length ?? 0) > 0 },
-                  ].filter(s => s.active).map(src => (
-                    <span key={src.label} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-500">
-                      {src.label}
-                    </span>
-                  ))}
+              {/* Analytics */}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Analytics</p>
+                <div
+                  className={phKey ? 'cursor-pointer' : ''}
+                  onClick={phKey ? () => { setView(v => v === 'analytics' ? 'hypotheses' : 'analytics'); setConfigOpen(false) } : undefined}
+                >
+                  <div className="flex items-center justify-between gap-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <BarChart2 className={`h-3.5 w-3.5 ${phKey ? 'text-emerald-400' : 'text-zinc-600'}`} />
+                      <span className={`text-xs ${phKey ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                        {phKey ? `PostHog${phProject ? ` · ${phProject}` : ''}` : 'PostHog'}
+                      </span>
+                      {phKey && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                    </div>
+                    {!phKey && (
+                      <button onClick={() => setPhExpanded(v => !v)} className="text-[10px] text-violet-400 hover:text-violet-300">
+                        Connect
+                      </button>
+                    )}
+                    {phKey && <span className="text-[10px] text-zinc-600">Click to view →</span>}
+                  </div>
                 </div>
-              </div>
-              <button
-                onClick={e => { e.stopPropagation(); handleReanalyze() }}
-                disabled={reanalyzing}
-                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40 shrink-0"
-              >
-                <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
-                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
-              </button>
-            </div>
-
-            {/* Expanded content */}
-            {briefingOpen && (
-              <div className="px-6 pb-5">
-                {/* Context summary */}
-                {agent.context_summary ? (
-                  <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line mb-3">
-                    {agent.context_summary}
-                  </p>
-                ) : (
-                  <p className="text-xs text-zinc-600 italic mb-3">
-                    No briefing yet — run analysis to generate insights from your connected sources.
-                  </p>
+                {phExpanded && !phKey && (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[10px] text-zinc-500">Find your keys in PostHog → Settings → Project.</p>
+                    <input
+                      value={phForm.api_key}
+                      onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
+                      placeholder="API Key  (phx_...)"
+                      className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    />
+                    <input
+                      value={phForm.project_id}
+                      onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
+                      placeholder="Project ID  (e.g. 12345)"
+                      className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    />
+                    {phError && <p className="text-[10px] text-red-400">{phError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handlePhConnect}
+                        disabled={phSaving}
+                        className="flex-1 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-medium disabled:opacity-50 transition-colors"
+                      >
+                        {phSaving ? 'Connecting…' : 'Connect'}
+                      </button>
+                      <button
+                        onClick={() => { setPhExpanded(false); setPhError(''); setPhForm({ api_key: '', project_id: '' }) }}
+                        className="px-2 py-1 rounded border border-zinc-700 text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 )}
-                {/* All source pills */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {[
-                    { label: 'GitHub', active: !!agent.github_repo },
-                    { label: 'PostHog', active: !!phKey },
-                    { label: 'Slack', active: !!agent.slack_channel_id },
-                    { label: `${docs?.length ?? 0} doc${docs?.length === 1 ? '' : 's'}`, active: (docs?.length ?? 0) > 0 },
-                    { label: 'Instructions', active: !!agent.system_instructions },
-                  ].map(src => (
-                    <span key={src.label} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
-                    }`}>
-                      {src.label}
-                    </span>
-                  ))}
-                </div>
-                {/* Analysis logs */}
-                <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
               </div>
-            )}
-          </div>
 
-          {/* ── Hypothesis summary bar ──────────────────────────────────────── */}
-          <button
-            onClick={() => setView(v => v === 'hypotheses' ? 'none' : 'hypotheses')}
-            className={`w-full flex items-center justify-between px-6 py-3 border-b border-zinc-800/60 transition-colors text-left ${
-              view === 'hypotheses' ? 'bg-violet-500/5' : 'hover:bg-zinc-900/40'
-            }`}
+              {/* Codebase */}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Codebase</p>
+                <div className="flex items-center justify-between gap-2 py-1">
+                  <div className="flex items-center gap-2">
+                    <GitBranch className={`h-3.5 w-3.5 ${agent.github_repo ? 'text-emerald-400' : 'text-zinc-600'}`} />
+                    <span className={`text-xs ${agent.github_repo ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                      {agent.github_repo ?? 'GitHub'}
+                    </span>
+                    {agent.github_repo && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                  </div>
+                  {!agent.github_repo && (
+                    <a href="/dashboard/agents/new" className="text-[10px] text-violet-400 hover:text-violet-300">Connect</a>
+                  )}
+                </div>
+              </div>
+
+              {/* Slack */}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Slack</p>
+                <div className="flex items-center justify-between gap-2 py-1">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className={`h-3.5 w-3.5 ${agent.slack_channel_id ? 'text-emerald-400' : 'text-zinc-600'}`} />
+                    <span className={`text-xs ${agent.slack_channel_id ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                      {agent.slack_channel_id ? 'Workspace connected' : 'Not connected'}
+                    </span>
+                    {agent.slack_channel_id && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                  </div>
+                  <a
+                    href={`/api/auth/slack?agent_id=${agent.id}`}
+                    className="text-[10px] text-violet-400 hover:text-violet-300"
+                  >
+                    {agent.slack_channel_id ? 'Reconnect' : 'Connect'}
+                  </a>
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Documents</p>
+                {docsLoading ? (
+                  <div className="flex items-center gap-1.5 text-zinc-600 text-xs py-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {(docs ?? []).map(doc => (
+                      <div key={doc.file_name} className="flex items-center gap-2 group py-1 rounded hover:bg-zinc-800/40">
+                        <FileText className="h-3 w-3 text-zinc-600 shrink-0" />
+                        <span className="text-xs text-zinc-400 truncate flex-1">{doc.file_name}</span>
+                        <button
+                          onClick={() => handleDeleteDoc(doc.file_name)}
+                          className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 shrink-0 transition-opacity"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" id="ws-doc-upload" />
+                    <label
+                      htmlFor="ws-doc-upload"
+                      className={`flex items-center gap-1.5 text-xs py-1 rounded cursor-pointer transition-colors ${
+                        uploading ? 'text-zinc-600' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'
+                      }`}
+                    >
+                      {uploading ? <><Loader2 className="h-3 w-3 animate-spin" /> Uploading…</> : <><Upload className="h-3 w-3" /> Upload file</>}
+                    </label>
+                    {uploadError && <p className="text-[10px] text-red-400">{uploadError}</p>}
+                  </div>
+                )}
+              </div>
+
+              {/* Instructions — full width */}
+              <div className="col-span-2">
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Instructions</p>
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder="e.g. Focus on sign-up rate. Be concise. Always suggest A/B ideas."
+                  rows={2}
+                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+                />
+                <button
+                  onClick={saveInstructions}
+                  disabled={instructionsSaving}
+                  className="mt-1 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                >
+                  {instructionsSaving ? 'Saving…' : instructionsSaved ? '✓ Saved' : 'Save instructions'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ── Agent Briefing (collapsible) ──────────────────────────────────── */}
+        <div className="border-b border-zinc-800/60">
+          <div
+            className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
+            onClick={() => setBriefingOpen(o => !o)}
           >
             <div className="flex items-center gap-2">
-              <Sparkles className={`h-3.5 w-3.5 ${view === 'hypotheses' ? 'text-violet-400' : 'text-zinc-600'}`} />
-              {hasHypotheses ? (
-                <span className={`text-xs font-medium ${view === 'hypotheses' ? 'text-violet-300' : 'text-zinc-400'}`}>
-                  {hypotheses.length} hypothesis{hypotheses.length !== 1 ? 'es' : ''}
-                  <span className="text-zinc-600 font-normal ml-1.5">
-                    · Generated {formatRelativeDate(hypotheses.reduce((latest, h) =>
-                      h.created_at > latest ? h.created_at : latest, hypotheses[0].created_at
-                    ))}
+              <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform duration-150 ${briefingOpen ? 'rotate-90' : ''}`} />
+              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Agent Briefing</p>
+              <div className="flex items-center gap-1 ml-2">
+                {[
+                  { label: 'GitHub', active: !!agent.github_repo },
+                  { label: 'PostHog', active: !!phKey },
+                  { label: 'Slack', active: !!agent.slack_channel_id },
+                  { label: `${docs?.length ?? 0} docs`, active: (docs?.length ?? 0) > 0 },
+                ].filter(s => s.active).map(src => (
+                  <span key={src.label} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-500">
+                    {src.label}
                   </span>
-                </span>
-              ) : (
-                <span className="text-xs text-zinc-600">No hypotheses yet</span>
-              )}
-            </div>
-            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${
-              view === 'hypotheses' ? 'rotate-90 text-violet-400' : 'text-zinc-700'
-            }`} />
-          </button>
-
-          {/* ── Hypothesis table (expanded) ──────────────────────────────────── */}
-          {view === 'hypotheses' && (
-            <div className="border-b border-zinc-800/60">
-              {/* Table header — always shown */}
-              <div className={`flex items-center gap-3 px-5 py-2.5 border-b border-zinc-800 ${hasHypotheses ? 'sticky top-0 z-10' : ''} bg-zinc-950`}>
-                <div className="w-4 shrink-0" />
-                <div className="flex-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Improvement</div>
-                <div className="w-28 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Source</div>
-                <div className="w-16 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Impact</div>
-                <div className="w-20 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Status</div>
+                ))}
               </div>
-
-              {!hasHypotheses ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <Sparkles className="h-6 w-6 text-zinc-700" />
-                  <p className="text-sm text-zinc-500 font-medium">No hypotheses yet</p>
-                  <p className="text-xs text-zinc-600 text-center max-w-xs">
-                    Click <span className="text-zinc-400">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
-                  </p>
-                  {reanalyzing && (
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-                      Generating hypotheses — this takes about 60 seconds…
-                    </div>
-                  )}
-                </div>
+            </div>
+          </div>
+          {briefingOpen && (
+            <div className="px-6 pb-5">
+              {agent.context_summary ? (
+                <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line mb-3">{agent.context_summary}</p>
               ) : (
-                <>
-                  <div className="divide-y divide-zinc-800/50">
-                    {hypotheses.map(h => (
-                      <HypothesisRow
-                        key={h.id}
-                        hypothesis={h}
-                        agentKpi={agent.main_kpi ?? ''}
-                        isExpanded={expandedRowId === h.id}
-                        onToggleExpand={() => setExpandedRowId(expandedRowId === h.id ? null : h.id)}
-                        isAsking={askHypId === h.id}
-                        chatMsgs={chatHistory[h.id] ?? []}
-                        chatInputVal={chatInput[h.id] ?? ''}
-                        chatIsLoading={chatLoading[h.id] ?? false}
-                        copied={copied}
-                        onToggleAsk={() => setAskHypId(askHypId === h.id ? null : h.id)}
-                        onAccept={() => updateStatus(h.id, 'accepted')}
-                        onReject={() => updateStatus(h.id, 'rejected')}
-                        onChatInputChange={val => setChatInput(prev => ({ ...prev, [h.id]: val }))}
-                        onAsk={() => handleAsk(h.id)}
-                        onCopy={(text) => handleCopy(text, h.id)}
-                      />
-                    ))}
-                  </div>
-                  {reanalyzing && (
-                    <div className="flex items-center gap-2 px-5 py-4 text-zinc-500 text-xs border-t border-zinc-800">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-                      Generating fresh hypotheses…
-                    </div>
-                  )}
-                </>
+                <p className="text-xs text-zinc-600 italic mb-3">
+                  No briefing yet — run analysis to generate insights from your connected sources.
+                </p>
               )}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {[
+                  { label: 'GitHub', active: !!agent.github_repo },
+                  { label: 'PostHog', active: !!phKey },
+                  { label: 'Slack', active: !!agent.slack_channel_id },
+                  { label: `${docs?.length ?? 0} doc${docs?.length === 1 ? '' : 's'}`, active: (docs?.length ?? 0) > 0 },
+                  { label: 'Instructions', active: !!agent.system_instructions },
+                ].map(src => (
+                  <span key={src.label} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
+                  }`}>
+                    {src.label}
+                  </span>
+                ))}
+              </div>
+              <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
             </div>
           )}
-
-          {/* ── Analytics (expanded) ─────────────────────────────────────────── */}
-          {view === 'analytics' && phKey && (
-            <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
-          )}
-
         </div>
+
+        {/* ── Hypothesis summary bar ────────────────────────────────────────── */}
+        <button
+          onClick={() => setView(v => v === 'hypotheses' ? 'none' : 'hypotheses')}
+          className={`w-full flex items-center justify-between px-6 py-3 border-b border-zinc-800/60 transition-colors text-left ${
+            view === 'hypotheses' ? 'bg-violet-500/5' : 'hover:bg-zinc-900/40'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className={`h-3.5 w-3.5 ${view === 'hypotheses' ? 'text-violet-400' : 'text-zinc-600'}`} />
+            {hasHypotheses ? (
+              <span className={`text-xs font-medium ${view === 'hypotheses' ? 'text-violet-300' : 'text-zinc-400'}`}>
+                {hypotheses.length} hypothesis{hypotheses.length !== 1 ? 'es' : ''}
+                <span className="text-zinc-600 font-normal ml-1.5">
+                  · Generated {formatRelativeDate(hypotheses.reduce((latest, h) =>
+                    h.created_at > latest ? h.created_at : latest, hypotheses[0].created_at
+                  ))}
+                </span>
+              </span>
+            ) : (
+              <span className="text-xs text-zinc-600">No hypotheses yet</span>
+            )}
+          </div>
+          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${
+            view === 'hypotheses' ? 'rotate-90 text-violet-400' : 'text-zinc-700'
+          }`} />
+        </button>
+
+        {/* ── Hypothesis table (expanded) ───────────────────────────────────── */}
+        {view === 'hypotheses' && (
+          <div className="border-b border-zinc-800/60">
+            <div className={`flex items-center gap-3 px-5 py-2.5 border-b border-zinc-800 ${hasHypotheses ? 'sticky top-0 z-10' : ''} bg-zinc-950`}>
+              <div className="w-4 shrink-0" />
+              <div className="flex-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Improvement</div>
+              <div className="w-28 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Source</div>
+              <div className="w-16 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Impact</div>
+              <div className="w-20 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Status</div>
+            </div>
+
+            {!hasHypotheses ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Sparkles className="h-6 w-6 text-zinc-700" />
+                <p className="text-sm text-zinc-500 font-medium">No hypotheses yet</p>
+                <p className="text-xs text-zinc-600 text-center max-w-xs">
+                  Click <span className="text-zinc-400">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
+                </p>
+                {reanalyzing && (
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                    Generating hypotheses — this takes about 60 seconds…
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="divide-y divide-zinc-800/50">
+                  {hypotheses.map(h => (
+                    <HypothesisRow
+                      key={h.id}
+                      hypothesis={h}
+                      agentKpi={agent.main_kpi ?? ''}
+                      isExpanded={expandedRowId === h.id}
+                      onToggleExpand={() => setExpandedRowId(expandedRowId === h.id ? null : h.id)}
+                      isAsking={askHypId === h.id}
+                      chatMsgs={chatHistory[h.id] ?? []}
+                      chatInputVal={chatInput[h.id] ?? ''}
+                      chatIsLoading={chatLoading[h.id] ?? false}
+                      copied={copied}
+                      onToggleAsk={() => setAskHypId(askHypId === h.id ? null : h.id)}
+                      onAccept={() => updateStatus(h.id, 'accepted')}
+                      onReject={() => updateStatus(h.id, 'rejected')}
+                      onChatInputChange={val => setChatInput(prev => ({ ...prev, [h.id]: val }))}
+                      onAsk={() => handleAsk(h.id)}
+                      onCopy={(text) => handleCopy(text, h.id)}
+                    />
+                  ))}
+                </div>
+                {reanalyzing && (
+                  <div className="flex items-center gap-2 px-5 py-4 text-zinc-500 text-xs border-t border-zinc-800">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                    Generating fresh hypotheses…
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Analytics (expanded) ──────────────────────────────────────────── */}
+        {view === 'analytics' && phKey && (
+          <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
+        )}
+
       </div>
     </div>
   )
@@ -748,7 +671,6 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
-      {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Sessions (90d)', value: data.sessions.toLocaleString() },
@@ -762,7 +684,6 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
         ))}
       </div>
 
-      {/* Funnel bar */}
       {data.funnel && convRate !== null && (
         <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">
@@ -790,7 +711,6 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
         </div>
       )}
 
-      {/* Daily sessions sparkline */}
       {data.daily_sessions.length > 0 && (
         <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Daily Sessions — Last 90 Days</p>
@@ -811,9 +731,7 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
         </div>
       )}
 
-      {/* Top events + top pages */}
       <div className="grid grid-cols-2 gap-4">
-        {/* Top events */}
         <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Events (90d)</p>
           {data.top_events.length === 0 ? (
@@ -827,10 +745,7 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
                     <span className="text-xs text-zinc-500 shrink-0">{ev.count.toLocaleString()}</span>
                   </div>
                   <div className="bg-zinc-800 rounded-full h-1">
-                    <div
-                      className="bg-violet-500/70 h-1 rounded-full"
-                      style={{ width: `${(ev.count / maxEventCount) * 100}%` }}
-                    />
+                    <div className="bg-violet-500/70 h-1 rounded-full" style={{ width: `${(ev.count / maxEventCount) * 100}%` }} />
                   </div>
                 </div>
               ))}
@@ -838,7 +753,6 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
           )}
         </div>
 
-        {/* Top pages */}
         <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Pages (90d)</p>
           {data.top_pages.length === 0 ? (
@@ -909,7 +823,6 @@ function HypothesisRow({
 
   return (
     <div className={isRejected ? 'opacity-40' : ''}>
-      {/* ── Collapsed row (always visible) ─────────────────────────────────── */}
       <div
         onClick={onToggleExpand}
         className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${
@@ -931,23 +844,19 @@ function HypothesisRow({
         </div>
       </div>
 
-      {/* ── Expanded detail panel ───────────────────────────────────────────── */}
       {isExpanded && (
         <div className="border-t border-zinc-800/60 bg-zinc-900/20 px-9 py-5 space-y-5">
 
-          {/* What we're improving */}
           <div>
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">What we're improving</p>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">What we&apos;re improving</p>
             <p className="text-sm font-medium text-zinc-200">{h.title}</p>
           </div>
 
-          {/* Why we're proposing this */}
           <div>
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Why we're proposing this</p>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Why we&apos;re proposing this</p>
             <p className="text-xs text-zinc-400 leading-relaxed">{h.hypothesis}</p>
           </div>
 
-          {/* Suggested change */}
           {h.suggested_change && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -966,7 +875,6 @@ function HypothesisRow({
             </div>
           )}
 
-          {/* Expected impact on KPI */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">
               Expected impact{agentKpi ? ` on ${agentKpi}` : ''}
@@ -980,7 +888,6 @@ function HypothesisRow({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/60">
             <button
               onClick={e => { e.stopPropagation(); onToggleAsk() }}
@@ -1018,7 +925,6 @@ function HypothesisRow({
             )}
           </div>
 
-          {/* Ask Claude chat panel */}
           {isAsking && (
             <div className="border border-zinc-800 rounded-lg bg-zinc-950/60 p-4">
               <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-3">

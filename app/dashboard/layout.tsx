@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { LogOut, Bot } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
+import { AgentNavList } from '@/components/AgentNavList'
 
 export default async function DashboardLayout({
   children,
@@ -21,6 +22,13 @@ export default async function DashboardLayout({
 
   if (profile && !profile.onboarding_completed) redirect('/onboarding')
 
+  const { data: agents } = await supabase
+    .from('agents')
+    .select('id, name, status')
+    .eq('user_id', user.id)
+    .neq('status', 'draft')
+    .order('created_at', { ascending: false })
+
   const displayName = profile?.full_name || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'
   const initial = displayName.charAt(0).toUpperCase()
   const email = profile?.email ?? user.email ?? ''
@@ -38,22 +46,17 @@ export default async function DashboardLayout({
           </Link>
         </div>
 
-        <nav className="flex-1 space-y-1 px-2">
-          {[
-            { href: '/dashboard/agents', icon: <Bot className="h-4 w-4" />, label: 'Agents', shortcut: 'G' },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 group"
-            >
-              {item.icon}
-              <span className="hidden flex-1 md:block">{item.label}</span>
-              <span className="hidden kbd text-[10px] opacity-0 transition-opacity group-hover:opacity-100 md:block">
-                {item.shortcut}
-              </span>
-            </Link>
-          ))}
+        <nav className="flex-1 overflow-y-auto px-2">
+          {/* Agents section */}
+          <Link
+            href="/dashboard/agents"
+            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 group"
+          >
+            <Bot className="h-4 w-4 shrink-0" />
+            <span className="hidden flex-1 md:block">Agents</span>
+          </Link>
+          {/* Agent list */}
+          <AgentNavList agents={(agents ?? []) as { id: string; name: string; status: string | null }[]} />
         </nav>
 
         <div className="mt-4 space-y-1 border-t border-zinc-900 px-2 pt-4">
