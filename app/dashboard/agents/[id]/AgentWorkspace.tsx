@@ -104,7 +104,7 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   const [instructionsSaved, setInstructionsSaved] = useState(false)
 
   // ── View state ─────────────────────────────────────────────────────────────
-  const [view, setView] = useState<'hypotheses' | 'analytics'>('hypotheses')
+  const [view, setView] = useState<'none' | 'hypotheses' | 'analytics'>('none')
 
   // ── Analysis state ─────────────────────────────────────────────────────────
   const [reanalyzing, setReanalyzing] = useState(false)
@@ -489,90 +489,155 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
                 → <span className="text-zinc-400">{targetDesc}</span>
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-3">
             {agent.url && (
-              <a
-                href={agent.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-zinc-500 hover:text-zinc-300 truncate max-w-[200px]"
-              >
+              <a href={agent.url} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-zinc-600 hover:text-zinc-400 truncate max-w-[200px] hidden md:block">
                 {agent.url}
               </a>
             )}
-            <button
-              onClick={handleReanalyze}
-              disabled={reanalyzing}
-              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40"
-            >
-              <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
-              {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
-            </button>
           </div>
         </div>
 
-        {/* Center: analytics or hypothesis table */}
+        {/* Scrollable content */}
         <div className="flex-1 overflow-auto">
-          {view === 'analytics' ? (
-            <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
-          ) : !hasHypotheses ? (
-            /* Empty state */
-            <div className="max-w-xl mx-auto mt-16 px-6">
-              <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
-              {!reanalyzing && (
-                <p className="text-xs text-zinc-600 text-center mt-4">
-                  Run analysis to generate improvement hypotheses for this agent.
-                </p>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Table header */}
-              <div className="sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800">
-                <div className="grid gap-0 px-5 py-2.5" style={{ gridTemplateColumns: '2fr 1fr 3fr 2.5fr 70px 110px 80px' }}>
-                  {['Improvement', 'Source', 'Hypothesis', 'Suggested Change', 'Impact', 'Status', ''].map(col => (
-                    <div key={col} className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest pr-3">
-                      {col}
-                    </div>
+
+          {/* ── Agent Briefing ─────────────────────────────────────────────── */}
+          <div className="px-6 py-4 border-b border-zinc-800/60">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-2">Agent Briefing</p>
+                {agent.context_summary ? (
+                  <p className="text-xs text-zinc-400 leading-relaxed line-clamp-4 whitespace-pre-line">
+                    {agent.context_summary}
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-600 italic">
+                    No briefing yet — run analysis to generate insights from your connected sources.
+                  </p>
+                )}
+                {/* Sources pills */}
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {[
+                    { label: 'GitHub', active: !!agent.github_repo },
+                    { label: 'PostHog', active: !!phKey },
+                    { label: 'Slack', active: !!agent.slack_channel_id },
+                    { label: `${docs?.length ?? 0} doc${docs?.length === 1 ? '' : 's'}`, active: (docs?.length ?? 0) > 0 },
+                    { label: 'Instructions', active: !!agent.system_instructions },
+                  ].map(src => (
+                    <span key={src.label} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                      src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
+                    }`}>
+                      {src.label}
+                    </span>
                   ))}
                 </div>
               </div>
+              <button
+                onClick={handleReanalyze}
+                disabled={reanalyzing}
+                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40 shrink-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
+                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
+              </button>
+            </div>
+          </div>
 
-              {/* Rows */}
-              <div className="divide-y divide-zinc-800/50">
-                {hypotheses.map(h => (
-                  <HypothesisRow
-                    key={h.id}
-                    hypothesis={h}
-                    agentId={agent.id}
-                    isAsking={askHypId === h.id}
-                    chatMsgs={chatHistory[h.id] ?? []}
-                    chatInputVal={chatInput[h.id] ?? ''}
-                    chatIsLoading={chatLoading[h.id] ?? false}
-                    copied={copied}
-                    onToggleAsk={() => setAskHypId(askHypId === h.id ? null : h.id)}
-                    onAccept={() => updateStatus(h.id, 'accepted')}
-                    onReject={() => updateStatus(h.id, 'rejected')}
-                    onChatInputChange={val => setChatInput(prev => ({ ...prev, [h.id]: val }))}
-                    onAsk={() => handleAsk(h.id)}
-                    onCopy={(text) => handleCopy(text, h.id)}
-                  />
-                ))}
-              </div>
-
-              {reanalyzing && (
-                <div className="flex items-center gap-2 px-5 py-4 text-zinc-500 text-xs border-t border-zinc-800">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-                  Generating fresh hypotheses — this takes about 60 seconds…
-                </div>
+          {/* ── Hypothesis summary bar ──────────────────────────────────────── */}
+          <button
+            onClick={() => setView(v => v === 'hypotheses' ? 'none' : 'hypotheses')}
+            className={`w-full flex items-center justify-between px-6 py-3 border-b border-zinc-800/60 transition-colors text-left ${
+              view === 'hypotheses' ? 'bg-violet-500/5' : 'hover:bg-zinc-900/40'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className={`h-3.5 w-3.5 ${view === 'hypotheses' ? 'text-violet-400' : 'text-zinc-600'}`} />
+              {hasHypotheses ? (
+                <span className={`text-xs font-medium ${view === 'hypotheses' ? 'text-violet-300' : 'text-zinc-400'}`}>
+                  {hypotheses.length} hypothesis{hypotheses.length !== 1 ? 'es' : ''}
+                  <span className="text-zinc-600 font-normal ml-1.5">
+                    · Generated {formatRelativeDate(hypotheses.reduce((latest, h) =>
+                      h.created_at > latest ? h.created_at : latest, hypotheses[0].created_at
+                    ))}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-xs text-zinc-600">No hypotheses yet</span>
               )}
-            </>
+            </div>
+            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${
+              view === 'hypotheses' ? 'rotate-90 text-violet-400' : 'text-zinc-700'
+            }`} />
+          </button>
+
+          {/* ── Hypothesis table (expanded) ──────────────────────────────────── */}
+          {view === 'hypotheses' && (
+            <div className="border-b border-zinc-800/60">
+              {!hasHypotheses ? (
+                <div className="max-w-xl mx-auto py-10 px-6">
+                  <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
+                </div>
+              ) : (
+                <>
+                  {/* Table header */}
+                  <div className="sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800">
+                    <div className="grid gap-0 px-5 py-2.5" style={{ gridTemplateColumns: '2fr 1fr 3fr 2.5fr 70px 110px 80px' }}>
+                      {['Improvement', 'Source', 'Hypothesis', 'Suggested Change', 'Impact', 'Status', ''].map(col => (
+                        <div key={col} className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest pr-3">
+                          {col}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="divide-y divide-zinc-800/50">
+                    {hypotheses.map(h => (
+                      <HypothesisRow
+                        key={h.id}
+                        hypothesis={h}
+                        agentId={agent.id}
+                        isAsking={askHypId === h.id}
+                        chatMsgs={chatHistory[h.id] ?? []}
+                        chatInputVal={chatInput[h.id] ?? ''}
+                        chatIsLoading={chatLoading[h.id] ?? false}
+                        copied={copied}
+                        onToggleAsk={() => setAskHypId(askHypId === h.id ? null : h.id)}
+                        onAccept={() => updateStatus(h.id, 'accepted')}
+                        onReject={() => updateStatus(h.id, 'rejected')}
+                        onChatInputChange={val => setChatInput(prev => ({ ...prev, [h.id]: val }))}
+                        onAsk={() => handleAsk(h.id)}
+                        onCopy={(text) => handleCopy(text, h.id)}
+                      />
+                    ))}
+                  </div>
+                  {reanalyzing && (
+                    <div className="flex items-center gap-2 px-5 py-4 text-zinc-500 text-xs border-t border-zinc-800">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                      Generating fresh hypotheses…
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
+
+          {/* ── Analytics (expanded) ─────────────────────────────────────────── */}
+          {view === 'analytics' && phKey && (
+            <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
+          )}
+
         </div>
       </div>
     </div>
   )
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000)
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return 'yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // ─── Analytics view ───────────────────────────────────────────────────────────
