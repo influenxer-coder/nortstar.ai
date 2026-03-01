@@ -110,6 +110,48 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Copy state ─────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState<string | null>(null)
 
+  // ── PostHog connect state ───────────────────────────────────────────────
+  const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
+  const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
+  const [phKey, setPhKey] = useState<string | null>(resolvedPhKey)
+  const [phProject, setPhProject] = useState<string | null>(resolvedPhProject)
+  const [phConnecting, setPhConnecting] = useState(false)
+  const [phForm, setPhForm] = useState({ api_key: '', project_id: '' })
+  const [phSaving, setPhSaving] = useState(false)
+  const [phError, setPhError] = useState('')
+
+  const handlePhConnect = async () => {
+    if (!phForm.api_key.trim() || !phForm.project_id.trim()) {
+      setPhError('Both fields are required')
+      return
+    }
+    setPhSaving(true)
+    setPhError('')
+    // Validate
+    const vRes = await fetch('/api/posthog/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posthog_api_key: phForm.api_key.trim(), posthog_project_id: phForm.project_id.trim() }),
+    })
+    const vData = await vRes.json()
+    if (!vData.valid) {
+      setPhError(vData.error ?? 'Validation failed')
+      setPhSaving(false)
+      return
+    }
+    // Save to agent
+    await fetch(`/api/agents/${agent.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posthog_api_key: phForm.api_key.trim(), posthog_project_id: phForm.project_id.trim() }),
+    })
+    setPhKey(phForm.api_key.trim())
+    setPhProject(phForm.project_id.trim())
+    setPhConnecting(false)
+    setPhSaving(false)
+    setPhForm({ api_key: '', project_id: '' })
+  }
+
   // ── Load docs on mount ─────────────────────────────────────────────────────
   useEffect(() => {
     setDocsLoading(true)
@@ -277,19 +319,45 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
           {/* Analytics */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
-            {(() => {
-              const phKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key
-              const phProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id
-              return (
-                <SourceRow
-                  icon={<BarChart2 className="h-3.5 w-3.5" />}
-                  label={phKey ? `PostHog · project ${phProject ?? ''}` : 'PostHog'}
-                  connected={!!phKey}
-                  href="/dashboard/agents/new"
-                  actionLabel="Add"
+            <SourceRow
+              icon={<BarChart2 className="h-3.5 w-3.5" />}
+              label={phKey ? `PostHog · project ${phProject ?? ''}` : 'PostHog'}
+              connected={!!phKey}
+              onAction={!phKey ? () => setPhConnecting(v => !v) : undefined}
+              actionLabel="Add"
+            />
+            {phConnecting && !phKey && (
+              <div className="mt-2 px-1 space-y-2">
+                <input
+                  value={phForm.api_key}
+                  onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
+                  placeholder="phx_... (API Key)"
+                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 />
-              )
-            })()}
+                <input
+                  value={phForm.project_id}
+                  onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
+                  placeholder="Project ID (e.g. 12345)"
+                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                />
+                {phError && <p className="text-[10px] text-red-400">{phError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePhConnect}
+                    disabled={phSaving}
+                    className="flex-1 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-medium disabled:opacity-50 transition-colors"
+                  >
+                    {phSaving ? 'Connecting…' : 'Connect'}
+                  </button>
+                  <button
+                    onClick={() => { setPhConnecting(false); setPhError(''); setPhForm({ api_key: '', project_id: '' }) }}
+                    className="px-2 py-1 rounded border border-zinc-700 text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Codebase */}
