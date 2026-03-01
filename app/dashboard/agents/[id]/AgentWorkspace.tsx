@@ -6,6 +6,7 @@ import {
   FileText, Upload, Trash2, Loader2, RefreshCw, ChevronRight,
   Sparkles, Copy, Check,
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import type { Agent, Hypothesis } from '@/lib/types'
 import AgentAnalysisLogs from './AgentAnalysisLogs'
 
@@ -413,7 +414,9 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             {briefingOpen && (
               <div className="px-6 pb-5">
                 {agent.context_summary ? (
-                  <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line mb-3">{agent.context_summary}</p>
+                  <div className="prose prose-xs prose-invert max-w-none mb-3 text-xs text-zinc-400 [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:text-zinc-400 [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-medium [&_h3]:text-zinc-300 [&_h3]:mt-2 [&_h3]:mb-0.5 [&_p]:leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium">
+                    <ReactMarkdown>{agent.context_summary}</ReactMarkdown>
+                  </div>
                 ) : (
                   <p className="text-xs text-zinc-600 italic mb-3">
                     No briefing yet — run analysis to generate insights from your connected sources.
@@ -714,7 +717,9 @@ function HypothesisRow({
           </div>
           <div>
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Why we&apos;re proposing this</p>
-            <p className="text-xs text-zinc-400 leading-relaxed">{h.hypothesis}</p>
+            <div className="text-xs text-zinc-400 leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium [&_ul]:mt-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed">
+              <ReactMarkdown>{h.hypothesis}</ReactMarkdown>
+            </div>
           </div>
           {h.suggested_change && (
             <div>
