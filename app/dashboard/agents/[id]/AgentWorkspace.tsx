@@ -110,47 +110,63 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Copy state ─────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState<string | null>(null)
 
-  // ── PostHog connect state ───────────────────────────────────────────────
+  // ── PostHog install state ────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
   const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
   const [phKey, setPhKey] = useState<string | null>(resolvedPhKey)
   const [phProject, setPhProject] = useState<string | null>(resolvedPhProject)
-  const [phConnecting, setPhConnecting] = useState(false)
-  const [phForm, setPhForm] = useState({ api_key: '', project_id: '' })
-  const [phSaving, setPhSaving] = useState(false)
-  const [phError, setPhError] = useState('')
+  const [phExpanded, setPhExpanded] = useState(false)
+  const [phInstalling, setPhInstalling] = useState(false)
+  const [phPrUrl, setPhPrUrl] = useState<string | null>(null)
+  const [phPolling, setPhPolling] = useState(false)
+  const [phInstallError, setPhInstallError] = useState('')
+  const phPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const handlePhConnect = async () => {
-    if (!phForm.api_key.trim() || !phForm.project_id.trim()) {
-      setPhError('Both fields are required')
-      return
+  const handlePhInstall = async () => {
+    if (!agent.github_repo) return
+    setPhInstalling(true)
+    setPhInstallError('')
+    try {
+      const res = await fetch('/api/analytics/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ github_repo: agent.github_repo, agent_id: agent.id, url: agent.url }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) {
+        setPhInstallError(data.error || 'Failed to create PR')
+        return
+      }
+      if (data.already_installed) {
+        setPhPolling(true)
+      } else {
+        setPhPrUrl(data.pr_url)
+        setPhPolling(true)
+      }
+    } catch {
+      setPhInstallError('Could not reach server. Try again.')
+    } finally {
+      setPhInstalling(false)
     }
-    setPhSaving(true)
-    setPhError('')
-    // Validate
-    const vRes = await fetch('/api/posthog/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ posthog_api_key: phForm.api_key.trim(), posthog_project_id: phForm.project_id.trim() }),
-    })
-    const vData = await vRes.json()
-    if (!vData.valid) {
-      setPhError(vData.error ?? 'Validation failed')
-      setPhSaving(false)
-      return
-    }
-    // Save to agent
-    await fetch(`/api/agents/${agent.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ posthog_api_key: phForm.api_key.trim(), posthog_project_id: phForm.project_id.trim() }),
-    })
-    setPhKey(phForm.api_key.trim())
-    setPhProject(phForm.project_id.trim())
-    setPhConnecting(false)
-    setPhSaving(false)
-    setPhForm({ api_key: '', project_id: '' })
   }
+
+  // Poll for PostHog going live after install/detection
+  useEffect(() => {
+    if (!phPolling) return
+    phPollRef.current = setInterval(async () => {
+      const res = await fetch(`/api/analytics/status?agent_id=${agent.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.installed) {
+          clearInterval(phPollRef.current!)
+          setPhPolling(false)
+          setPhKey('detected')
+          setPhExpanded(false)
+        }
+      }
+    }, 8000)
+    return () => { if (phPollRef.current) clearInterval(phPollRef.current) }
+  }, [phPolling, agent.id])
 
   // ── Load docs on mount ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -321,41 +337,56 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
             <SourceRow
               icon={<BarChart2 className="h-3.5 w-3.5" />}
-              label={phKey ? `PostHog · project ${phProject ?? ''}` : 'PostHog'}
+              label={phKey ? `PostHog${phProject && phProject !== 'detected' ? ` · project ${phProject}` : ''}` : 'PostHog'}
               connected={!!phKey}
-              onAction={!phKey ? () => setPhConnecting(v => !v) : undefined}
-              actionLabel="Add"
+              onAction={!phKey ? () => setPhExpanded(v => !v) : undefined}
+              actionLabel="Install"
             />
-            {phConnecting && !phKey && (
+            {phExpanded && !phKey && (
               <div className="mt-2 px-1 space-y-2">
-                <input
-                  value={phForm.api_key}
-                  onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
-                  placeholder="phx_... (API Key)"
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-                <input
-                  value={phForm.project_id}
-                  onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
-                  placeholder="Project ID (e.g. 12345)"
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-                {phError && <p className="text-[10px] text-red-400">{phError}</p>}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handlePhConnect}
-                    disabled={phSaving}
-                    className="flex-1 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-medium disabled:opacity-50 transition-colors"
-                  >
-                    {phSaving ? 'Connecting…' : 'Connect'}
-                  </button>
-                  <button
-                    onClick={() => { setPhConnecting(false); setPhError(''); setPhForm({ api_key: '', project_id: '' }) }}
-                    className="px-2 py-1 rounded border border-zinc-700 text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                {!phPrUrl && !phPolling && (
+                  <>
+                    {agent.github_repo ? (
+                      <p className="text-[10px] text-zinc-500 leading-relaxed">
+                        We&apos;ll add PostHog to <span className="text-zinc-300">{agent.github_repo}</span> and open a PR for you to merge.
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-zinc-500 leading-relaxed">
+                        Connect a GitHub repo first, then we&apos;ll auto-install PostHog for you.
+                      </p>
+                    )}
+                    {phInstallError && <p className="text-[10px] text-red-400">{phInstallError}</p>}
+                    {agent.github_repo && (
+                      <button
+                        onClick={handlePhInstall}
+                        disabled={phInstalling}
+                        className="w-full py-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-medium disabled:opacity-50 transition-colors"
+                      >
+                        {phInstalling ? 'Creating PR…' : 'Install PostHog'}
+                      </button>
+                    )}
+                  </>
+                )}
+                {phPrUrl && phPolling && (
+                  <div className="space-y-1.5">
+                    <a
+                      href={phPrUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300"
+                    >
+                      <GitBranch className="h-3 w-3" /> View PR to merge →
+                    </a>
+                    <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Waiting for PostHog to go live…
+                    </p>
+                  </div>
+                )}
+                {!phPrUrl && phPolling && (
+                  <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Detecting PostHog on your site…
+                  </p>
+                )}
               </div>
             )}
           </div>
