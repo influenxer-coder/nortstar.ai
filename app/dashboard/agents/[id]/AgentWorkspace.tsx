@@ -103,6 +103,9 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   const [instructionsSaving, setInstructionsSaving] = useState(false)
   const [instructionsSaved, setInstructionsSaved] = useState(false)
 
+  // ── View state ─────────────────────────────────────────────────────────────
+  const [view, setView] = useState<'hypotheses' | 'analytics'>('hypotheses')
+
   // ── Analysis state ─────────────────────────────────────────────────────────
   const [reanalyzing, setReanalyzing] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -317,13 +320,18 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
           {/* Analytics */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
-            <SourceRow
-              icon={<BarChart2 className="h-3.5 w-3.5" />}
-              label={phKey ? `PostHog${phProject ? ` · ${phProject}` : ''}` : 'PostHog'}
-              connected={!!phKey}
-              onAction={!phKey ? () => setPhExpanded(v => !v) : undefined}
-              actionLabel="Connect"
-            />
+            <div
+              className={phKey ? 'cursor-pointer' : ''}
+              onClick={phKey ? () => setView(v => v === 'analytics' ? 'hypotheses' : 'analytics') : undefined}
+            >
+              <SourceRow
+                icon={<BarChart2 className="h-3.5 w-3.5" />}
+                label={phKey ? `PostHog${phProject ? ` · ${phProject}` : ''}` : 'PostHog'}
+                connected={!!phKey}
+                onAction={!phKey ? () => setPhExpanded(v => !v) : undefined}
+                actionLabel="Connect"
+              />
+            </div>
             {phExpanded && !phKey && (
               <div className="mt-2 px-1 space-y-2">
                 <p className="text-[10px] text-zinc-500 leading-relaxed">
@@ -504,9 +512,11 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
           </div>
         </div>
 
-        {/* Hypothesis table */}
+        {/* Center: analytics or hypothesis table */}
         <div className="flex-1 overflow-auto">
-          {!hasHypotheses ? (
+          {view === 'analytics' ? (
+            <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
+          ) : !hasHypotheses ? (
             /* Empty state */
             <div className="max-w-xl mx-auto mt-16 px-6">
               <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
@@ -558,6 +568,166 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
                 </div>
               )}
             </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Analytics view ───────────────────────────────────────────────────────────
+
+interface AnalyticsData {
+  sessions: number
+  unique_users: number
+  daily_sessions: { day: string; sessions: number }[]
+  top_events: { event: string; count: number; users: number }[]
+  top_pages: { url: string; sessions: number }[]
+  funnel: { total_sessions: number; kpi_events: number; kpi_users: number; kpi_text: string } | null
+}
+
+function AnalyticsView({ agentId, kpiText }: { agentId: string; kpiText: string }) {
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/agents/${agentId}/analytics`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) setError(d.error)
+        else setData(d)
+      })
+      .catch(() => setError('Failed to load analytics'))
+      .finally(() => setLoading(false))
+  }, [agentId])
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 gap-2 text-zinc-500">
+      <Loader2 className="h-4 w-4 animate-spin" /> Loading PostHog data…
+    </div>
+  )
+  if (error) return (
+    <div className="flex items-center justify-center h-64 text-red-400 text-sm">{error}</div>
+  )
+  if (!data) return null
+
+  const maxSessions = Math.max(...data.daily_sessions.map(d => d.sessions), 1)
+  const maxEventCount = Math.max(...data.top_events.map(e => e.count), 1)
+  const convRate = data.funnel && data.funnel.total_sessions > 0
+    ? ((data.funnel.kpi_events / data.funnel.total_sessions) * 100).toFixed(1)
+    : null
+
+  return (
+    <div className="p-6 space-y-6 max-w-5xl">
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Sessions (90d)', value: data.sessions.toLocaleString() },
+          { label: 'Unique Users (90d)', value: data.unique_users.toLocaleString() },
+          { label: 'Avg Sessions / Month', value: Math.round(data.sessions / 3).toLocaleString() },
+        ].map(card => (
+          <div key={card.label} className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">{card.label}</p>
+            <p className="text-2xl font-bold text-zinc-100">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Funnel bar */}
+      {data.funnel && convRate !== null && (
+        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
+          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+            KPI Funnel — {data.funnel.kpi_text}
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-400 w-36 shrink-0">All sessions</span>
+              <div className="flex-1 bg-zinc-800 rounded-full h-3">
+                <div className="bg-zinc-500 h-3 rounded-full w-full" />
+              </div>
+              <span className="text-xs text-zinc-300 w-16 text-right">{data.funnel.total_sessions.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-400 w-36 shrink-0 truncate">"{data.funnel.kpi_text}" events</span>
+              <div className="flex-1 bg-zinc-800 rounded-full h-3">
+                <div
+                  className="bg-violet-500 h-3 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (data.funnel.kpi_events / data.funnel.total_sessions) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-zinc-300 w-16 text-right">{data.funnel.kpi_events.toLocaleString()} <span className="text-zinc-500">({convRate}%)</span></span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily sessions sparkline */}
+      {data.daily_sessions.length > 0 && (
+        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
+          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Daily Sessions — Last 90 Days</p>
+          <div className="flex items-end gap-0.5 h-20">
+            {data.daily_sessions.map(d => (
+              <div
+                key={d.day}
+                title={`${d.day}: ${d.sessions} sessions`}
+                className="flex-1 bg-violet-500/60 hover:bg-violet-500 rounded-sm transition-colors cursor-default min-w-0"
+                style={{ height: `${Math.max(2, (d.sessions / maxSessions) * 100)}%` }}
+              />
+            ))}
+          </div>
+          <div className="flex justify-between mt-1 text-[10px] text-zinc-600">
+            <span>{data.daily_sessions[0]?.day}</span>
+            <span>{data.daily_sessions[data.daily_sessions.length - 1]?.day}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Top events + top pages */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Top events */}
+        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
+          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Events (90d)</p>
+          {data.top_events.length === 0 ? (
+            <p className="text-xs text-zinc-600">No custom events recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.top_events.slice(0, 8).map(ev => (
+                <div key={ev.event} className="space-y-0.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-300 truncate flex-1 pr-2">{ev.event}</span>
+                    <span className="text-xs text-zinc-500 shrink-0">{ev.count.toLocaleString()}</span>
+                  </div>
+                  <div className="bg-zinc-800 rounded-full h-1">
+                    <div
+                      className="bg-violet-500/70 h-1 rounded-full"
+                      style={{ width: `${(ev.count / maxEventCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Top pages */}
+        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
+          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Pages (90d)</p>
+          {data.top_pages.length === 0 ? (
+            <p className="text-xs text-zinc-600">No pageview data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.top_pages.slice(0, 8).map((pg, i) => {
+                const path = (() => { try { return new URL(pg.url).pathname } catch { return pg.url } })()
+                return (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-zinc-400 truncate flex-1" title={pg.url}>{path || '/'}</span>
+                    <span className="text-xs text-zinc-500 shrink-0">{pg.sessions.toLocaleString()} sess.</span>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       </div>
