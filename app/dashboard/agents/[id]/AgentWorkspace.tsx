@@ -277,13 +277,19 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
           {/* Analytics */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
-            <SourceRow
-              icon={<BarChart2 className="h-3.5 w-3.5" />}
-              label={agent.posthog_api_key ? `PostHog · project ${agent.posthog_project_id ?? ''}` : 'PostHog'}
-              connected={!!agent.posthog_api_key}
-              href="/dashboard/agents/new"
-              actionLabel="Add"
-            />
+            {(() => {
+              const phKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key
+              const phProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id
+              return (
+                <SourceRow
+                  icon={<BarChart2 className="h-3.5 w-3.5" />}
+                  label={phKey ? `PostHog · project ${phProject ?? ''}` : 'PostHog'}
+                  connected={!!phKey}
+                  href="/dashboard/agents/new"
+                  actionLabel="Add"
+                />
+              )
+            })()}
           </div>
 
           {/* Codebase */}

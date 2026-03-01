@@ -168,6 +168,8 @@ export interface Agent {
   system_instructions?: string | null
   // Analysis pipeline output
   context_summary?: string | null
+  // Raw analytics config (may contain posthog credentials if posthog_api_key not promoted)
+  analytics_config?: Record<string, Record<string, string>> | null
 }
 
 export interface AgentDocument {

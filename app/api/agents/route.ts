@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     github_repo?: string
     posthog_api_key?: string
     posthog_project_id?: string
+    analytics_config?: Record<string, Record<string, string>>
     target_element?: { type: string; text: string; position: Record<string, number> }
     status?: string
     step?: number
@@ -47,8 +48,14 @@ export async function POST(request: Request) {
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   const url = typeof body.url === 'string' ? body.url.trim() : ''
   const github_repo = typeof body.github_repo === 'string' ? body.github_repo.trim() : null
-  const posthog_api_key = typeof body.posthog_api_key === 'string' ? body.posthog_api_key.trim() : null
-  const posthog_project_id = typeof body.posthog_project_id === 'string' ? body.posthog_project_id.trim() : null
+  const analytics_config = body.analytics_config && typeof body.analytics_config === 'object' ? body.analytics_config : null
+  // Prefer explicit posthog fields; fall back to analytics_config.posthog for agents created via the creation flow
+  const posthog_api_key = typeof body.posthog_api_key === 'string'
+    ? body.posthog_api_key.trim()
+    : (analytics_config?.posthog?.api_key ?? null)
+  const posthog_project_id = typeof body.posthog_project_id === 'string'
+    ? body.posthog_project_id.trim()
+    : (analytics_config?.posthog?.project_id ?? null)
   const target_element = body.target_element && typeof body.target_element === 'object'
     ? body.target_element
     : null

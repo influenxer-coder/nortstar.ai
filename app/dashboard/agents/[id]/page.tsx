@@ -12,7 +12,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   // Fetch the current agent (full fields)
   const { data: agent } = await supabase
     .from('agents')
-    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, status, main_kpi, slack_channel_id, slack_team_id, system_instructions, context_summary, created_at, updated_at')
+    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, analytics_config, target_element, status, main_kpi, slack_channel_id, slack_team_id, system_instructions, context_summary, created_at, updated_at')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
