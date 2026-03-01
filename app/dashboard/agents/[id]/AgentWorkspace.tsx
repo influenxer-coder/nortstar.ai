@@ -113,6 +113,9 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
   // ── Copy state ─────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState<string | null>(null)
 
+  // ── Briefing collapse state ────────────────────────────────────────────────
+  const [briefingOpen, setBriefingOpen] = useState(!!agent.context_summary)
+
   // ── PostHog connect state ────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
   const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
@@ -501,22 +504,55 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
         {/* Scrollable content */}
         <div className="flex-1 overflow-auto">
 
-          {/* ── Agent Briefing ─────────────────────────────────────────────── */}
-          <div className="px-6 py-4 border-b border-zinc-800/60">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-2">Agent Briefing</p>
+          {/* ── Agent Briefing (collapsible) ────────────────────────────────── */}
+          <div className="border-b border-zinc-800/60">
+            {/* Header row — always visible */}
+            <div
+              className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
+              onClick={() => setBriefingOpen(o => !o)}
+            >
+              <div className="flex items-center gap-2">
+                <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform duration-150 ${briefingOpen ? 'rotate-90' : ''}`} />
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Agent Briefing</p>
+                {/* Source pills (compact, always visible) */}
+                <div className="flex items-center gap-1 ml-2">
+                  {[
+                    { label: 'GitHub', active: !!agent.github_repo },
+                    { label: 'PostHog', active: !!phKey },
+                    { label: 'Slack', active: !!agent.slack_channel_id },
+                    { label: `${docs?.length ?? 0} docs`, active: (docs?.length ?? 0) > 0 },
+                  ].filter(s => s.active).map(src => (
+                    <span key={src.label} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-500">
+                      {src.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); handleReanalyze() }}
+                disabled={reanalyzing}
+                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40 shrink-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
+                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
+              </button>
+            </div>
+
+            {/* Expanded content */}
+            {briefingOpen && (
+              <div className="px-6 pb-5">
+                {/* Context summary */}
                 {agent.context_summary ? (
-                  <p className="text-xs text-zinc-400 leading-relaxed line-clamp-4 whitespace-pre-line">
+                  <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line mb-3">
                     {agent.context_summary}
                   </p>
                 ) : (
-                  <p className="text-xs text-zinc-600 italic">
+                  <p className="text-xs text-zinc-600 italic mb-3">
                     No briefing yet — run analysis to generate insights from your connected sources.
                   </p>
                 )}
-                {/* Sources pills */}
-                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {/* All source pills */}
+                <div className="flex flex-wrap gap-1.5 mb-4">
                   {[
                     { label: 'GitHub', active: !!agent.github_repo },
                     { label: 'PostHog', active: !!phKey },
@@ -531,16 +567,10 @@ export default function AgentWorkspace({ agent, agents, initialHypotheses }: Pro
                     </span>
                   ))}
                 </div>
+                {/* Analysis logs */}
+                <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
               </div>
-              <button
-                onClick={handleReanalyze}
-                disabled={reanalyzing}
-                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40 shrink-0"
-              >
-                <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
-                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
-              </button>
-            </div>
+            )}
           </div>
 
           {/* ── Hypothesis summary bar ──────────────────────────────────────── */}
