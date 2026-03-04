@@ -28,6 +28,24 @@ function verifySlackSignature(body: string, headers: Headers): boolean {
   return computed === signature
 }
 
+async function getSlackUserName(token: string, userId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://slack.com/api/users.info?user=${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await res.json()
+    if (data.ok && data.user) {
+      return (
+        data.user.profile?.display_name ||
+        data.user.profile?.real_name ||
+        data.user.name ||
+        userId
+      )
+    }
+  } catch { /* noop */ }
+  return userId
+}
+
 async function embedText(text: string): Promise<number[]> {
   const res = await fetch('https://api.voyageai.com/v1/embeddings', {
     method: 'POST',
@@ -55,6 +73,48 @@ async function findRelevantChunks(
   } catch {
     return []
   }
+}
+
+// ── Hypothesis creation tool ───────────────────────────────────────────────────
+// Claude calls this when it has validated a hypothesis through back-and-forth.
+// It must NOT call this on the first message — always ask at least one question first.
+
+const CREATE_HYPOTHESIS_TOOL: Anthropic.Tool = {
+  name: 'create_hypothesis',
+  description:
+    'Create a validated improvement hypothesis from feedback gathered in this conversation. ' +
+    'Only call this after asking at least 1 KPI-focused validation question and receiving a meaningful answer. ' +
+    'Never call this on the first message — always engage first.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      title: {
+        type: 'string',
+        description: 'Action-oriented title, verb-first, max 8 words',
+      },
+      hypothesis: {
+        type: 'string',
+        description:
+          '2–3 sentences: (1) what problem the evidence shows, citing specifics from the conversation, ' +
+          '(2) the proposed fix, (3) which KPI it would move and in which direction',
+      },
+      suggested_change: {
+        type: 'string',
+        description:
+          'Exact change — element name, copy wording, layout detail. ' +
+          'Quote current state vs proposed state where possible.',
+      },
+      impact_score: {
+        type: 'number',
+        description: 'Your estimated impact 1–5 based on evidence quality and KPI relevance',
+      },
+      evidence_summary: {
+        type: 'string',
+        description: 'Concise summary of the evidence and reasoning shared in this conversation',
+      },
+    },
+    required: ['title', 'hypothesis', 'suggested_change', 'impact_score', 'evidence_summary'],
+  },
 }
 
 export async function POST(request: Request) {
@@ -98,6 +158,7 @@ export async function POST(request: Request) {
   const channelId = event.channel as string
   const userMessage = (event.text as string || '').trim()
   const slackTs = event.ts as string
+  const slackUserId = event.user as string | undefined
 
   if (!userMessage) return NextResponse.json({ ok: true })
 
@@ -115,6 +176,11 @@ export async function POST(request: Request) {
         .single()
 
       if (!agent?.slack_bot_token) return
+
+      // Resolve the Slack user's display name for hypothesis attribution
+      const slackUserName = slackUserId
+        ? await getSlackUserName(agent.slack_bot_token, slackUserId)
+        : 'Team member'
 
       // Check if analysis is still running (affects how we frame the response)
       const { data: runningLogs } = await supabase
@@ -194,6 +260,29 @@ export async function POST(request: Request) {
 - Suggest concrete next steps or experiments, not vague advice.
 - Aim for the quality of a senior product consultant, not a generic chatbot.`
 
+      systemPrompt += `\n\n## Hypothesis intake — when someone shares feedback or research
+
+When someone shares customer feedback, user research, a complaint pattern, or a product improvement idea, treat it as a potential hypothesis to validate and add to the workspace.
+
+Your validation process:
+
+1. **First message — always ask questions first.** Never call \`create_hypothesis\` immediately. Acknowledge the signal, then ask 1–2 focused questions:
+   - What's the evidence? (How many customers/tickets/observations? Any data?)
+   - What's the current state of ${agent.main_kpi ?? 'the primary metric'}?
+   - Why would this specific change move ${agent.main_kpi ?? 'the KPI'} — what's the mechanism?
+
+2. **Probe until you have meaningful signal.** If answers are vague, ask one more targeted follow-up. Push for specifics: "How many support tickets mentioned this last month?" or "What does the current completion rate look like?"
+
+3. **Do your own research.** Use your knowledge of published case studies, A/B test results, and conversion research to assess whether the proposed change is likely to work. Be honest — if the evidence is weak or the hypothesis contradicts known patterns, say so.
+
+4. **Call \`create_hypothesis\` when you have:** a specific problem, at least some evidence (even 3–4 anecdotal reports is fine), a clear proposed change, and a plausible mechanism for moving ${agent.main_kpi ?? 'the KPI'}. Don't demand perfect data.
+
+5. **After creating:** You will receive a confirmation. Let the user know the hypothesis was added and they can review it in the NorthStar workspace.
+
+Hypothesis signal phrases: "customers are saying...", "I noticed...", "users keep complaining...", "what if we changed...", "our research shows...", "feedback from...", "a user told me...", "I think we should..."
+
+Normal questions (not hypothesis signals): answer them directly without invoking hypothesis intake.`
+
       // Build message history for Claude
       const messages: Anthropic.MessageParam[] = [
         ...((history || []).map(m => ({
@@ -203,35 +292,133 @@ export async function POST(request: Request) {
         { role: 'user', content: userMessage },
       ]
 
-      // Call Claude — higher token limit for thorough answers
+      // Call Claude with the hypothesis creation tool available
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         system: systemPrompt,
+        tools: [CREATE_HYPOTHESIS_TOOL],
+        tool_choice: { type: 'auto' },
         messages,
       })
 
-      const reply = response.content[0].type === 'text' ? response.content[0].text : ''
-      if (!reply) return
+      // ── Handle tool use: Claude decided to create a hypothesis ───────────────
+      const toolUseBlock = response.content.find(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === 'create_hypothesis'
+      )
 
-      // Post reply to Slack
-      await fetch('https://slack.com/api/chat.postMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
-        body: JSON.stringify({
-          channel: channelId,
-          text: reply,
-          username: agent.name,
-          icon_emoji: ':robot_face:',
-        }),
-      })
+      if (toolUseBlock) {
+        const toolInput = toolUseBlock.input as {
+          title: string
+          hypothesis: string
+          suggested_change: string
+          impact_score: number
+          evidence_summary: string
+        }
 
-      // Persist conversation history
-      await supabase.from('slack_messages').insert([
-        { agent_id: agent.id, role: 'user', content: userMessage, slack_ts: slackTs },
-        { agent_id: agent.id, role: 'assistant', content: reply },
-      ])
+        // Research validation: quick Claude pass to assess and refine the hypothesis
+        // before committing it to the DB
+        let validatedHypothesis = toolInput.hypothesis
+        let validatedImpactScore = Math.min(5, Math.max(1, Math.round(toolInput.impact_score || 3)))
+        let confidenceNote = ''
+
+        try {
+          const validationResp = await anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 600,
+            system: `You are a product optimization researcher. Evaluate a hypothesis and return ONLY valid JSON — no markdown, no explanation.`,
+            messages: [{
+              role: 'user',
+              content: `Product: ${agent.url ?? 'unknown'}
+Target: ${targetDesc}
+KPI to improve: ${agent.main_kpi ?? 'conversion rate'}
+
+Hypothesis submitted: ${toolInput.hypothesis}
+Suggested change: ${toolInput.suggested_change}
+Evidence from team: ${toolInput.evidence_summary}
+
+Evaluate this. Return JSON:
+{
+  "validated_hypothesis": "Refined 2-3 sentence hypothesis incorporating any relevant research you know about this type of change. Keep the team's evidence as the primary source.",
+  "impact_score": 1-5,
+  "confidence_reason": "1-2 sentences citing what published research or known case studies support or challenge this hypothesis"
+}`,
+            }],
+          })
+
+          const validText = validationResp.content[0].type === 'text' ? validationResp.content[0].text : ''
+          const jsonMatch = validText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0])
+            if (parsed.validated_hypothesis) validatedHypothesis = parsed.validated_hypothesis
+            if (parsed.impact_score) validatedImpactScore = Math.min(5, Math.max(1, Number(parsed.impact_score)))
+            if (parsed.confidence_reason) confidenceNote = parsed.confidence_reason
+          }
+        } catch {
+          // Keep original values if validation fails — don't block insertion
+        }
+
+        // Insert into agent_hypotheses with source attributed to the Slack person
+        await supabase.from('agent_hypotheses').insert({
+          agent_id: agent.id,
+          title: toolInput.title.slice(0, 200),
+          source: `${slackUserName} via Slack`,
+          hypothesis: validatedHypothesis,
+          suggested_change: toolInput.suggested_change || null,
+          impact_score: validatedImpactScore,
+          status: 'proposed',
+        })
+
+        // Post confirmation to Slack
+        const impactDots = '●'.repeat(validatedImpactScore) + '○'.repeat(5 - validatedImpactScore)
+        const confirmMsg = [
+          `✓ *${toolInput.title}* — added to your hypothesis list.`,
+          confidenceNote ? `_${confidenceNote}_` : '',
+          `Impact: ${impactDots}  ·  Review and accept it in the NorthStar workspace.`,
+        ].filter(Boolean).join('\n')
+
+        await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
+          body: JSON.stringify({
+            channel: channelId,
+            text: confirmMsg,
+            username: agent.name,
+            icon_emoji: ':robot_face:',
+          }),
+        })
+
+        // Persist: store user message + the confirmation as assistant turn
+        await supabase.from('slack_messages').insert([
+          { agent_id: agent.id, role: 'user', content: userMessage, slack_ts: slackTs },
+          { agent_id: agent.id, role: 'assistant', content: confirmMsg },
+        ])
+
+      } else {
+        // ── Normal conversation reply (asking validation questions, or answering) ──
+        const textBlock = response.content.find(
+          (b): b is Anthropic.TextBlock => b.type === 'text'
+        )
+        const reply = textBlock?.text ?? ''
+        if (!reply) return
+
+        await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
+          body: JSON.stringify({
+            channel: channelId,
+            text: reply,
+            username: agent.name,
+            icon_emoji: ':robot_face:',
+          }),
+        })
+
+        await supabase.from('slack_messages').insert([
+          { agent_id: agent.id, role: 'user', content: userMessage, slack_ts: slackTs },
+          { agent_id: agent.id, role: 'assistant', content: reply },
+        ])
+      }
     } catch (err) {
       console.error('[slack/events] error:', err)
     }
