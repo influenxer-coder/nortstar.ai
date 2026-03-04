@@ -9,6 +9,7 @@ import {
 import ReactMarkdown from 'react-markdown'
 import type { Agent, Hypothesis } from '@/lib/types'
 import AgentAnalysisLogs from './AgentAnalysisLogs'
+import SimulationPanel from './SimulationPanel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -387,6 +388,13 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-auto">
+
+          {/* ── Pre-launch Simulation ───────────────────────────────────────── */}
+          <SimulationPanel
+            agentId={agent.id}
+            agentUrl={agent.url ?? null}
+            targetText={agent.target_element?.text ?? null}
+          />
 
           {/* ── Agent Briefing (collapsible) ────────────────────────────────── */}
           <div className="border-b border-zinc-800/60">

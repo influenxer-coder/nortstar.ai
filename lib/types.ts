@@ -202,3 +202,48 @@ export interface Hypothesis {
   pr_url: string | null
   created_at: string
 }
+
+export interface PersonaResult {
+  persona_id: string
+  role: string
+  company_stage: string
+  device: string
+  answers_first_question: boolean
+  first_question_location: string
+  addresses_fear: boolean
+  fear_location: string
+  notices_target_element: boolean
+  converts: boolean
+  dropoff_point: string
+  single_best_change: string
+  conversion_probability: number
+}
+
+export interface SimHypothesis {
+  rank: number
+  change: string
+  personas_unblocked: string[]
+  expected_lift: string
+  confidence: 'high' | 'medium' | 'low'
+  risk: 'high' | 'medium' | 'low'
+  implementation: string
+}
+
+export interface RegretGap {
+  gap: string
+  personas_affected: string[]
+  severity: 'high' | 'medium' | 'low'
+}
+
+export interface Simulation {
+  id: string
+  agent_id: string
+  url: string
+  persona_results: PersonaResult[]
+  hypotheses: SimHypothesis[]
+  overall_conversion_rate: number
+  converting_personas: number
+  recommended_first_test: string | null
+  reasoning: string | null
+  created_at: string
+}
