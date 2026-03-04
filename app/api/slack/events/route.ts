@@ -28,6 +28,17 @@ function verifySlackSignature(body: string, headers: Headers): boolean {
   return computed === signature
 }
 
+// Convert Claude's markdown to Slack mrkdwn.
+// Claude outputs **bold** and ## headers; Slack uses *bold* and plain text.
+function toSlackMrkdwn(text: string): string {
+  return text
+    .replace(/^#{1,3}\s+(.+)$/gm, '*$1*')   // ## Header → *Header*
+    .replace(/\*\*(.+?)\*\*/g, '*$1*')         // **bold** → *bold*
+    .replace(/^---+$/gm, '')                   // remove --- dividers
+    .replace(/\n{3,}/g, '\n\n')               // collapse excessive blank lines
+    .trim()
+}
+
 async function getSlackUserName(token: string, userId: string): Promise<string> {
   try {
     const res = await fetch(`https://slack.com/api/users.info?user=${userId}`, {
@@ -205,6 +216,38 @@ export async function POST(request: Request) {
         })
       }
 
+      // Post a typing indicator immediately so the user sees the bot is thinking
+      const placeholderRes = await fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
+        body: JSON.stringify({
+          channel: channelId,
+          text: '…',
+          username: agent.name,
+          icon_emoji: ':robot_face:',
+        }),
+      })
+      const placeholderData = await placeholderRes.json()
+      const placeholderTs = placeholderData.ok ? (placeholderData.ts as string) : null
+
+      // Helper: update the placeholder message or post a new one if placeholder failed
+      // agent is guaranteed non-null past the `if (!agent?.slack_bot_token) return` check above
+      const sendReply = async (text: string) => {
+        if (placeholderTs) {
+          await fetch('https://slack.com/api/chat.update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent!.slack_bot_token}` },
+            body: JSON.stringify({ channel: channelId, ts: placeholderTs, text }),
+          })
+        } else {
+          await fetch('https://slack.com/api/chat.postMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent!.slack_bot_token}` },
+            body: JSON.stringify({ channel: channelId, text, username: agent!.name, icon_emoji: ':robot_face:' }),
+          })
+        }
+      }
+
       // Fetch conversation history (last 12 messages for good context window)
       const { data: history } = await supabase
         .from('slack_messages')
@@ -251,14 +294,13 @@ export async function POST(request: Request) {
       }
 
       systemPrompt += `\n\n## How to respond
-- You're in Slack. Be direct, specific, and immediately useful.
-- Lead with the insight or recommendation — not with caveats.
-- Use bullet points for lists; avoid markdown headers (## ###).
-- When you have context about recent code changes, reference them specifically.
-- When you recommend something, explain the mechanism — why it works.
-- If you don't know something about this specific product, say so, and offer what you do know about similar products.
-- Suggest concrete next steps or experiments, not vague advice.
-- Aim for the quality of a senior product consultant, not a generic chatbot.`
+- Write like a smart colleague in Slack — short, direct, human. No consultant-speak.
+- 1–3 sentences for most replies. Only go longer when genuinely needed.
+- Skip all preamble ("Great question!", "That's interesting", "Certainly!") — get straight to the point.
+- Use *bold* for emphasis, never **double asterisks**. No ## headers.
+- Use a bullet list only for 3+ truly distinct items. Otherwise just write a sentence.
+- One idea per message. Don't overwhelm.
+- If you don't know something specific to this product, say so in one sentence and move on.`
 
       systemPrompt += `\n\n## Hypothesis intake — when someone shares feedback or research
 
@@ -266,12 +308,9 @@ When someone shares customer feedback, user research, a complaint pattern, or a 
 
 Your validation process:
 
-1. **First message — always ask questions first.** Never call \`create_hypothesis\` immediately. Acknowledge the signal, then ask 1–2 focused questions:
-   - What's the evidence? (How many customers/tickets/observations? Any data?)
-   - What's the current state of ${agent.main_kpi ?? 'the primary metric'}?
-   - Why would this specific change move ${agent.main_kpi ?? 'the KPI'} — what's the mechanism?
+1. **First message — always ask one question first.** Never call \`create_hypothesis\` immediately. Acknowledge the signal briefly (1 sentence), then ask a single focused question — the most important one missing: e.g. how many people said this, what's the current ${agent.main_kpi ?? 'metric'}, or why they think this change would help.
 
-2. **Probe until you have meaningful signal.** If answers are vague, ask one more targeted follow-up. Push for specifics: "How many support tickets mentioned this last month?" or "What does the current completion rate look like?"
+2. **One question per turn.** Don't list multiple questions. If the answer is vague, ask one specific follow-up: "How many tickets mentioned it last month?" or "What's your current completion rate?"
 
 3. **Do your own research.** Use your knowledge of published case studies, A/B test results, and conversion research to assess whether the proposed change is likely to work. Be honest — if the evidence is weak or the hypothesis contradicts known patterns, say so.
 
@@ -378,16 +417,7 @@ Evaluate this. Return JSON:
           `Impact: ${impactDots}  ·  Review and accept it in the NorthStar workspace.`,
         ].filter(Boolean).join('\n')
 
-        await fetch('https://slack.com/api/chat.postMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
-          body: JSON.stringify({
-            channel: channelId,
-            text: confirmMsg,
-            username: agent.name,
-            icon_emoji: ':robot_face:',
-          }),
-        })
+        await sendReply(confirmMsg)
 
         // Persist: store user message + the confirmation as assistant turn
         await supabase.from('slack_messages').insert([
@@ -400,19 +430,10 @@ Evaluate this. Return JSON:
         const textBlock = response.content.find(
           (b): b is Anthropic.TextBlock => b.type === 'text'
         )
-        const reply = textBlock?.text ?? ''
+        const reply = toSlackMrkdwn(textBlock?.text ?? '')
         if (!reply) return
 
-        await fetch('https://slack.com/api/chat.postMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agent.slack_bot_token}` },
-          body: JSON.stringify({
-            channel: channelId,
-            text: reply,
-            username: agent.name,
-            icon_emoji: ':robot_face:',
-          }),
-        })
+        await sendReply(reply)
 
         await supabase.from('slack_messages').insert([
           { agent_id: agent.id, role: 'user', content: userMessage, slack_ts: slackTs },
