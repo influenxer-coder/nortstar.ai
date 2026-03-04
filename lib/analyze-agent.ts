@@ -186,6 +186,49 @@ export async function analyzeAgent(
     }
   }
 
+  // ── Step 2.5: Synthesize product understanding ──────────────────────────────
+  // Runs after both commits and PostHog are fetched so it has maximum signal.
+  // Result goes FIRST in context_summary so every downstream step is grounded.
+  let productUnderstanding = ''
+  {
+    const prodLogId = await addLog(
+      supabase, agentId, 'product_analysis',
+      'Building product understanding…', 'running'
+    )
+    try {
+      const targetDescProd = agent.target_element?.text
+        ? `"${agent.target_element.text}" (${agent.target_element.type || 'element'})`
+        : 'the primary conversion element'
+
+      const prodResp = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        system: `You are a product analyst. Write a concise, specific product profile from the data provided. Ground every sentence in the commit messages and event names given — no generic statements. Return plain text, 2–3 short paragraphs.`,
+        messages: [{
+          role: 'user',
+          content: `Agent name: ${agent.name}
+Product URL: ${agent.url ?? 'not provided'}
+Target feature: ${targetDescProd}
+Primary success metric: ${agent.main_kpi ?? 'not specified'}
+${commitContext ? `Recent commit messages (infer what the product does from these):\n${commitContext.slice(0, 600)}` : ''}
+${posthogSummary ? `User behavior data (infer who uses it and how):\n${posthogSummary}` : ''}
+
+Write 2–3 paragraphs covering:
+1. What this product does and who uses it — inferred from the events and commits, not generic
+2. What the target feature (${targetDescProd}) does within the product and why users interact with it
+3. What moving ${agent.main_kpi ?? 'the primary KPI'} means for the business in concrete terms
+
+Be specific to THIS product. If you cannot infer something, say so briefly rather than guessing generically.`
+        }]
+      })
+      productUnderstanding = prodResp.content[0].type === 'text' ? prodResp.content[0].text : ''
+      if (prodLogId) await updateLog(supabase, prodLogId, 'Product profile built', 'done')
+    } catch (e) {
+      if (prodLogId) await updateLog(supabase, prodLogId, 'Product understanding failed — skipping', 'error')
+      console.error('[analyze-agent] product understanding error:', e)
+    }
+  }
+
   // ── Step 3: Analyze commits with Claude ─────────────────────────────────────
   let codeAnalysis = ''
   if (commitContext) {
@@ -274,6 +317,10 @@ The agent will use this brief to answer questions from the product team in Slack
   const logId5 = await addLog(supabase, agentId, 'synthesis', 'Building agent context…', 'running')
   try {
     const parts: string[] = []
+    // Product understanding goes first — anchors all downstream context
+    if (productUnderstanding) {
+      parts.push(`## Product understanding\n${productUnderstanding}`)
+    }
     if (posthogSummary) {
       parts.push(`## User behavior (last 7 days)\n${posthogSummary}`)
     }
@@ -296,34 +343,41 @@ The agent will use this brief to answer questions from the product team in Slack
           ? `"${agent.target_element.text}" (${agent.target_element.type || 'element'})`
           : 'the primary conversion element'
 
+        // Feed only data-derived context (product profile + behavior + commits).
+        // Deliberately exclude generic CRO research so hypotheses are grounded
+        // in THIS product's evidence, not industry best-practice templates.
+        const dataContext = [
+          productUnderstanding ? `## Product\n${productUnderstanding}` : null,
+          posthogSummary ? `## User behavior (last 7 days)\n${posthogSummary}` : null,
+          codeAnalysis ? `## Recent shipping activity\n${codeAnalysis}` : null,
+        ].filter(Boolean).join('\n\n')
+
         const hypResp = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 2500,
-          system: `You are a product optimization expert generating specific, testable hypotheses for a product team. Each hypothesis must be grounded in actual data from the context. Return ONLY a valid JSON array — no markdown, no explanation, no code fences.`,
+          system: `You are a product optimization expert. Generate specific, testable hypotheses grounded in the actual data provided. Every hypothesis MUST cite a concrete data point — an event name, a commit message phrase, or a specific metric. Do not generate generic best-practice advice. Return ONLY a valid JSON array — no markdown, no explanation, no code fences.`,
           messages: [{
             role: 'user',
             content: `Product: ${agent.url ?? 'unknown'}
 Target: ${targetDesc}
 KPI: ${agent.main_kpi ?? 'conversion rate'}
 
-Context:
-${contextSummary}
+Data:
+${dataContext || contextSummary}
 
-Generate 5-7 specific improvement hypotheses grounded in the context above. Order by impact_score descending.
+Generate 5–7 improvement hypotheses. Rules:
+- Each hypothesis MUST reference specific evidence from the data (quote an event name, a commit phrase, or a metric number)
+- Every suggested change must name the exact element, copy, or interaction to modify — no vague statements like "improve the CTA"
+- Scope strictly to the target feature (${targetDesc}): UI, copy, flow, or interaction changes the user sees
+- Do NOT suggest backend refactors, database changes, or infrastructure work
+- Order by impact_score descending
 
-IMPORTANT: Every hypothesis and suggested change must be scoped to the target page or feature (${targetDesc}). Do NOT suggest backend refactors, database changes, or infrastructure work. Focus on:
-- Copy and messaging changes on the page
-- UI layout or visual hierarchy changes
-- User flow or interaction changes
-- A/B test ideas for specific page elements
-- Feature-level behaviour the user sees
-
-Return a JSON array where each item has exactly these fields:
+Return a JSON array where each item has exactly:
 {
-  "title": "Short title max 8 words starting with a verb (page/feature focused)",
-  "source": "PostHog data | GitHub commits | CRO research | Behavior analysis",
-  "hypothesis": "2-3 sentences: what problem exists on this page/feature, why this change would help, what metric it would move",
-  "suggested_change": "Specific change to copy, layout, UI element, or user flow — describe exactly what to change on the page (not backend code)",
+  "title": "Verb-first title max 8 words",
+  "source": "PostHog data | GitHub commits | Behavior analysis",
+  "hypothesis": "2–3 sentences: (1) what specific evidence (cite it) shows this problem, (2) what change fixes it, (3) which metric moves and in which direction",
+  "suggested_change": "Exact change — specific copy wording, element name, layout detail, or interaction. Quote current state vs proposed state where possible.",
   "impact_score": 1-5
 }`
           }]

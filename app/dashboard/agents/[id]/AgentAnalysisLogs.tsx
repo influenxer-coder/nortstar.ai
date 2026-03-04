@@ -15,6 +15,7 @@ interface Log {
 const STEP_ICONS: Record<string, string> = {
   github: '⬡',
   posthog: '◎',
+  product_analysis: '◍',
   code_analysis: '◈',
   research: '◉',
   synthesis: '◆',
