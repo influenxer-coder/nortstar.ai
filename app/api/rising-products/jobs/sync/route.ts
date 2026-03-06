@@ -23,8 +23,15 @@ export async function POST(request: Request) {
   }
 
   let totalInserted = 0
+  let firstError: string | null = null
+
   for (const c of companies) {
-    const jobs = await fetchJobsForCompany(c)
+    const result = await fetchJobsForCompany(c)
+    if (!result.ok) {
+      if (!firstError) firstError = result.error
+      continue
+    }
+    const jobs = result.jobs
     if (jobs.length === 0) continue
 
     await supabase.from('prospect_jobs').delete().eq('company_name', c)
@@ -45,5 +52,13 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, companies: companies.length, jobsInserted: totalInserted })
+  if (totalInserted === 0 && firstError) {
+    return NextResponse.json({ ok: false, error: firstError, jobsInserted: 0 }, { status: 502 })
+  }
+  return NextResponse.json({
+    ok: true,
+    companies: companies.length,
+    jobsInserted: totalInserted,
+    ...(firstError ? { warning: firstError } : {}),
+  })
 }

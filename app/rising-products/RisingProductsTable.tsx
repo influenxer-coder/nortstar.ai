@@ -47,17 +47,28 @@ export function RisingProductsTable({ companies }: { companies: RisingProduct[] 
 
   useEffect(() => { loadJobs() }, [])
 
+  const [syncError, setSyncError] = useState<string | null>(null)
+
   const handleSync = () => {
     setSyncLoading(true)
+    setSyncError(null)
     fetch('/api/rising-products/jobs/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error ?? data.message ?? `Sync failed (${r.status})`)
+        return data
+      })
       .then(() => loadJobs())
+      .catch((e) => setSyncError(e.message ?? 'Sync failed'))
       .finally(() => setSyncLoading(false))
   }
 
   return (
     <div>
-      <div className="flex justify-end mb-3">
+      <div className="flex flex-wrap items-center justify-end gap-3 mb-3">
+        {syncError && (
+          <p className="text-xs text-red-400 max-w-md">{syncError}</p>
+        )}
         <button
           type="button"
           onClick={handleSync}

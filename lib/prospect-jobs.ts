@@ -36,47 +36,63 @@ function postedInLast3Months(job: JSearchJob): boolean {
   return Date.now() - posted <= THREE_MONTHS_MS
 }
 
-export async function fetchJobsForCompany(company: string): Promise<{
-  title: string
-  url: string | null
-  description_raw: string
-  posted_at: Date | null
-}[]> {
+export type FetchJobsResult =
+  | { ok: true; jobs: { title: string; url: string | null; description_raw: string; posted_at: Date | null }[] }
+  | { ok: false; error: string }
+
+export async function fetchJobsForCompany(company: string): Promise<FetchJobsResult> {
   const key = process.env.RAPIDAPI_KEY ?? process.env.JSEARCH_RAPIDAPI_KEY
-  if (!key) return []
+  if (!key) return { ok: false, error: 'Missing RAPIDAPI_KEY' }
 
   const query = encodeURIComponent(`product manager ${company}`)
-  const res = await fetch(
-    `https://jsearch.p.rapidapi.com/search?query=${query}&page=1&num_pages=1`,
-    {
-      headers: {
-        'X-RapidAPI-Key': key,
-        'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
-      },
-    }
-  )
-  if (!res.ok) return []
+  const url = `https://jsearch.p.rapidapi.com/search?query=${query}&page=1&num_pages=1`
+  const res = await fetch(url, {
+    headers: {
+      'X-RapidAPI-Key': key,
+      'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
+    },
+  })
 
-  const json = await res.json()
-  const data = json.data
-  if (!Array.isArray(data)) return []
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const msg = json.error?.message ?? json.message ?? res.statusText
+    return { ok: false, error: `JSearch API ${res.status}: ${msg}` }
+  }
+  if (json.status === 'ERROR') {
+    return { ok: false, error: json.error?.message ?? json.error ?? 'JSearch returned ERROR' }
+  }
+
+  // JSearch can return data as array or nested (e.g. data with jobs/results)
+  let rawList: unknown[] = []
+  if (Array.isArray(json.data)) {
+    rawList = json.data
+  } else if (json.data && typeof json.data === 'object') {
+    const d = json.data as Record<string, unknown>
+    if (Array.isArray(d.jobs)) rawList = d.jobs
+    else if (Array.isArray(d.results)) rawList = d.results
+    else if (Array.isArray(d.data)) rawList = d.data
+    else if (Array.isArray(d.job_list)) rawList = d.job_list
+  }
+  if (Array.isArray(json.jobs)) rawList = json.jobs
+  if (Array.isArray(json.results)) rawList = json.results
 
   const jobs: { title: string; url: string | null; description_raw: string; posted_at: Date | null }[] = []
-  for (const j of data as JSearchJob[]) {
-    const title = j.job_title ?? 'Product Manager'
-    const desc = j.job_description ?? ''
+  for (const j of rawList as (JSearchJob & Record<string, unknown>)[]) {
+    const title = String(j.job_title ?? j.title ?? 'Product Manager')
+    const desc = String(j.job_description ?? j.description ?? '')
     if (!isPMJob(title, desc)) continue
     if (!postedInLast3Months(j)) continue
+    const link = j.job_apply_link ?? j.apply_link
     jobs.push({
       title,
-      url: j.job_apply_link ?? null,
+      url: (link as string) ?? null,
       description_raw: desc,
       posted_at: j.job_posted_at_timestamp
-        ? new Date(j.job_posted_at_timestamp * 1000)
+        ? new Date((j.job_posted_at_timestamp as number) * 1000)
         : null,
     })
   }
-  return jobs
+  return { ok: true, jobs }
 }
 
 export async function summarizeJobDescription(
