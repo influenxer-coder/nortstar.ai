@@ -2,12 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
 import { RISING_PRODUCTS } from '@/lib/rising-products-data'
-
-const VERTICAL_COLORS: Record<string, string> = {
-  'B2B SaaS': 'border-l-[#3B82F6]',   // blue
-  'HR / Ops': 'border-l-emerald-500',  // green
-  'Fintech': 'border-l-amber-500',      // orange
-}
+import { RisingProductsTable } from './RisingProductsTable'
 
 export default function RisingProductsPage() {
   return (
@@ -61,54 +56,7 @@ export default function RisingProductsPage() {
             </div>
           </div>
 
-          <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0A0A0A]">
-            <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#0d0d0d] border-b border-[#1a1a1a]">
-                  <tr>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest w-8 shrink-0">#</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[120px]">Company</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[100px]">Website</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[90px]">Vertical</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[90px]">Stage</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[140px]">Key investors</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[220px]">What they do</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[180px]">Key metric to optimize</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[160px]">Target contact</th>
-                    <th className="px-4 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest min-w-[90px]">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {RISING_PRODUCTS.map((row, i) => (
-                    <tr
-                      key={`${row.company}-${i}`}
-                      className={`border-b border-[#1a1a1a]/80 last:border-0 hover:bg-[#0d0d0d]/60 transition-colors border-l-4 ${VERTICAL_COLORS[row.vertical] ?? 'border-l-transparent'}`}
-                    >
-                      <td className="px-4 py-3 text-xs text-zinc-600 font-mono">{i + 1}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-zinc-100">{row.company}</td>
-                      <td className="px-4 py-3">
-                        <a
-                          href={`https://${row.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-[#7C3AED] hover:text-violet-400 font-mono"
-                        >
-                          {row.website}
-                        </a>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-400">{row.vertical}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-400">{row.stage}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">{row.investors}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-400 leading-snug max-w-[220px]">{row.whatTheyDo}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-400 leading-snug max-w-[180px]">{row.keyMetric}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">{row.targetContact}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-600">{row.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <RisingProductsTable companies={RISING_PRODUCTS} />
 
           <p className="mt-6 text-xs text-zinc-600">
             Want your company here?{' '}
