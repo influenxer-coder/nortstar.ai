@@ -40,6 +40,7 @@ export default function LandingPage() {
             <a href="#how-it-works" className="hover:text-zinc-100 transition-colors">How it works</a>
             <a href="#who-its-for" className="hover:text-zinc-100 transition-colors">Who it&apos;s for</a>
             <a href="#pilot" className="hover:text-zinc-100 transition-colors">Pilot</a>
+            <Link href="/rising-products" className="hover:text-zinc-100 transition-colors">Rising Products</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/auth/signin">
@@ -315,6 +316,7 @@ export default function LandingPage() {
             that should have existed the whole time.
           </p>
           <div className="flex items-center gap-6 text-xs text-zinc-600">
+            <Link href="/rising-products" className="hover:text-zinc-400 transition-colors">Rising Products</Link>
             <a href="#" className="hover:text-zinc-400 transition-colors">Privacy</a>
             <a href="#" className="hover:text-zinc-400 transition-colors">Terms</a>
             <a href="#" className="hover:text-zinc-400 transition-colors">Security</a>
