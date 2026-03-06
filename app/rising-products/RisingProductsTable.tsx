@@ -63,9 +63,9 @@ export function RisingProductsTable({ companies }: { companies: RisingProduct[] 
         try {
           data = JSON.parse(text)
         } catch {
-          throw new Error(r.ok ? 'Invalid response' : text.slice(0, 200) || `Sync failed (${r.status})`)
+          throw new Error(r.ok ? 'Invalid response' : (text.slice(0, 200) || `Sync failed (${r.status})`))
         }
-        if (!r.ok) throw new Error(data.error ?? data.message ?? text.slice(0, 150) || `Sync failed (${r.status})`)
+        if (!r.ok) throw new Error((data.error ?? data.message ?? text.slice(0, 150)) || `Sync failed (${r.status})`)
         return data
       })
       .then((data) => {
