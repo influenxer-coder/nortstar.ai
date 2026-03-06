@@ -3,17 +3,17 @@ import { NextResponse } from 'next/server'
 import { RISING_PRODUCTS } from '@/lib/rising-products-data'
 import { fetchJobsForCompany, summarizeJobDescription } from '@/lib/prospect-jobs'
 
-// Vercel serverless timeout (e.g. 60s on Pro). Sync in small batches to avoid timeout.
-export const maxDuration = 60
+// Vercel serverless timeout: 10s (Hobby) / 60s (Pro). Keep each request under 10s.
+export const maxDuration = 10
 
-const DEFAULT_LIMIT = 5
-const MAX_JOBS_PER_COMPANY = 5
+const DEFAULT_LIMIT = 1
+const MAX_JOBS_PER_COMPANY = 2
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
     const company = body.company as string | undefined
-    const limit = Math.min(Number(body.limit) || DEFAULT_LIMIT, 20)
+    const limit = Math.min(Number(body.limit) || DEFAULT_LIMIT, 3)
     const offset = Math.max(0, Number(body.offset) || 0)
 
     const supabase = createClient(

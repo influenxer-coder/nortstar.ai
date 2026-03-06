@@ -71,7 +71,7 @@ export function RisingProductsTable({ companies }: { companies: RisingProduct[] 
       .then((data) => {
         setSyncNextOffset(data.nextOffset ?? null)
         if (data.hasMore && data.nextOffset != null) {
-          setSyncMessage(`Synced ${data.jobsInserted ?? 0} jobs. ${(data.totalCompanies ?? 0) - data.nextOffset} companies left — click again to sync more.`)
+          setSyncMessage(`Synced ${data.jobsInserted ?? 0} jobs. ${(data.totalCompanies ?? 0) - data.nextOffset} companies left — click again.`)
         } else if (data.jobsInserted != null) {
           setSyncMessage(`Synced ${data.jobsInserted} jobs.`)
           setSyncNextOffset(null)
@@ -97,7 +97,7 @@ export function RisingProductsTable({ companies }: { companies: RisingProduct[] 
           disabled={syncLoading}
           className="text-xs px-3 py-1.5 rounded-md border border-[#1a1a1a] text-zinc-400 hover:text-zinc-100 hover:border-[#7C3AED]/50 transition-colors disabled:opacity-50"
         >
-          {syncLoading ? 'Syncing…' : syncNextOffset != null ? 'Sync next 5 companies' : 'Sync PM jobs (5 companies, last 3 months)'}
+          {syncLoading ? 'Syncing…' : syncNextOffset != null ? 'Sync next company' : 'Sync PM jobs (1 company, last 3 months)'}
         </button>
       </div>
       <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0A0A0A]">
