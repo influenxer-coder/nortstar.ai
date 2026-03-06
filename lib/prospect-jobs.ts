@@ -53,13 +53,20 @@ export async function fetchJobsForCompany(company: string): Promise<FetchJobsRes
     },
   })
 
-  const json = await res.json().catch(() => ({}))
+  const raw = await res.text()
+  let json: Record<string, unknown> = {}
+  try {
+    json = JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    return { ok: false, error: res.ok ? 'Invalid JSON from JSearch' : `JSearch API ${res.status}: ${raw.slice(0, 200)}` }
+  }
   if (!res.ok) {
-    const msg = json.error?.message ?? json.message ?? res.statusText
+    const msg = (json.error as { message?: string })?.message ?? (json.message as string) ?? raw.slice(0, 150)
     return { ok: false, error: `JSearch API ${res.status}: ${msg}` }
   }
   if (json.status === 'ERROR') {
-    return { ok: false, error: json.error?.message ?? json.error ?? 'JSearch returned ERROR' }
+    const err = json.error as { message?: string } | string | undefined
+    return { ok: false, error: typeof err === 'string' ? err : err?.message ?? 'JSearch returned ERROR' }
   }
 
   // JSearch can return data as array or nested (e.g. data with jobs/results)

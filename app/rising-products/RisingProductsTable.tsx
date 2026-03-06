@@ -48,17 +48,36 @@ export function RisingProductsTable({ companies }: { companies: RisingProduct[] 
   useEffect(() => { loadJobs() }, [])
 
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [syncNextOffset, setSyncNextOffset] = useState<number | null>(null)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   const handleSync = () => {
     setSyncLoading(true)
     setSyncError(null)
-    fetch('/api/rising-products/jobs/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    setSyncMessage(null)
+    const body = syncNextOffset !== null ? JSON.stringify({ offset: syncNextOffset }) : '{}'
+    fetch('/api/rising-products/jobs/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
       .then(async (r) => {
-        const data = await r.json()
-        if (!r.ok) throw new Error(data.error ?? data.message ?? `Sync failed (${r.status})`)
+        const text = await r.text()
+        let data: { error?: string; message?: string; jobsInserted?: number; nextOffset?: number; totalCompanies?: number; hasMore?: boolean } = {}
+        try {
+          data = JSON.parse(text)
+        } catch {
+          throw new Error(r.ok ? 'Invalid response' : text.slice(0, 200) || `Sync failed (${r.status})`)
+        }
+        if (!r.ok) throw new Error(data.error ?? data.message ?? text.slice(0, 150) || `Sync failed (${r.status})`)
         return data
       })
-      .then(() => loadJobs())
+      .then((data) => {
+        setSyncNextOffset(data.nextOffset ?? null)
+        if (data.hasMore && data.nextOffset != null) {
+          setSyncMessage(`Synced ${data.jobsInserted ?? 0} jobs. ${(data.totalCompanies ?? 0) - data.nextOffset} companies left — click again to sync more.`)
+        } else if (data.jobsInserted != null) {
+          setSyncMessage(`Synced ${data.jobsInserted} jobs.`)
+          setSyncNextOffset(null)
+        }
+        loadJobs()
+      })
       .catch((e) => setSyncError(e.message ?? 'Sync failed'))
       .finally(() => setSyncLoading(false))
   }
@@ -69,13 +88,16 @@ export function RisingProductsTable({ companies }: { companies: RisingProduct[] 
         {syncError && (
           <p className="text-xs text-red-400 max-w-md">{syncError}</p>
         )}
+        {syncMessage && !syncError && (
+          <p className="text-xs text-zinc-500 max-w-md">{syncMessage}</p>
+        )}
         <button
           type="button"
           onClick={handleSync}
           disabled={syncLoading}
           className="text-xs px-3 py-1.5 rounded-md border border-[#1a1a1a] text-zinc-400 hover:text-zinc-100 hover:border-[#7C3AED]/50 transition-colors disabled:opacity-50"
         >
-          {syncLoading ? 'Syncing…' : 'Sync PM jobs (last 3 months)'}
+          {syncLoading ? 'Syncing…' : syncNextOffset != null ? 'Sync next 5 companies' : 'Sync PM jobs (5 companies, last 3 months)'}
         </button>
       </div>
       <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0A0A0A]">
