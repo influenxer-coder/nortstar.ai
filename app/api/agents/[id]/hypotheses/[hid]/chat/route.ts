@@ -141,7 +141,18 @@ You are NOT just answering questions — you actively debate, challenge, and ref
 - Propose sharper reframings when the hypothesis is fuzzy
 - When you and the user align on a refinement, use the \`update_hypothesis\` tool to save it
 - When summarizing the agreed hypothesis, put it in a blockquote
-- Be direct. No filler. Use bullet points for lists.`
+- Be direct. No filler. Use bullet points for lists.
+
+**Critical rule for \`suggested_change\`:**
+When saving via \`update_hypothesis\`, the \`suggested_change\` field MUST be written as a precise, element-level engineering spec — not a vague description. Format it like:
+> [Element]: [exact location on page] | [Change]: [from "old value/state"] → [to "new value/state"] | [Rationale]: [one sentence]
+
+Examples of GOOD suggested_change:
+- "Hero section CTA button (above the fold, right column): change label from 'Get Started' → 'Start Free — No Credit Card' | Reduces friction for new visitors"
+- "Pricing page: add a row of 3 trust badges ('SOC2 Certified', '10k+ teams', '99.9% uptime') below the plan cards | Addresses last-minute hesitation"
+- "Signup form: move the email field to the first position, before first/last name | Reduces perceived effort for the primary action"
+
+Bad (too vague): "make the CTA more compelling" or "improve the headline"`
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
