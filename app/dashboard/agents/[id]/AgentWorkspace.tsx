@@ -820,7 +820,7 @@ function HypothesisRow({
                   value={chatInputVal}
                   onChange={e => onChatInputChange(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && onAsk()}
-                  placeholder={chatMsgs.length === 0 ? 'Where did this come from? What data supports it?' : 'Ask a follow-up…'}
+                  placeholder={chatMsgs.length === 0 ? 'Debate this hypothesis or ask what data supports it…' : 'Push back, refine, or ask a follow-up…'}
                   className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
                 />
                 <button onClick={onAsk} disabled={!chatInputVal.trim() || chatIsLoading}
