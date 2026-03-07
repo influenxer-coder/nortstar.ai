@@ -138,7 +138,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
     setChatLoading(prev => ({ ...prev, [hid]: true }))
     try {
       const res = await fetch(`/api/agents/${agent.id}/hypotheses/${hid}/chat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, history }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }),
       })
       const data = await res.json()
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response', tool_called: data.tool_called }] }))
@@ -512,7 +512,20 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                         chatInputVal={chatInput[h.id] ?? ''}
                         chatIsLoading={chatLoading[h.id] ?? false}
                         copied={copied}
-                        onToggleAsk={() => setAskHypId(askHypId === h.id ? null : h.id)}
+                        onToggleAsk={async () => {
+                          const next = askHypId === h.id ? null : h.id
+                          setAskHypId(next)
+                          if (next && !chatHistory[next]) {
+                            // Load persisted history from DB on first open
+                            try {
+                              const res = await fetch(`/api/agents/${agent.id}/hypotheses/${next}/chat`)
+                              const data = await res.json()
+                              if (data.messages?.length) {
+                                setChatHistory(prev => ({ ...prev, [next]: data.messages }))
+                              }
+                            } catch { /* silent — just start fresh */ }
+                          }
+                        }}
                         onAccept={() => updateStatus(h.id, 'accepted')}
                         onReject={() => updateStatus(h.id, 'rejected')}
                         onChatInputChange={(val: string) => setChatInput(prev => ({ ...prev, [h.id]: val }))}

@@ -2,6 +2,33 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
+export async function GET(
+  _request: Request,
+  { params }: { params: { id: string; hid: string } }
+) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Verify agent belongs to user
+  const { data: agent } = await supabase
+    .from('agents')
+    .select('id')
+    .eq('id', params.id)
+    .eq('user_id', user.id)
+    .single()
+  if (!agent) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const { data: messages } = await supabase
+    .from('hypothesis_chats')
+    .select('id, role, content, tool_called, created_at')
+    .eq('hypothesis_id', params.hid)
+    .eq('agent_id', params.id)
+    .order('created_at', { ascending: true })
+
+  return NextResponse.json({ messages: messages ?? [] })
+}
+
 // Tools Claude can call to act on the hypothesis backlog
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -29,7 +56,7 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> }
+  let body: { message: string }
   try {
     body = await request.json()
   } catch {
@@ -40,8 +67,8 @@ export async function POST(
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
   }
 
-  // Fetch current hypothesis + agent + all other hypotheses in parallel
-  const [{ data: hypothesis }, { data: agent }, { data: allHypotheses }] = await Promise.all([
+  // Fetch current hypothesis + agent + all hypotheses + persisted chat history in parallel
+  const [{ data: hypothesis }, { data: agent }, { data: allHypotheses }, { data: chatHistory }] = await Promise.all([
     supabase
       .from('agent_hypotheses')
       .select('*')
@@ -59,6 +86,12 @@ export async function POST(
       .select('id, title, hypothesis, suggested_change, impact_score, status, source')
       .eq('agent_id', params.id)
       .order('impact_score', { ascending: false }),
+    supabase
+      .from('hypothesis_chats')
+      .select('role, content')
+      .eq('hypothesis_id', params.hid)
+      .eq('agent_id', params.id)
+      .order('created_at', { ascending: true }),
   ])
 
   if (!hypothesis || !agent) {
@@ -112,8 +145,20 @@ You are NOT just answering questions — you actively debate, challenge, and ref
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
+  // Persist the new user message
+  await supabase.from('hypothesis_chats').insert({
+    hypothesis_id: params.hid,
+    agent_id: params.id,
+    role: 'user',
+    content: body.message.trim(),
+  })
+
+  // Build messages from DB history (source of truth) + new user message
   const messages: Anthropic.MessageParam[] = [
-    ...(body.history ?? []).map(m => ({ role: m.role, content: m.content })),
+    ...(chatHistory ?? []).map((m: { role: string; content: string }) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })),
     { role: 'user', content: body.message.trim() },
   ]
 
@@ -172,16 +217,27 @@ You are NOT just answering questions — you actively debate, challenge, and ref
         ],
       })
 
-      const reply = followUp.content.find(b => b.type === 'text')
-      return NextResponse.json({
-        reply: reply?.type === 'text' ? reply.text : 'Done.',
+      const replyBlock = followUp.content.find(b => b.type === 'text')
+      const replyText = replyBlock?.type === 'text' ? replyBlock.text : 'Done.'
+      await supabase.from('hypothesis_chats').insert({
+        hypothesis_id: params.hid,
+        agent_id: params.id,
+        role: 'assistant',
+        content: replyText,
         tool_called: toolUseBlock.name,
-        tool_input: toolUseBlock.input,
       })
+      return NextResponse.json({ reply: replyText, tool_called: toolUseBlock.name, tool_input: toolUseBlock.input })
     }
 
-    const reply = resp.content.find(b => b.type === 'text')
-    return NextResponse.json({ reply: reply?.type === 'text' ? reply.text : '' })
+    const replyBlock = resp.content.find(b => b.type === 'text')
+    const replyText = replyBlock?.type === 'text' ? replyBlock.text : ''
+    await supabase.from('hypothesis_chats').insert({
+      hypothesis_id: params.hid,
+      agent_id: params.id,
+      role: 'assistant',
+      content: replyText,
+    })
+    return NextResponse.json({ reply: replyText })
   } catch (e) {
     console.error('[hypothesis/chat] Claude error:', e)
     return NextResponse.json({ error: 'AI response failed' }, { status: 500 })
