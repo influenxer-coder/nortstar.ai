@@ -14,7 +14,7 @@ import SimulationPanel from './SimulationPanel'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Doc { file_name: string; created_at: string }
-interface ChatMsg { role: 'user' | 'assistant'; content: string }
+interface ChatMsg { role: 'user' | 'assistant'; content: string; tool_called?: string }
 
 interface Props {
   agent: Agent
@@ -141,7 +141,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, history }),
       })
       const data = await res.json()
-      setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response' }] }))
+      setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response', tool_called: data.tool_called }] }))
     } catch {
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: 'Failed to get a response. Try again.' }] }))
     } finally {
@@ -788,6 +788,11 @@ function HypothesisRow({
                   {chatMsgs.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs leading-relaxed ${msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300'}`}>
+                        {msg.role === 'assistant' && msg.tool_called && (
+                          <div className="mb-1.5 inline-flex items-center gap-1 bg-emerald-900/50 border border-emerald-700/50 rounded px-1.5 py-0.5 text-[10px] text-emerald-400">
+                            <Check className="h-2.5 w-2.5" /> Saved: {msg.tool_called.replace(/_/g, ' ')}
+                          </div>
+                        )}
                         {msg.role === 'assistant' ? (
                           <ReactMarkdown components={{
                             p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
