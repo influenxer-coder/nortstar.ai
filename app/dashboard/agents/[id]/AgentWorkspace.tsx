@@ -788,7 +788,20 @@ function HypothesisRow({
                   {chatMsgs.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs leading-relaxed ${msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300'}`}>
-                        {msg.content}
+                        {msg.role === 'assistant' ? (
+                          <ReactMarkdown components={{
+                            p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5">{children}</ol>,
+                            li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                            strong: ({ children }) => <strong className="font-semibold text-zinc-100">{children}</strong>,
+                            em: ({ children }) => <em className="italic">{children}</em>,
+                            code: ({ children }) => <code className="bg-zinc-900 rounded px-1 py-0.5 font-mono text-[10px] text-violet-300">{children}</code>,
+                            h1: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
+                            h2: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
+                            h3: ({ children }) => <p className="font-semibold text-zinc-200 mb-0.5">{children}</p>,
+                          }}>{msg.content}</ReactMarkdown>
+                        ) : msg.content}
                       </div>
                     </div>
                   ))}
