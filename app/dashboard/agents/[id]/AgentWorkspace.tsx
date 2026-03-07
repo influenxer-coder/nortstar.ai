@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   CheckCircle2, XCircle, MessageSquare, GitBranch, BarChart2,
   FileText, Upload, Trash2, Loader2, RefreshCw, ChevronRight,
-  Sparkles, Copy, Check,
+  Sparkles, Copy, Check, Eye, X,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Agent, Hypothesis } from '@/lib/types'
@@ -81,6 +81,11 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   // ── Copy state ─────────────────────────────────────────────────────────────
   const [copied, setCopied] = useState<string | null>(null)
 
+  // ── Preview state ──────────────────────────────────────────────────────────
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null) // hid being loaded
+
   // ── PostHog connect state ──────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
   const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
@@ -146,6 +151,23 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: 'Failed to get a response. Try again.' }] }))
     } finally {
       setChatLoading(prev => ({ ...prev, [hid]: false }))
+    }
+  }
+
+  // ── Preview ────────────────────────────────────────────────────────────────
+  const handlePreview = async (hid: string, title: string) => {
+    if (previewLoading) return
+    setPreviewLoading(hid)
+    setPreviewTitle(title)
+    setPreviewHtml(null)
+    try {
+      const res = await fetch(`/api/agents/${agent.id}/hypotheses/${hid}/preview`, { method: 'POST' })
+      const data = await res.json()
+      setPreviewHtml(data.html ?? '<p>No preview generated.</p>')
+    } catch {
+      setPreviewHtml('<p style="color:red">Failed to generate preview.</p>')
+    } finally {
+      setPreviewLoading(null)
     }
   }
 
@@ -215,6 +237,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   const targetDesc = agent.target_element?.text ?? null
 
   return (
+    <>
     <div className="flex h-screen overflow-hidden bg-[#09090B]">
 
       {/* ── Left sources panel ───────────────────────────────────────────────── */}
@@ -531,6 +554,8 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                         onChatInputChange={(val: string) => setChatInput(prev => ({ ...prev, [h.id]: val }))}
                         onAsk={() => handleAsk(h.id)}
                         onCopy={(text: string) => handleCopy(text, h.id)}
+                        onPreview={() => handlePreview(h.id, h.title)}
+                        previewLoading={previewLoading === h.id}
                       />
                     ))}
                   </div>
@@ -553,6 +578,38 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
         </div>
       </div>
     </div>
+
+    {/* ── Preview modal ──────────────────────────────────────────────────── */}
+    {(previewHtml !== null || previewLoading !== null) && (
+      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/95 backdrop-blur-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-blue-400" />
+            <span className="text-sm font-medium text-zinc-200">Preview</span>
+            {previewTitle && <span className="text-xs text-zinc-500">— {previewTitle}</span>}
+          </div>
+          <button onClick={() => { setPreviewHtml(null); setPreviewLoading(null) }}
+            className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          {previewLoading !== null && previewHtml === null ? (
+            <div className="flex items-center justify-center h-full gap-3 text-zinc-500 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-violet-400" /> Generating preview…
+            </div>
+          ) : (
+            <iframe
+              srcDoc={previewHtml ?? ''}
+              className="w-full h-full border-0"
+              sandbox="allow-scripts"
+              title="Hypothesis UI Preview"
+            />
+          )}
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -705,12 +762,13 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
 function HypothesisRow({
   hypothesis: h, agentKpi, isExpanded, onToggleExpand,
   isAsking, chatMsgs, chatInputVal, chatIsLoading, copied,
-  onToggleAsk, onAccept, onReject, onChatInputChange, onAsk, onCopy,
+  onToggleAsk, onAccept, onReject, onChatInputChange, onAsk, onCopy, onPreview, previewLoading,
 }: {
   hypothesis: Hypothesis; agentKpi: string; isExpanded: boolean; onToggleExpand: () => void
   isAsking: boolean; chatMsgs: ChatMsg[]; chatInputVal: string; chatIsLoading: boolean; copied: string | null
   onToggleAsk: () => void; onAccept: () => void; onReject: () => void
   onChatInputChange: (v: string) => void; onAsk: () => void; onCopy: (text: string) => void
+  onPreview: () => void; previewLoading: boolean
 }) {
   const chatEndRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (isAsking) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMsgs, isAsking])
@@ -771,6 +829,11 @@ function HypothesisRow({
             <button onClick={e => { e.stopPropagation(); onToggleAsk() }}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-zinc-700 text-zinc-400 hover:border-violet-600 hover:text-violet-400'}`}>
               <Sparkles className="h-3 w-3" /> Update hypothesis
+            </button>
+            <button onClick={e => { e.stopPropagation(); onPreview() }} disabled={previewLoading}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
+              {previewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+              {previewLoading ? 'Generating…' : 'Preview'}
             </button>
             {isAccepted && (
               <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change ?? '') }}
