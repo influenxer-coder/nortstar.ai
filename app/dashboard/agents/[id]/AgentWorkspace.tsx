@@ -215,9 +215,11 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       })
       const data = await res.json()
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response', tool_called: data.tool_called }] }))
-      // Auto-regenerate preview if hypothesis was updated OR user asked for a preview
-      const wantsPreview = /preview|show me|regenerate|refresh/i.test(message)
-      if (data.tool_called === 'update_hypothesis' || wantsPreview) {
+      // Regenerate preview only when:
+      // 1. API signals a visual (suggested_change) update happened, OR
+      // 2. User explicitly asks for a preview refresh
+      const userWantsPreview = /\b(preview|show me|regenerate preview|refresh preview)\b/i.test(message)
+      if (data.regenerate_preview || userWantsPreview) {
         await handleRegeneratePreview()
       }
     } catch {

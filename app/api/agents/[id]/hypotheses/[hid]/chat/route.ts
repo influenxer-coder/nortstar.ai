@@ -237,7 +237,9 @@ Bad (too vague): "make the CTA more compelling" or "improve the headline"`
         content: replyText,
         tool_called: toolUseBlock.name,
       })
-      return NextResponse.json({ reply: replyText, tool_called: toolUseBlock.name, tool_input: toolUseBlock.input })
+      // Only signal preview regeneration if suggested_change was updated (it's the UI-change field)
+      const visualChangeUpdated = !!(toolUseBlock.input as Record<string, unknown>).suggested_change
+      return NextResponse.json({ reply: replyText, tool_called: toolUseBlock.name, tool_input: toolUseBlock.input, regenerate_preview: visualChangeUpdated })
     }
 
     const replyBlock = resp.content.find(b => b.type === 'text')
