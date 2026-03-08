@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
+import { writeLearningEvent } from '@/lib/brain'
+import { deriveVertical, derivePageType } from '@/lib/taxonomy'
 
 export async function PATCH(
   request: Request,
@@ -31,12 +34,32 @@ export async function PATCH(
     })
     .eq('id', params.hid)
     .eq('agent_id', params.id)
-    .select('*')
+    .select('*, agents!inner(url, user_id)')
     .single()
 
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? 'Not found' }, { status: 404 })
   }
 
-  return NextResponse.json(data)
+  // Fire-and-forget learning event when status changes to a terminal state
+  if (body.status === 'accepted' || body.status === 'rejected') {
+    const agentUrl = (data.agents as { url: string | null })?.url ?? ''
+    const outcome = body.status as 'accepted' | 'rejected'
+    waitUntil(
+      writeLearningEvent({
+        agentId: params.id,
+        userId: user.id,
+        vertical: deriveVertical(agentUrl),
+        pageType: derivePageType(agentUrl),
+        outcome,
+        hypothesisTitle: data.title ?? '',
+        suggestedChange: data.suggested_change ?? '',
+      })
+    )
+  }
+
+  // Strip the joined agents column before returning
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { agents: _agents, ...hypothesis } = data as typeof data & { agents: unknown }
+  return NextResponse.json(hypothesis)
 }

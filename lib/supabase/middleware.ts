@@ -29,6 +29,17 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
+  // Protect admin routes — require ADMIN_EMAIL match
+  if (path.startsWith('/admin')) {
+    const adminEmail = process.env.ADMIN_EMAIL
+    if (!user || !adminEmail || user.email !== adminEmail) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
+  }
+
   // Protect dashboard and onboarding (require auth)
   if (!user && (path.startsWith('/dashboard') || path.startsWith('/onboarding'))) {
     const url = request.nextUrl.clone()

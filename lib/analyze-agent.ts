@@ -13,6 +13,8 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getBrainContext } from '@/lib/brain'
+import { deriveVertical, derivePageType } from '@/lib/taxonomy'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ServiceClient = SupabaseClient<any, any, any>
@@ -352,10 +354,18 @@ The agent will use this brief to answer questions from the product team in Slack
           codeAnalysis ? `## Recent shipping activity\n${codeAnalysis}` : null,
         ].filter(Boolean).join('\n\n')
 
+        const vertical = deriveVertical(agent.url ?? '')
+        const pageType = derivePageType(agent.url ?? '')
+        const brainCtx = await getBrainContext(
+          vertical,
+          pageType,
+          `${agent.url ?? ''} ${targetDesc} ${agent.main_kpi ?? ''}`
+        )
+
         const hypResp = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 2500,
-          system: `You are a product optimization expert. Generate specific, testable hypotheses grounded in the actual data provided. Every hypothesis MUST cite a concrete data point — an event name, a commit message phrase, or a specific metric. Do not generate generic best-practice advice. Return ONLY a valid JSON array — no markdown, no explanation, no code fences.`,
+          system: `You are a product optimization expert. Generate specific, testable hypotheses grounded in the actual data provided. Every hypothesis MUST cite a concrete data point — an event name, a commit message phrase, or a specific metric. Do not generate generic best-practice advice. Return ONLY a valid JSON array — no markdown, no explanation, no code fences.${brainCtx ? `\n\n${brainCtx}` : ''}`,
           messages: [{
             role: 'user',
             content: `Product: ${agent.url ?? 'unknown'}
