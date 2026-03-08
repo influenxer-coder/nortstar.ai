@@ -152,6 +152,12 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       })
       const data = await res.json()
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response', tool_called: data.tool_called }] }))
+      if (data.tool_called === 'update_hypothesis' && data.tool_input) {
+        const input = data.tool_input as { hypothesis_id: string; title?: string; hypothesis?: string; suggested_change?: string; status?: string }
+        setHypotheses(prev => prev.map(h =>
+          h.id === input.hypothesis_id ? { ...h, ...Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'hypothesis_id')) } : h
+        ))
+      }
     } catch {
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: 'Failed to get a response. Try again.' }] }))
     } finally {
@@ -215,6 +221,12 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       })
       const data = await res.json()
       setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response', tool_called: data.tool_called }] }))
+      if (data.tool_called === 'update_hypothesis' && data.tool_input) {
+        const input = data.tool_input as { hypothesis_id: string; title?: string; hypothesis?: string; suggested_change?: string; status?: string }
+        setHypotheses(prev => prev.map(h =>
+          h.id === input.hypothesis_id ? { ...h, ...Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'hypothesis_id')) } : h
+        ))
+      }
       // Regenerate preview only when:
       // 1. API signals a visual (suggested_change) update happened, OR
       // 2. User explicitly asks for a preview refresh
