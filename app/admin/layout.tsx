@@ -20,6 +20,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Dashboard
         </Link>
         <Link
+          href="/admin/brain/agents"
+          className="px-2 py-1.5 rounded text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+        >
+          All Agents
+        </Link>
+        <Link
           href="/admin/brain/ingest"
           className="px-2 py-1.5 rounded text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
         >

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { LogOut, Bot } from 'lucide-react'
+import { LogOut, Bot, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
 import { AgentNavList } from '@/components/AgentNavList'
@@ -47,6 +47,16 @@ export default async function DashboardLayout({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2">
+          {/* SuperAgent — admin only */}
+          {user.email === process.env.ADMIN_EMAIL && (
+            <Link
+              href="/admin/brain"
+              className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-violet-400 transition-colors hover:bg-violet-950/50 hover:text-violet-300 group mb-1"
+            >
+              <Sparkles className="h-4 w-4 shrink-0" />
+              <span className="hidden flex-1 md:block font-medium">SuperAgent</span>
+            </Link>
+          )}
           {/* Agents section */}
           <Link
             href="/dashboard/agents"
