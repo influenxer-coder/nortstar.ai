@@ -684,7 +684,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
           </div>
 
           {/* Right: hypothesis chat panel */}
-          <div className="w-96 shrink-0 flex flex-col bg-zinc-950">
+          <div className="w-[480px] shrink-0 flex flex-col bg-zinc-950">
             <div className="px-4 py-3 border-b border-zinc-800 shrink-0">
               <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Refine hypothesis</p>
               <p className="text-xs text-zinc-500 mt-0.5">Updates save automatically. Preview regenerates on changes.</p>
@@ -721,17 +721,18 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
               <div ref={previewChatEndRef} />
             </div>
             <div className="p-3 border-t border-zinc-800 shrink-0">
-              <div className="flex gap-2">
-                <input
-                  value={previewChatInput}
-                  onChange={e => setPreviewChatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handlePreviewChat()}
-                  placeholder="Debate or refine this hypothesis…"
-                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
-                />
+              <textarea
+                value={previewChatInput}
+                onChange={e => setPreviewChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePreviewChat() } }}
+                placeholder="Debate or refine this hypothesis… (Enter to send, Shift+Enter for new line)"
+                rows={4}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 resize-none mb-2"
+              />
+              <div className="flex justify-end">
                 <button onClick={handlePreviewChat} disabled={!previewChatInput.trim() || previewChatLoading}
-                  className="px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-md disabled:opacity-40 transition-colors">
-                  Send
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-md disabled:opacity-40 transition-colors">
+                  {previewChatLoading ? <Loader2 className="h-3 w-3 animate-spin inline mr-1" /> : null}Send
                 </button>
               </div>
             </div>
