@@ -52,7 +52,7 @@ export async function GET() {
     .in('agent_id', agentIds)
 
   // Fetch owner emails from auth.users via admin API
-  const userIds = [...new Set(agents.map(a => a.user_id))]
+  const userIds = Array.from(new Set(agents.map(a => a.user_id)))
   const emailMap: Record<string, string> = {}
   for (const uid of userIds) {
     const { data } = await supabase.auth.admin.getUserById(uid)
