@@ -31,6 +31,16 @@ function chunkText(text: string): string[] {
   return chunks.filter(c => c.trim().length > 20)
 }
 
+async function extractText(file: File): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer())
+  if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+    const pdfParse = (await import('pdf-parse')).default
+    const parsed = await pdfParse(buffer)
+    return parsed.text
+  }
+  return buffer.toString('utf-8')
+}
+
 async function embedBatch(texts: string[]): Promise<number[][] | null> {
   const voyageKey = process.env.VOYAGE_API_KEY
   if (!voyageKey) return null
@@ -75,23 +85,55 @@ export async function GET(request: Request) {
   return NextResponse.json({ rows: data ?? [], total: count ?? 0, page, limit })
 }
 
-// POST /api/brain/knowledge — ingest text into knowledge_base
+// POST /api/brain/knowledge — ingest text or file (PDF, txt, md) into knowledge_base
 export async function POST(request: Request) {
   const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
-  let body: { text: string; vertical: string; framework_type: string; source: string }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  let text: string
+  let vertical: string
+  let frameworkType: string
+  let source: string
+
+  const contentType = request.headers.get('content-type') ?? ''
+
+  if (contentType.includes('multipart/form-data')) {
+    // File upload path
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+    vertical = formData.get('vertical') as string ?? 'universal'
+    frameworkType = formData.get('framework_type') as string ?? ''
+    source = formData.get('source') as string ?? ''
+
+    if (!file) return NextResponse.json({ error: 'file is required' }, { status: 400 })
+    if (file.size > 20 * 1024 * 1024) return NextResponse.json({ error: 'File too large (max 20MB)' }, { status: 400 })
+
+    try {
+      text = await extractText(file)
+    } catch {
+      return NextResponse.json({ error: 'Could not extract text from file' }, { status: 400 })
+    }
+
+    if (!source) source = file.name.replace(/\.[^.]+$/, '')
+  } else {
+    // JSON text-paste path
+    let body: { text: string; vertical: string; framework_type: string; source: string }
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+    text = body.text ?? ''
+    vertical = body.vertical ?? 'universal'
+    frameworkType = body.framework_type ?? ''
+    source = body.source ?? ''
   }
 
-  if (!body.text || !body.vertical || !body.framework_type || !body.source) {
-    return NextResponse.json({ error: 'text, vertical, framework_type, and source are required' }, { status: 400 })
+  if (!text.trim() || !frameworkType.trim() || !source.trim()) {
+    return NextResponse.json({ error: 'text/file, framework_type, and source are required' }, { status: 400 })
   }
 
-  const chunks = chunkText(body.text)
+  const chunks = chunkText(text)
   if (chunks.length === 0) return NextResponse.json({ error: 'No content to ingest' }, { status: 400 })
 
   const supabase = serviceClient()
@@ -104,17 +146,16 @@ export async function POST(request: Request) {
     embedding?: number[]
   }> = []
 
-  // Embed in batches of 128
   for (let i = 0; i < chunks.length; i += 128) {
     const batch = chunks.slice(i, i + 128)
     const embeddings = await embedBatch(batch)
     for (let j = 0; j < batch.length; j++) {
       rows.push({
-        vertical: body.vertical,
+        vertical,
         page_type: 'universal',
         chunk: batch[j],
-        framework_type: body.framework_type,
-        source: body.source,
+        framework_type: frameworkType,
+        source,
         ...(embeddings ? { embedding: embeddings[j] } : {}),
       })
     }

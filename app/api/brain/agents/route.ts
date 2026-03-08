@@ -17,41 +17,38 @@ async function requireAdmin() {
   return user
 }
 
-// GET /api/brain/agents — all agents across all users with hypothesis counts
+// GET /api/brain/agents — all agents across all users with hypothesis counts + last_active
 export async function GET() {
   const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const supabase = serviceClient()
 
-  // Fetch all agents with owner email from auth.users
   const { data: agents, error } = await supabase
     .from('agents')
-    .select(`
-      id,
-      name,
-      url,
-      status,
-      main_kpi,
-      created_at,
-      user_id,
-      context_summary
-    `)
+    .select('id, name, url, status, main_kpi, created_at, user_id, context_summary')
     .neq('status', 'draft')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
   if (!agents || agents.length === 0) return NextResponse.json([])
 
-  // Fetch hypothesis counts per agent
   const agentIds = agents.map(a => a.id)
-  const { data: hypRows } = await supabase
-    .from('agent_hypotheses')
-    .select('agent_id, status')
-    .in('agent_id', agentIds)
 
-  // Fetch owner emails from auth.users via admin API
+  // Fetch hypothesis counts + most recent updated_at per agent in parallel with logs
+  const [{ data: hypRows }, { data: logRows }] = await Promise.all([
+    supabase
+      .from('agent_hypotheses')
+      .select('agent_id, status, updated_at')
+      .in('agent_id', agentIds),
+    supabase
+      .from('agent_logs')
+      .select('agent_id, created_at')
+      .in('agent_id', agentIds)
+      .order('created_at', { ascending: false }),
+  ])
+
+  // Fetch owner emails
   const userIds = Array.from(new Set(agents.map(a => a.user_id)))
   const emailMap: Record<string, string> = {}
   for (const uid of userIds) {
@@ -59,17 +56,38 @@ export async function GET() {
     if (data?.user?.email) emailMap[uid] = data.user.email
   }
 
-  // Aggregate hypothesis counts by agent
+  // Aggregate hypothesis counts + latest hypothesis activity per agent
   const hypCounts: Record<string, Record<string, number>> = {}
+  const hypLatest: Record<string, string> = {}
   for (const h of hypRows ?? []) {
     if (!hypCounts[h.agent_id]) hypCounts[h.agent_id] = {}
     hypCounts[h.agent_id][h.status] = (hypCounts[h.agent_id][h.status] ?? 0) + 1
+    if (!hypLatest[h.agent_id] || h.updated_at > hypLatest[h.agent_id]) {
+      hypLatest[h.agent_id] = h.updated_at
+    }
+  }
+
+  // Most recent log per agent
+  const logLatest: Record<string, string> = {}
+  for (const l of logRows ?? []) {
+    if (!logLatest[l.agent_id]) logLatest[l.agent_id] = l.created_at
+  }
+
+  // Per-user last_active = max timestamp across all their agents (created, log, hyp update)
+  const userLastActive: Record<string, string> = {}
+  for (const a of agents) {
+    const candidates = [a.created_at, logLatest[a.id], hypLatest[a.id]].filter(Boolean) as string[]
+    const latest = candidates.sort().at(-1)!
+    if (!userLastActive[a.user_id] || latest > userLastActive[a.user_id]) {
+      userLastActive[a.user_id] = latest
+    }
   }
 
   const result = agents.map(a => ({
     ...a,
     owner_email: emailMap[a.user_id] ?? a.user_id,
     hypotheses: hypCounts[a.id] ?? {},
+    last_active: userLastActive[a.user_id] ?? a.created_at,
   }))
 
   return NextResponse.json(result)
