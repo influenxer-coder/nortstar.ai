@@ -87,6 +87,7 @@ export default function CaseStudiesPage() {
             >
               Case Studies
             </Link>
+            <Link href="/newsroom" className="hover:text-zinc-100 transition-colors">Newsroom</Link>
             <Link href="/rising-products" className="hover:text-zinc-100 transition-colors">
               Rising Products
             </Link>
