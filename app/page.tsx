@@ -40,6 +40,7 @@ export default function LandingPage() {
             <a href="#how-it-works" className="hover:text-zinc-100 transition-colors">How it works</a>
             <a href="#who-its-for" className="hover:text-zinc-100 transition-colors">Who it&apos;s for</a>
             <a href="#pilot" className="hover:text-zinc-100 transition-colors">Pilot</a>
+            <Link href="/case-studies" className="hover:text-zinc-100 transition-colors">Case Studies</Link>
             <Link href="/rising-products" className="hover:text-zinc-100 transition-colors">Rising Products</Link>
           </div>
           <div className="flex items-center gap-3">
