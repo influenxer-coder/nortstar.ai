@@ -61,11 +61,11 @@ const ARTICLES = [
     body: [
       {
         type: 'lede',
-        text: 'What if your product manager knew what a competitor was shipping three weeks before the announcement? That\'s the premise — and, according to early customers, the reality — behind NorthStar AI, which today announced a $12 million seed round led by Benchmark, with participation from Y Combinator and a group of operators from Figma, Stripe, and Linear.',
+        text: 'What if your product team could turn behavioral data, past launch history, sales feedback, and support tickets into a single ranked list of what to build next — and then get a Claude Code-ready spec, run a staged test, and write the result to a revenue attribution ledger? That\'s the premise behind NorthStar AI, which today announced a $12 million seed round led by Benchmark, with participation from Y Combinator and a group of operators from Figma, Stripe, and Linear.',
       },
       {
         type: 'p',
-        text: 'The company, founded in 2024 by a former PM who spent over a decade at Snap, Meta, Apple, and Google, has built what it calls a "competitive intelligence agent" — an autonomous AI that continuously monitors public signals from a company\'s competitors and surfaces ranked, actionable insights directly to product teams.',
+        text: 'The company, founded in 2024 by a former PM who spent over a decade at Snap, Meta, Apple, and Google, has built what it calls a "product operating system" — an AI that ingests a company\'s own internal data (behavioral analytics, past launch history, sales CRM, and customer feedback), synthesizes it into a ranked Feature Hit List, converts the top hypothesis into a Claude Code-ready spec, and closes the loop with a revenue attribution ledger.',
       },
       {
         type: 'h2',
@@ -73,15 +73,15 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'The problem NorthStar targets is familiar to anyone who\'s sat in a quarterly planning meeting: by the time a competitive threat is identified, discussed, prioritized, and actioned, the window has often closed. Competitors have shipped. Deals have been lost. The company is always one planning cycle behind.',
+        text: 'The problem NorthStar targets is familiar to anyone who\'s sat in a quarterly planning meeting: the data that could tell you what to build next — behavioral analytics, past launch outcomes, sales feedback, support tickets — lives in different systems. By the time it\'s manually synthesized, debated, and turned into a spec, the window has often closed. The company is always one planning cycle behind.',
       },
       {
         type: 'p',
-        text: '"I spent a decade watching teams build the right thing at the wrong time," said the company\'s founder in an interview with TechCrunch. "The information was always there — in changelogs, in job postings, in hiring patterns. Nobody was reading it fast enough."',
+        text: '"I spent a decade watching teams build the right thing at the wrong time," said the company\'s founder in an interview with TechCrunch. "The information was always there — in PostHog, in Confluence, in someone\'s HubSpot notes. Nobody was connecting it. NorthStar connects it and tells you what to build next — then proves whether it was right."',
       },
       {
         type: 'quote',
-        text: '"The information was always there — in changelogs, in job postings, in hiring patterns. Nobody was reading it fast enough."',
+        text: '"The information was always there — in PostHog, in Confluence, in someone\'s HubSpot notes. Nobody was connecting it."',
         attribution: 'NorthStar AI Founder',
       },
       {
@@ -90,11 +90,15 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'NorthStar ingests public signals — product changelogs, engineering job postings, pricing page changes, app store release notes, developer documentation updates — and runs them through a proprietary model that infers what a competitor is likely building. It then cross-references that inference against the customer\'s own roadmap and surfaces conflicts as ranked "Feature Hit List" items, each with a confidence score and data provenance.',
+        text: 'NorthStar connects to the four data sources that product teams already have but rarely synthesize together: behavioral analytics (PostHog, Amplitude, Mixpanel), past launch history with outcome data, sales CRM close/lost reasons, and customer support and feedback streams. The intelligence layer cross-references all four to surface what Lal calls a Feature Hit List — a ranked set of hypotheses, each scored on the convergence of signals from all four sources, with a predicted revenue lift range attached. The output that sets NorthStar apart from analytics tools is what comes next. The PM selects the top hypothesis, and NorthStar generates a structured product spec formatted for direct use by Claude Code: problem statement, behavioral evidence, success metric, acceptance criteria, and test design. The spec ships to a defined small user segment — typically 10 to 20 percent — and NorthStar monitors the behavioral signal against predicted lift in real time. When the test closes, the result is written automatically to an attribution ledger: hypothesis, spec, code change, cohort behavior, revenue delta. That ledger is the artifact the CPO takes to the board.',
       },
       {
         type: 'p',
-        text: 'One early customer, a Series B HR tech company in the Bay Area, used NorthStar to identify that two Tier-1 competitors were converging on the same onboarding activation feature. They reprioritized within 48 hours and shipped six weeks before the nearest competitor announced. Two enterprise deals that quarter cited that feature as a deciding factor. Combined ACV: $340K.',
+        text: 'The loop is the product. "Every company I worked at had the data to make this decision," Lal said. "None of them had the system to connect it. The data sat in PostHog. The past launches sat in Confluence. The sales signals sat in someone\'s HubSpot notes. NorthStar connects them and tells you what to build next — then proves whether it was right."',
+      },
+      {
+        type: 'p',
+        text: 'One early customer, a Series B PLG company, used NorthStar\'s internal data — behavioral analytics, past launch history, and support tickets — to identify the right onboarding activation bet. Two prior attempts had shipped without a clear success metric; NorthStar surfaced why they were inconclusive and generated a spec with the correct metric. Third attempt: NorthStar spec, Claude Code build, 10% rollout. Result: 34% activation lift, $340K ARR impact attributed in the ledger.',
       },
       {
         type: 'h2',
@@ -132,7 +136,7 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'This is NorthStar AI, the competitive intelligence platform that has, in just 14 months of operation, emerged as one of the most quietly influential tools in Silicon Valley\'s product ecosystem. Its founder would rather we didn\'t use the word "influential." He prefers "accurate."',
+        text: 'This is NorthStar AI, a product operating system that ingests a company\'s own internal data — behavioral analytics, past launch history, sales CRM, and customer feedback — and closes the loop from hypothesis to spec to code to revenue proof. Its founder would rather we didn\'t use the word "influential." He prefers "accurate."',
       },
       {
         type: 'h2',
@@ -157,11 +161,7 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'NorthStar\'s technology draws from a patchwork of public signals that most companies already know exist — and almost none are systematically monitoring. Engineering job postings telegraph capability bets. Changelog updates reveal velocity and priority. Developer documentation changes signal integration strategy. Pricing page modifications hint at positioning shifts.',
-      },
-      {
-        type: 'p',
-        text: 'Run through NorthStar\'s model, these signals become a ranked Feature Hit List: the five to ten things a competitor is most likely building in the next 90 days, with confidence scores, data sources, and a recommended response for the customer\'s own roadmap.',
+        text: 'The product works by synthesizing the four data streams that most product teams generate but never connect: user behavioral data, historical launch outcomes, sales intelligence, and customer feedback. The behavioral layer — PostHog, Amplitude, or Mixpanel — surfaces activation patterns and retention signals. The launch history corpus, which grows more accurate over time as NorthStar accumulates a company\'s own track record, tells the system which hypotheses from similar contexts were correct and which weren\'t. Sales data contributes close/lost patterns — the feature requests that won or lost deals. And customer feedback threads, from Zendesk to NPS verbatims, fill in the texture that metrics alone don\'t capture.\n\nFrom this synthesis, NorthStar generates a Feature Hit List. The PM selects the highest-confidence item. NorthStar converts it into a product spec structured for Claude Code — complete with behavioral evidence, success metrics, test design, and effort estimates. The spec ships to a small user segment. NorthStar watches. When the experiment closes, the result enters the attribution ledger. The CPO now has a paper trail from product decision to revenue outcome — built automatically, every two weeks.',
       },
       {
         type: 'h2',
@@ -169,7 +169,7 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'When Benchmark led the company\'s $12 million seed round, it was betting not just on the product but on the category. Competitive intelligence software — in the form of tools like Crayon, Klue, and Kompyte — has existed for years. What NorthStar\'s backers believe is different is the inference layer: the ability to tell you not what a competitor has built, but what they\'re building.',
+        text: 'When Benchmark led the company\'s $12 million seed round, it was betting not just on the product but on the category. Analytics and prioritization tools have existed for years. What NorthStar\'s backers believe is different is the closed loop: from a company\'s own data to a ranked hypothesis, to a Claude Code-ready spec, to a staged test, to a revenue entry in the attribution ledger. Most tools stop at the recommendation; NorthStar is built to prove whether it was right.',
       },
       {
         type: 'p',
@@ -215,11 +215,11 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'NorthStar ingests a continuous stream of publicly available signals: GitHub commit messages and repository activity for open-source-adjacent companies, job posting patterns across LinkedIn and Greenhouse, engineering blog publishing cadence, app store release note language, developer documentation versioning, and pricing page HTML diffs. None of these signals, in isolation, is particularly meaningful. The bet NorthStar is making is that in aggregate, weighted correctly, they constitute a reliable prior on a competitor\'s product intentions.',
+        text: 'NorthStar is a product operating system that ingests four internal data sources — user behavioral analytics, past launch history with outcome data, sales CRM signals, and customer feedback — and synthesizes them into a ranked prioritization output the company calls a Feature Hit List. Each item carries a confidence score derived from the convergence of signals across all four inputs. The highest-ranked hypothesis is then converted by NorthStar\'s output layer into a product spec designed for direct ingestion by Claude Code: structured problem statement, behavioral evidence, success criteria, test design, and effort tier. The spec deploys to a defined small user segment. NorthStar monitors the behavioral response against its predicted lift range, tracking toward statistical significance. When the test closes, the result — hypothesis, spec, code change, measured outcome, revenue delta — is written to a running attribution ledger. Over time, that ledger becomes the company\'s institutional memory for product decisions: what was bet, what was built, what worked, and what it was worth.',
       },
       {
         type: 'p',
-        text: 'The company calls this the "inference layer." Internally, according to one person familiar with the system, the team refers to it less formally as "reading the room at scale."',
+        text: 'The more important distinction is what these tools do with their output: most analytics and prioritization tools stop at the recommendation. NorthStar\'s architecture is designed to close the loop — from the data that generated the hypothesis, through the code change, to the revenue entry in the ledger. That full-loop design is either a significant technical moat or an ambitious integration challenge, depending on whether Lal\'s team can execute it.',
       },
       {
         type: 'quote',
@@ -232,15 +232,15 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'One customer, a Series B company in the HR technology space, described receiving a Feature Hit List in September that placed an onboarding activation feature at the top, with a 74% confidence score and citations from three competitor job postings and two changelog entries. They reprioritized. They shipped. The competitor announced six weeks later.',
+        text: 'One customer, a Series B company in the HR technology space, described receiving a Feature Hit List generated from their own PostHog data, past launch history, and support tickets — with an onboarding activation hypothesis at the top and a 0.84 confidence score. Two prior attempts at that moment had shipped without a clear success metric; NorthStar surfaced why they were inconclusive and generated a Claude Code-ready spec. They shipped to 10% of users. Result: 34% activation lift, $340K ARR attributed in the ledger.',
       },
       {
         type: 'p',
-        text: '"The confidence score was what got my attention," said the customer, who asked not to be named. "It wasn\'t claiming certainty. It was saying: here is what we believe, here is why, here is how confident we are. That\'s a level of epistemic honesty I\'d never seen from a competitive intelligence tool."',
+        text: '"The confidence score was what got my attention," said the customer, who asked not to be named. "It wasn\'t claiming certainty. It was saying: here is what we believe, here is why, here is how confident we are. That\'s a level of epistemic honesty I\'d never seen from a prioritization tool."',
       },
       {
         type: 'p',
-        text: 'Two other customers, in the B2B SaaS and consumer fintech spaces, described similar experiences. In both cases, NorthStar\'s predictions preceded public announcements by three to eight weeks — enough time to respond, but not so far in advance as to be strategically useless.',
+        text: 'Two other customers, in the B2B SaaS and consumer fintech spaces, described similar experiences: internal data synthesized into a Hit List, a spec handed to engineering, a staged rollout, and an attribution entry when the test closed.',
       },
       {
         type: 'h2',
@@ -248,11 +248,11 @@ const ARTICLES = [
       },
       {
         type: 'p',
-        text: 'Several questions about NorthStar\'s approach remain unresolved. The company has not disclosed its false positive rate — the frequency with which predictions fail to materialize — which will be central to evaluating its actual reliability at scale. The inference methodology, while described in broad strokes, has not been validated by independent researchers.',
+        text: 'Several questions about NorthStar\'s approach remain unresolved. The company has not disclosed how often hypotheses fail to move the needle — which will be central to evaluating its actual reliability at scale. The methodology for weighting the four data sources, while described in broad strokes, has not been validated by independent researchers.',
       },
       {
         type: 'p',
-        text: 'Three investors who reviewed NorthStar during its seed round and passed cited the same concern: that the inference layer, while compelling in early demos, might degrade as competitors become aware of the signals being monitored and begin to deliberately obscure them.',
+        text: 'Three investors who reviewed NorthStar during its seed round and passed cited the same concern: that the full-loop architecture — integrating behavioral analytics, launch history, CRM, and feedback into one system and then tracking through to revenue — is an ambitious integration challenge that could prove difficult to execute at scale.',
       },
       {
         type: 'p',
