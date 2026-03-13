@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { LogOut, Bot, Sparkles, LayoutDashboard } from 'lucide-react'
+import { LogOut, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
-import { AgentNavList } from '@/components/AgentNavList'
+import { DashboardSidebarNav } from '@/components/DashboardSidebarNav'
 
 export default async function DashboardLayout({
   children,
@@ -22,12 +22,41 @@ export default async function DashboardLayout({
 
   if (profile && !profile.onboarding_completed) redirect('/onboarding')
 
-  const { data: agents } = await supabase
-    .from('agents')
-    .select('id, name, status')
-    .eq('user_id', user.id)
-    .neq('status', 'draft')
-    .order('created_at', { ascending: false })
+  const [{ data: products }, { data: agents }] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id, name')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('agents')
+      .select('id, name, status, product_id')
+      .eq('user_id', user.id)
+      .neq('status', 'draft')
+      .order('created_at', { ascending: false }),
+  ])
+
+  const productList = products ?? []
+  const agentList = agents ?? []
+  const agentsByProduct = new Map<string, { id: string; name: string; status: string | null }[]>()
+  const ungrouped: { id: string; name: string; status: string | null }[] = []
+
+  for (const agent of agentList) {
+    const stub = { id: agent.id, name: agent.name, status: agent.status }
+    if (agent.product_id) {
+      const list = agentsByProduct.get(agent.product_id) ?? []
+      list.push(stub)
+      agentsByProduct.set(agent.product_id, list)
+    } else {
+      ungrouped.push(stub)
+    }
+  }
+
+  const productGroups = productList.map((p) => ({
+    id: p.id,
+    name: p.name,
+    agents: agentsByProduct.get(p.id) ?? [],
+  }))
 
   const displayName = profile?.full_name || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'
   const initial = displayName.charAt(0).toUpperCase()
@@ -57,24 +86,7 @@ export default async function DashboardLayout({
               <span className="hidden flex-1 md:block font-medium">SuperAgent</span>
             </Link>
           )}
-          {/* Home / Projects hierarchy */}
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 group"
-          >
-            <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span className="hidden flex-1 md:block">Home</span>
-          </Link>
-          {/* Agents list (flat) */}
-          <Link
-            href="/dashboard/agents"
-            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 group"
-          >
-            <Bot className="h-4 w-4 shrink-0" />
-            <span className="hidden flex-1 md:block">Agents</span>
-          </Link>
-          {/* Agent list */}
-          <AgentNavList agents={(agents ?? []) as { id: string; name: string; status: string | null }[]} />
+          <DashboardSidebarNav products={productGroups} ungroupedAgents={ungrouped} />
         </nav>
 
         <div className="mt-4 space-y-1 border-t border-zinc-900 px-2 pt-4">
