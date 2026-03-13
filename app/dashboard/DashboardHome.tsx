@@ -176,28 +176,6 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Current project in progress — show when user comes back from onboarding */}
-      {currentProject && (
-        <div
-          className="mb-6 rounded-xl border border-[#2a2a2a] p-4 flex items-center justify-between gap-4"
-          style={{ background: '#141414' }}
-        >
-          <div>
-            <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Current setup</p>
-            <p className="text-[#f0f0f0] font-medium">
-              {currentProject.name || 'New project'}
-            </p>
-          </div>
-          <Link
-            href={`/onboarding/documents?projectId=${currentProject.id}`}
-            className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
-          >
-            Continue setup
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      )}
-
       {/* Create product modal — Screen 1 */}
       {showCreateProductModal && (
         <div
@@ -361,6 +339,28 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
           {userDisplayName}&apos;s workspace
         </h1>
       </div>
+
+      {/* Product setup — show when user has a project in progress */}
+      {currentProject && (
+        <div
+          className="mb-6 rounded-xl border border-[#2a2a2a] p-4 flex items-center justify-between gap-4"
+          style={{ background: '#141414' }}
+        >
+          <div>
+            <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Product setup</p>
+            <p className="text-[#f0f0f0] font-medium">
+              {currentProject.name || 'New project'}
+            </p>
+          </div>
+          <Link
+            href={`/onboarding/documents?projectId=${currentProject.id}`}
+            className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
+          >
+            Continue setup
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
 
       {/* Create product button */}
       <div className="mb-8">
