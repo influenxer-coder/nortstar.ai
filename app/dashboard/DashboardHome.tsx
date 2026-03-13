@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { AgentStatus } from '@/components/AgentStatus'
 import { createClient } from '@/lib/supabase/client'
 import { Bot, Plus, FolderOpen, ChevronRight } from 'lucide-react'
 
@@ -22,91 +23,114 @@ type Props = {
   userDisplayName: string
 }
 
+function domainFromUrl(url: string): string {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`)
+    const host = u.hostname.replace(/^www\./, '')
+    return host.split('.')[0] || 'My Product'
+  } catch {
+    return 'My Product'
+  }
+}
+
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName }: Props) {
   const router = useRouter()
   const [showCreateProductModal, setShowCreateProductModal] = useState(false)
-  const [productName, setProductName] = useState('')
-  const [productDescription, setProductDescription] = useState('')
-  const [northStarMetric, setNorthStarMetric] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [productUrl, setProductUrl] = useState('')
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [docUrl, setDocUrl] = useState('')
+  const [starting, setStarting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
-    return () => clearTimeout(t)
-  }, [toast])
+  const canContinue =
+    productUrl.trim() !== '' || docFile !== null || docUrl.trim() !== ''
 
-  const handleCreateProjectSubmit = async (e: React.FormEvent) => {
+  const handleContinue = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    const name = productName.trim()
-    const description = productDescription.trim()
-    const metric = northStarMetric.trim()
-    if (!name || !description || !metric) return
-    setSaving(true)
+    if (!canContinue || starting) return
+    setStarting(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not signed in')
+      const name = productUrl.trim() ? domainFromUrl(productUrl.trim()) : 'My Product'
       const { data, error } = await supabase
         .from('projects')
-        .insert({ name, description, north_star_metric: metric, user_id: user.id })
+        .insert({
+          name,
+          url: productUrl.trim() || null,
+          doc_url: docUrl.trim() || null,
+          has_doc: !!docFile,
+          enrichment_status: 'running',
+          user_id: user.id,
+        })
         .select('id')
         .single()
       if (error) throw error
-      if (data?.id) {
-        if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', data.id)
-        console.log('Project id:', data.id)
+      const projectId = data?.id
+      if (!projectId) throw new Error('No project id')
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('northstar_current_project_id', projectId)
       }
+      fetch('/api/enrich-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          url: productUrl.trim() || undefined,
+          docUrl: docUrl.trim() || undefined,
+        }),
+      }).catch(() => {})
       setShowCreateProductModal(false)
-      setProductName('')
-      setProductDescription('')
-      setNorthStarMetric('')
-      setToast('Product created. Step 2 coming next.')
-      router.refresh()
+      setProductUrl('')
+      setDocFile(null)
+      setDocUrl('')
+      router.push(`/onboarding/documents?projectId=${projectId}`)
     } catch (err) {
       console.error(err)
-      setToast('Failed to save.')
+      setStarting(false)
     } finally {
-      setSaving(false)
+      setStarting(false)
     }
-  }
-
-  const canContinue = productName.trim() !== '' && productDescription.trim() !== '' && northStarMetric.trim() !== ''
+  }, [canContinue, starting, productUrl, docUrl, docFile, router])
 
   const hasAny = products.length > 0 || ungroupedAgents.length > 0
 
   const inputClass =
     'w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-[14px] py-3 text-[14px] text-[#f0f0f0] placeholder:text-zinc-500 transition-[border-color] duration-150 focus:outline-none focus:border-[#4f8ef7]'
-  const labelClass = 'block text-[12px] text-[#888] uppercase tracking-[0.08em] mb-1.5'
+  const labelClass = 'block text-[11px] text-[#888] uppercase tracking-[0.08em] mb-1.5'
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const f = e.dataTransfer.files[0]
+    if (f && /\.(pdf|pptx?|docx?)$/i.test(f.name)) setDocFile(f)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), [])
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Toast */}
-      {toast && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm shadow-lg transition-opacity duration-150"
-          role="status"
-        >
-          {toast}
-        </div>
-      )}
+      <AgentStatus />
 
-      {/* Create product modal */}
+      {/* Create product modal — Screen 1 */}
       {showCreateProductModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-product-heading"
         >
           <div
-            className="relative w-full max-w-[560px] rounded-xl p-10 transition-opacity duration-150"
-            style={{ background: '#141414', border: '1px solid #2a2a2a' }}
+            className="relative w-full max-w-[580px] rounded-xl transition-opacity duration-150"
+            style={{
+              background: '#141414',
+              border: '1px solid #2a2a2a',
+              padding: '40px 44px',
+            }}
           >
             <div className="flex justify-end items-center gap-2 mb-6">
-              <span className="text-[12px] text-[#555]">Step 1 of 6</span>
+              <span className="text-xs text-[#555]">Step 1 of 6</span>
               <button
                 type="button"
                 onClick={() => setShowCreateProductModal(false)}
@@ -117,78 +141,122 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               </button>
             </div>
 
-            <h2 id="create-product-heading" className="text-2xl font-medium text-[#f0f0f0] mb-2">
-              What are you building?
+            <h2 id="create-product-heading" className="text-[22px] font-medium text-[#f0f0f0] mb-2">
+              Tell NorthStar about your product
             </h2>
             <p className="text-sm text-[#666] mb-8">
-              NorthStar will read everything you share and build your intelligence layer automatically.
+              Share your product URL and strategy doc. NorthStar will start learning about your company immediately.
             </p>
 
-            <form onSubmit={handleCreateProjectSubmit}>
-              <div className="mb-6">
-                <label htmlFor="product-name" className={labelClass}>
-                  Product name
+            <form onSubmit={handleContinue}>
+              <div className="mb-4">
+                <label htmlFor="product-website" className={labelClass}>
+                  PRODUCT WEBSITE
                 </label>
                 <input
-                  id="product-name"
-                  type="text"
-                  placeholder="e.g. NorthStar AI"
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
+                  id="product-website"
+                  type="url"
+                  placeholder="https://yourproduct.com"
+                  value={productUrl}
+                  onChange={(e) => setProductUrl(e.target.value)}
                   className={inputClass}
-                  disabled={saving}
+                  disabled={starting}
                   autoFocus
                 />
               </div>
-              <div className="mb-6">
-                <label htmlFor="product-description" className={labelClass}>
-                  What does it do and who does it serve?
-                </label>
-                <textarea
-                  id="product-description"
-                  rows={3}
-                  placeholder="e.g. We help PLG SaaS PMs discover what to build next using behavioral data and AI agents"
-                  value={productDescription}
-                  onChange={(e) => setProductDescription(e.target.value)}
-                  className={inputClass}
-                  disabled={saving}
-                  style={{ resize: 'vertical', minHeight: '72px' }}
-                />
+
+              <div className="my-4 flex items-center gap-4">
+                <div className="flex-1 h-px bg-[#1f1f1f]" />
+                <span className="text-xs text-[#444]">and / or</span>
+                <div className="flex-1 h-px bg-[#1f1f1f]" />
               </div>
-              <div className="mb-6">
-                <label htmlFor="north-star-metric" className={labelClass}>
-                  What is the single metric that proves it&apos;s working?
-                </label>
+
+              <div className="mb-4">
+                <label className={labelClass}>PRODUCT STRATEGY DOC</label>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => !docFile && fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && !docFile && fileInputRef.current?.click()}
+                  className="rounded-lg border border-dashed border-[#2a2a2a] p-7 flex flex-col items-center justify-center gap-2 mb-3 cursor-pointer"
+                  style={{ background: '#0d0d0d' }}
+                >
+                  {docFile ? (
+                    <div className="flex items-center justify-between w-full gap-2 text-sm text-[#f0f0f0]">
+                      <span className="truncate">{docFile.name}</span>
+                      <span className="text-[#555] shrink-0">
+                        ({(docFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDocFile(null)}
+                        className="shrink-0 text-[#666] hover:text-[#f0f0f0] px-1"
+                        aria-label="Remove file"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-[#444]"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                      <p className="text-sm text-[#666]">Drop a PDF, PPTX, or DOCX here</p>
+                      <p className="text-xs text-[#444]">or paste a Notion or Google Doc URL below</p>
+                    </>
+                  )}
+                </div>
                 <input
-                  id="north-star-metric"
-                  type="text"
-                  placeholder="e.g. Weekly active PMs who ship a hypothesis-driven feature"
-                  value={northStarMetric}
-                  onChange={(e) => setNorthStarMetric(e.target.value)}
+                  type="url"
+                  placeholder="https://notion.so/your-strategy-doc"
+                  value={docUrl}
+                  onChange={(e) => setDocUrl(e.target.value)}
                   className={inputClass}
-                  disabled={saving}
+                  disabled={starting}
                 />
-                <p className="mt-1.5 text-[12px] text-[#555]">
-                  Every agent and hypothesis will be ranked against this metric.
-                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.pptx,.ppt,.docx,.doc"
+                  className="hidden"
+                  aria-hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) setDocFile(f)
+                  }}
+                />
               </div>
 
               <button
                 type="submit"
-                disabled={saving || !canContinue}
-                className="w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!canContinue}
+                className={`w-full h-11 rounded-lg text-sm font-medium mt-8 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed ${starting ? 'animate-pulse' : ''}`}
                 style={{
-                  background: canContinue && !saving ? '#4f8ef7' : '#1a1a1a',
-                  color: canContinue && !saving ? '#fff' : '#888',
+                  background: canContinue && !starting ? '#4f8ef7' : '#1a1a2a',
+                  color: canContinue && !starting ? '#fff' : '#888',
                 }}
                 onMouseEnter={(e) => {
-                  if (canContinue && !saving) e.currentTarget.style.background = '#3d7de8'
+                  if (canContinue && !starting) e.currentTarget.style.background = '#3d7de8'
                 }}
                 onMouseLeave={(e) => {
-                  if (canContinue && !saving) e.currentTarget.style.background = '#4f8ef7'
+                  if (canContinue && !starting) e.currentTarget.style.background = '#4f8ef7'
                 }}
               >
-                {saving ? 'Saving...' : 'Continue →'}
+                {starting ? 'Starting your agent...' : 'Continue →'}
               </button>
             </form>
           </div>
