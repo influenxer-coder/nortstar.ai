@@ -439,7 +439,7 @@ export default function CreateAgentFlow() {
         const res = await fetch('/api/agents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name.trim(), url: url.trim(), product_id: productId, ...payload }),
+          body: JSON.stringify({ name: name.trim(), url: url.trim(), ...payload }),
         })
         if (!res.ok) {
           const data = await res.json()
