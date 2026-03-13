@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { AgentStatus } from '@/components/AgentStatus'
 import { createClient } from '@/lib/supabase/client'
-import { Bot, Plus, FolderOpen, ChevronRight } from 'lucide-react'
+import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight } from 'lucide-react'
+
+const DRAFT_KEY = 'northstar_create_product_draft'
 
 export type ProductWithAgents = {
   id: string
@@ -33,6 +34,29 @@ function domainFromUrl(url: string): string {
   }
 }
 
+function loadDraft(): { productUrl: string; docUrl: string } {
+  if (typeof sessionStorage === 'undefined') return { productUrl: '', docUrl: '' }
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (!raw) return { productUrl: '', docUrl: '' }
+    const d = JSON.parse(raw) as { productUrl?: string; docUrl?: string }
+    return { productUrl: d.productUrl ?? '', docUrl: d.docUrl ?? '' }
+  } catch {
+    return { productUrl: '', docUrl: '' }
+  }
+}
+
+function saveDraft(productUrl: string, docUrl: string) {
+  if (typeof sessionStorage === 'undefined') return
+  try {
+    if (!productUrl.trim() && !docUrl.trim()) {
+      sessionStorage.removeItem(DRAFT_KEY)
+      return
+    }
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ productUrl, docUrl }))
+  } catch { /* ignore */ }
+}
+
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName }: Props) {
   const router = useRouter()
   const [showCreateProductModal, setShowCreateProductModal] = useState(false)
@@ -40,7 +64,46 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   const [docFile, setDocFile] = useState<File | null>(null)
   const [docUrl, setDocUrl] = useState('')
   const [starting, setStarting] = useState(false)
+  const [currentProject, setCurrentProject] = useState<{ id: string; name: string | null } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Restore draft when opening modal
+  useEffect(() => {
+    if (showCreateProductModal) {
+      const draft = loadDraft()
+      if (draft.productUrl || draft.docUrl) {
+        setProductUrl(draft.productUrl)
+        setDocUrl(draft.docUrl)
+      }
+    }
+  }, [showCreateProductModal])
+
+  // Persist draft when URL fields change (debounced)
+  useEffect(() => {
+    if (!showCreateProductModal) return
+    const t = setTimeout(() => saveDraft(productUrl, docUrl), 500)
+    return () => clearTimeout(t)
+  }, [showCreateProductModal, productUrl, docUrl])
+
+  // Load current project from localStorage so "back" still shows progress
+  useEffect(() => {
+    const id = typeof localStorage !== 'undefined' ? localStorage.getItem('northstar_current_project_id') : null
+    if (!id) {
+      setCurrentProject(null)
+      return
+    }
+    const supabase = createClient()
+    supabase
+      .from('projects')
+      .select('id, name')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => {
+        if (data) setCurrentProject({ id: data.id, name: data.name })
+        else setCurrentProject(null)
+      })
+      .catch(() => setCurrentProject(null))
+  }, [])
 
   const canContinue =
     productUrl.trim() !== '' || docFile !== null || docUrl.trim() !== ''
@@ -85,6 +148,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       setProductUrl('')
       setDocFile(null)
       setDocUrl('')
+      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(DRAFT_KEY)
       router.push(`/onboarding/documents?projectId=${projectId}`)
     } catch (err) {
       console.error(err)
@@ -110,7 +174,27 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <AgentStatus />
+      {/* Current project in progress — show when user comes back from onboarding */}
+      {currentProject && (
+        <div
+          className="mb-6 rounded-xl border border-[#2a2a2a] p-4 flex items-center justify-between gap-4"
+          style={{ background: '#141414' }}
+        >
+          <div>
+            <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Current setup</p>
+            <p className="text-[#f0f0f0] font-medium">
+              {currentProject.name || 'New project'}
+            </p>
+          </div>
+          <Link
+            href={`/onboarding/documents?projectId=${currentProject.id}`}
+            className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
+          >
+            Continue setup
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
 
       {/* Create product modal — Screen 1 */}
       {showCreateProductModal && (
@@ -133,7 +217,10 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               <span className="text-xs text-[#555]">Step 1 of 6</span>
               <button
                 type="button"
-                onClick={() => setShowCreateProductModal(false)}
+                onClick={() => {
+                  saveDraft(productUrl, docUrl)
+                  setShowCreateProductModal(false)
+                }}
                 className="w-8 h-8 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors duration-150"
                 aria-label="Close"
               >
