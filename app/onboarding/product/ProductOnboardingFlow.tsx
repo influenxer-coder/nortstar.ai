@@ -60,6 +60,15 @@ const ANALYTICS_TOOLS = [
 
 type SubMetric = { name: string; current: string; target: string }
 
+type DriveFile = {
+  id: string
+  name: string
+  mimeType: string
+  webViewLink: string
+  modifiedTime: string
+  iconLink?: string
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function domainFromUrl(url: string): string {
@@ -165,6 +174,14 @@ export default function ProductOnboardingFlow() {
   const [docUrl, setDocUrl] = useState('')
   const [docFile, setDocFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // doc source tab: 'upload' | 'url' | 'drive'
+  const [docTab, setDocTab] = useState<'upload' | 'url' | 'drive'>('upload')
+  // Google Drive
+  const [driveConnected, setDriveConnected] = useState(false)
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([])
+  const [driveLoading, setDriveLoading] = useState(false)
+  const [driveSearch, setDriveSearch] = useState('')
+  const [selectedDriveFile, setSelectedDriveFile] = useState<DriveFile | null>(null)
 
   // ── Step 2 ─────────────────────────────────────────────────────────────────
   const [nsMetric, setNsMetric] = useState('')
@@ -186,6 +203,52 @@ export default function ProductOnboardingFlow() {
   const [analyticsValidating, setAnalyticsValidating] = useState<Record<string, boolean>>({})
   const [analyticsErrors, setAnalyticsErrors] = useState<Record<string, string>>({})
   const [selectedTool, setSelectedTool] = useState<string | null>('posthog')
+
+  // ── Google Drive: handle OAuth return ─────────────────────────────────────
+  useEffect(() => {
+    const gd = searchParams.get('google_drive')
+    const gdError = searchParams.get('error')
+    if (gd === 'connected') {
+      setDriveConnected(true)
+      setDocTab('drive')
+      // Strip the query param from URL
+      const pid = searchParams.get('projectId')
+      const s = searchParams.get('step') ?? '1'
+      const clean = pid
+        ? `/onboarding/product?projectId=${pid}&step=${s}`
+        : `/onboarding/product?step=${s}`
+      router.replace(clean, { scroll: false })
+    } else if (gdError && searchParams.get('source') === 'drive') {
+      setError('Could not connect Google Drive. Try again.')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Google Drive: check existing connection on mount ───────────────────────
+  useEffect(() => {
+    fetch('/api/drive/files')
+      .then((r) => r.json())
+      .then((d: { connected: boolean; files: DriveFile[] }) => {
+        if (d.connected) {
+          setDriveConnected(true)
+          setDriveFiles(d.files ?? [])
+        }
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Google Drive: fetch files (called on tab open + search) ───────────────
+  const fetchDriveFiles = useCallback((q: string) => {
+    setDriveLoading(true)
+    fetch(`/api/drive/files?q=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((d: { connected: boolean; files: DriveFile[] }) => {
+        setDriveFiles(d.files ?? [])
+      })
+      .catch(() => {})
+      .finally(() => setDriveLoading(false))
+  }, [])
 
   // ── Resume from DB ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -254,8 +317,10 @@ export default function ProductOnboardingFlow() {
   const handleStep1 = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!productUrl.trim() && !docFile && !docUrl.trim()) return
+    if (!productUrl.trim() && !docFile && !docUrl.trim() && !selectedDriveFile) return
     setSaving(true)
+    // If a Drive file is selected, use its webViewLink as the doc URL
+    const resolvedDocUrl = selectedDriveFile ? selectedDriveFile.webViewLink : docUrl.trim() || null
     try {
       const name = productUrl.trim() ? domainFromUrl(productUrl.trim()) : 'My Product'
       let pid = projectId
@@ -266,25 +331,24 @@ export default function ProductOnboardingFlow() {
           body: JSON.stringify({
             name,
             url: productUrl.trim() || null,
-            doc_url: docUrl.trim() || null,
-            has_doc: !!docFile,
+            doc_url: resolvedDocUrl,
+            has_doc: !!docFile || !!selectedDriveFile,
           }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
         pid = data.id as string
         setProjectId(pid)
-        // Fire enrichment in background
         fetch('/api/enrich-project', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId: pid, url: productUrl.trim() || null, docUrl: docUrl.trim() || null }),
+          body: JSON.stringify({ projectId: pid, url: productUrl.trim() || null, docUrl: resolvedDocUrl }),
         }).catch(() => {})
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('northstar_current_project_id', pid)
         }
       } else {
-        await patch({ url: productUrl.trim() || null, doc_url: docUrl.trim() || null, has_doc: !!docFile, name, onboarding_step: 1 })
+        await patch({ url: productUrl.trim() || null, doc_url: resolvedDocUrl, has_doc: !!docFile || !!selectedDriveFile, name, onboarding_step: 1 })
       }
       goToStep(2, pid)
     } catch (err) {
@@ -292,7 +356,7 @@ export default function ProductOnboardingFlow() {
     } finally {
       setSaving(false)
     }
-  }, [productUrl, docFile, docUrl, projectId, patch, goToStep])
+  }, [productUrl, docFile, docUrl, selectedDriveFile, projectId, patch, goToStep])
 
   // ── Step 2: submit ─────────────────────────────────────────────────────────
   const handleStep2 = useCallback(async (e: React.FormEvent) => {
@@ -387,7 +451,7 @@ export default function ProductOnboardingFlow() {
   const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), [])
 
   // ── Can-continue guards ────────────────────────────────────────────────────
-  const can1 = productUrl.trim() !== '' || !!docFile || docUrl.trim() !== ''
+  const can1 = productUrl.trim() !== '' || !!docFile || docUrl.trim() !== '' || !!selectedDriveFile
   const can2 = !!nsMetric.trim()
   const can3 = !!icpRole.trim()
   // steps 4, 5 are always continuable (sub-metrics and analytics are optional)
@@ -449,44 +513,172 @@ export default function ProductOnboardingFlow() {
 
             <div className="mb-5">
               <label className={labelCls}>Product strategy doc</label>
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onClick={() => !docFile && fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && !docFile && fileInputRef.current?.click()}
-                className="rounded-lg border border-dashed border-[#2a2a2a] p-6 flex flex-col items-center justify-center gap-2 mb-3 cursor-pointer hover:border-[#3a3a3a] transition-colors"
-                style={{ background: '#0d0d0d' }}
-              >
-                {docFile ? (
-                  <div className="flex items-center justify-between w-full gap-2 text-sm text-[#f0f0f0]">
-                    <span className="truncate">{docFile.name}</span>
-                    <span className="text-[#555] shrink-0">({(docFile.size / 1024).toFixed(1)} KB)</span>
-                    <button type="button" onClick={() => setDocFile(null)} className="shrink-0 text-[#666] hover:text-[#f0f0f0] px-1">×</button>
-                  </div>
-                ) : (
-                  <>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#444]">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <p className="text-sm text-[#666]">Drop a PDF, PPTX, or DOCX</p>
-                    <p className="text-xs text-[#444]">or paste a Notion / Google Doc URL below</p>
-                  </>
-                )}
+
+              {/* Tab switcher */}
+              <div className="flex mb-3 rounded-lg overflow-hidden border border-[#2a2a2a]" style={{ background: '#0d0d0d' }}>
+                {(['upload', 'url', 'drive'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setDocTab(tab)}
+                    className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                      docTab === tab
+                        ? 'bg-[#1a1a1a] text-[#f0f0f0]'
+                        : 'text-[#555] hover:text-[#888]'
+                    }`}
+                  >
+                    {tab === 'upload' && 'Upload file'}
+                    {tab === 'url' && 'Paste URL'}
+                    {tab === 'drive' && (
+                      <span className="flex items-center justify-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 87.3 78" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                          <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066DA"/>
+                          <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.55A9 9 0 000 53.05h27.5z" fill="#00AC47"/>
+                          <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#EA4335"/>
+                          <path d="M43.65 25L57.4 1.2A9.16 9.16 0 0053.55 0H33.75c-1.45 0-2.85.4-4.05 1.2z" fill="#00832D"/>
+                          <path d="M59.8 53.05H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h49.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684FC"/>
+                          <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28.05H87.2c0-1.55-.4-3.1-1.2-4.5z" fill="#FFBA00"/>
+                        </svg>
+                        Google Drive
+                        {driveConnected && <Check className="w-3 h-3 text-[#22c55e]" />}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
-              <input
-                type="url"
-                value={docUrl}
-                onChange={(e) => setDocUrl(e.target.value)}
-                placeholder="https://notion.so/your-strategy-doc"
-                className={inputCls}
-                disabled={saving}
-              />
-              <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.ppt,.docx,.doc" className="hidden" aria-hidden
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) setDocFile(f) }} />
+
+              {/* Upload tab */}
+              {docTab === 'upload' && (
+                <>
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onClick={() => !docFile && fileInputRef.current?.click()}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && !docFile && fileInputRef.current?.click()}
+                    className="rounded-lg border border-dashed border-[#2a2a2a] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#3a3a3a] transition-colors"
+                    style={{ background: '#0d0d0d' }}
+                  >
+                    {docFile ? (
+                      <div className="flex items-center justify-between w-full gap-2 text-sm text-[#f0f0f0]">
+                        <span className="truncate">{docFile.name}</span>
+                        <span className="text-[#555] shrink-0">({(docFile.size / 1024).toFixed(1)} KB)</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setDocFile(null) }} className="shrink-0 text-[#666] hover:text-[#f0f0f0] px-1">×</button>
+                      </div>
+                    ) : (
+                      <>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#444]">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <p className="text-sm text-[#666]">Drop a PDF, PPTX, or DOCX</p>
+                        <p className="text-xs text-[#444]">or click to browse</p>
+                      </>
+                    )}
+                  </div>
+                  <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.ppt,.docx,.doc" className="hidden" aria-hidden
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setDocFile(f) }} />
+                </>
+              )}
+
+              {/* Paste URL tab */}
+              {docTab === 'url' && (
+                <input
+                  type="url"
+                  value={docUrl}
+                  onChange={(e) => setDocUrl(e.target.value)}
+                  placeholder="https://notion.so/... or https://docs.google.com/..."
+                  className={inputCls}
+                  autoFocus
+                  disabled={saving}
+                />
+              )}
+
+              {/* Google Drive tab */}
+              {docTab === 'drive' && (
+                <div className="rounded-lg border border-[#2a2a2a] overflow-hidden" style={{ background: '#0d0d0d' }}>
+                  {!driveConnected ? (
+                    <div className="p-6 flex flex-col items-center gap-3">
+                      <svg width="32" height="28" viewBox="0 0 87.3 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066DA"/>
+                        <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.55A9 9 0 000 53.05h27.5z" fill="#00AC47"/>
+                        <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#EA4335"/>
+                        <path d="M43.65 25L57.4 1.2A9.16 9.16 0 0053.55 0H33.75c-1.45 0-2.85.4-4.05 1.2z" fill="#00832D"/>
+                        <path d="M59.8 53.05H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h49.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684FC"/>
+                        <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28.05H87.2c0-1.55-.4-3.1-1.2-4.5z" fill="#FFBA00"/>
+                      </svg>
+                      <p className="text-sm text-[#666] text-center">
+                        Connect Google Drive to browse your Docs and Slides
+                      </p>
+                      <a
+                        href={`/api/auth/google-drive?next=${encodeURIComponent(
+                          `/onboarding/product${projectId ? `?projectId=${projectId}&step=1` : '?step=1'}`
+                        )}`}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                        style={{ background: '#4f8ef7' }}
+                      >
+                        Connect Google Drive
+                      </a>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Search */}
+                      <div className="px-3 py-2 border-b border-[#2a2a2a]">
+                        <input
+                          type="text"
+                          value={driveSearch}
+                          onChange={(e) => {
+                            setDriveSearch(e.target.value)
+                            fetchDriveFiles(e.target.value)
+                          }}
+                          onFocus={() => driveFiles.length === 0 && fetchDriveFiles('')}
+                          placeholder="Search your Docs, Slides, PDFs..."
+                          className="w-full bg-transparent text-sm text-[#f0f0f0] placeholder:text-[#444] focus:outline-none py-1"
+                          autoFocus
+                        />
+                      </div>
+                      {/* File list */}
+                      <div className="max-h-52 overflow-y-auto">
+                        {driveLoading && (
+                          <p className="text-xs text-[#444] text-center py-6">Loading...</p>
+                        )}
+                        {!driveLoading && driveFiles.length === 0 && (
+                          <p className="text-xs text-[#444] text-center py-6">No documents found</p>
+                        )}
+                        {!driveLoading && driveFiles.map((file) => (
+                          <button
+                            key={file.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDriveFile(selectedDriveFile?.id === file.id ? null : file)
+                              // Clear manual URL input if picking from Drive
+                              setDocUrl('')
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-[#1a1a1a] last:border-0 ${
+                              selectedDriveFile?.id === file.id
+                                ? 'bg-[#4f8ef7]/10'
+                                : 'hover:bg-[#1a1a1a]'
+                            }`}
+                          >
+                            <DriveFileIcon mimeType={file.mimeType} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-[#f0f0f0] truncate">{file.name}</p>
+                              <p className="text-[10px] text-[#444]">
+                                {new Date(file.modifiedTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </p>
+                            </div>
+                            {selectedDriveFile?.id === file.id && (
+                              <Check className="w-4 h-4 text-[#4f8ef7] shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <ContinueBtn disabled={!can1} loading={saving} />
@@ -787,6 +979,42 @@ export default function ProductOnboardingFlow() {
 }
 
 // ─── Small shared sub-components ─────────────────────────────────────────────
+
+function DriveFileIcon({ mimeType }: { mimeType: string }) {
+  if (mimeType === 'application/vnd.google-apps.document') {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0">
+        <rect width="24" height="24" rx="3" fill="#4285F4"/>
+        <path d="M7 8h10M7 12h10M7 16h6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    )
+  }
+  if (mimeType === 'application/vnd.google-apps.presentation') {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0">
+        <rect width="24" height="24" rx="3" fill="#FBBC04"/>
+        <rect x="5" y="6" width="14" height="12" rx="1" stroke="white" strokeWidth="1.5"/>
+        <circle cx="12" cy="12" r="2" fill="white"/>
+      </svg>
+    )
+  }
+  if (mimeType === 'application/vnd.google-apps.spreadsheet') {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0">
+        <rect width="24" height="24" rx="3" fill="#34A853"/>
+        <path d="M7 8h10M7 12h10M7 16h10M12 8v8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    )
+  }
+  // PDF or other
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <rect width="24" height="24" rx="3" fill="#EA4335"/>
+      <path d="M8 6h5l3 3v9H8V6z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M13 6v3h3" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  )
+}
 
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
