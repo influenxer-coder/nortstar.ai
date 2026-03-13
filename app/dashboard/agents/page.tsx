@@ -11,7 +11,7 @@ export default async function AgentsPage() {
 
   const { data: agents } = await supabase
     .from('agents')
-    .select('id, name, url, target_element, status, step, main_kpi, google_drive_roadmap_url, created_at')
+    .select('id, name, url, target_element, status, step, main_kpi, google_drive_roadmap_url, product_id, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

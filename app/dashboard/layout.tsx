@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { LogOut, Bot, Sparkles } from 'lucide-react'
+import { LogOut, Bot, Sparkles, LayoutDashboard } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { createClient } from '@/lib/supabase/server'
 import { AgentNavList } from '@/components/AgentNavList'
@@ -57,7 +57,15 @@ export default async function DashboardLayout({
               <span className="hidden flex-1 md:block font-medium">SuperAgent</span>
             </Link>
           )}
-          {/* Agents section */}
+          {/* Home / Projects hierarchy */}
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 group"
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            <span className="hidden flex-1 md:block">Home</span>
+          </Link>
+          {/* Agents list (flat) */}
           <Link
             href="/dashboard/agents"
             className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-100 group"

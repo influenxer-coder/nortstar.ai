@@ -144,9 +144,18 @@ export interface UserContextRow {
   updated_at: string
 }
 
+export interface Product {
+  id: string
+  user_id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Agent {
   id: string
   user_id: string
+  product_id: string | null
   name: string
   url: string | null
   github_repo: string | null

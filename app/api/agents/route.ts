@@ -10,7 +10,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('agents')
-    .select('id, user_id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, status, created_at, main_kpi, google_drive_roadmap_url')
+    .select('id, user_id, product_id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, status, created_at, main_kpi, google_drive_roadmap_url')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
 
   let body: {
     name?: string
+    product_id?: string | null
     url?: string
     github_repo?: string
     posthog_api_key?: string
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
   }
 
   const name = typeof body.name === 'string' ? body.name.trim() : ''
+  const product_id = body.product_id != null && typeof body.product_id === 'string' ? body.product_id.trim() || null : null
   const url = typeof body.url === 'string' ? body.url.trim() : ''
   const github_repo = typeof body.github_repo === 'string' ? body.github_repo.trim() : null
   const analytics_config = body.analytics_config && typeof body.analytics_config === 'object' ? body.analytics_config : null
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
     .from('agents')
     .insert({
       user_id: user.id,
+      product_id: product_id || null,
       name,
       url: url || null,
       github_repo,

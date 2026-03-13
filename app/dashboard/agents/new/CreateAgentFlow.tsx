@@ -104,11 +104,14 @@ export default function CreateAgentFlow() {
   const searchParams = useSearchParams()
   const draftParam = searchParams.get('draft')
   const stepParam = searchParams.get('step')
+  const productIdParam = searchParams.get('product_id')
   const initialStep = Math.min(Math.max(1, parseInt(stepParam || '1', 10) || 1), STEPS)
 
   // ── Navigation / draft state ──────────────────────────────────────────────
   const [step, setStep] = useState(initialStep)
   const [draftId, setDraftId] = useState<string | null>(draftParam)
+  const productId = productIdParam || null
+  const productQuery = productId ? `&product_id=${encodeURIComponent(productId)}` : ''
   const savingRef = useRef(false)
   const draftLoadedRef = useRef(false)
 
@@ -174,7 +177,7 @@ export default function CreateAgentFlow() {
         const lastStep = typeof data.step === 'number' ? data.step : 0
         const resumeStep = Math.min(lastStep + 1, STEPS)
         setStep(resumeStep)
-        router.replace(`/dashboard/agents/new?draft=${draftParam}&step=${resumeStep}`, { scroll: false })
+        router.replace(`/dashboard/agents/new?draft=${draftParam}&step=${resumeStep}${productIdParam ? `&product_id=${encodeURIComponent(productIdParam)}` : ''}`, { scroll: false })
       })
       .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,8 +235,8 @@ export default function CreateAgentFlow() {
   useEffect(() => {
     if (step === 2 && searchParams.get('github') === 'connected') {
       const base = draftId
-        ? `/dashboard/agents/new?draft=${draftId}&step=2`
-        : '/dashboard/agents/new?step=2'
+        ? `/dashboard/agents/new?draft=${draftId}&step=2${productQuery}`
+        : `/dashboard/agents/new?step=2${productQuery}`
       router.replace(base, { scroll: false })
       setOauthCount((c) => c + 1)
     }
@@ -356,7 +359,7 @@ export default function CreateAgentFlow() {
         const res = await fetch('/api/agents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name.trim(), url: url.trim() || undefined, status: 'draft', step: stepCompleted, ...extra }),
+          body: JSON.stringify({ name: name.trim(), url: url.trim() || undefined, status: 'draft', step: stepCompleted, product_id: productId, ...extra }),
         })
         if (!res.ok) return null
         const data = await res.json()
@@ -375,7 +378,7 @@ export default function CreateAgentFlow() {
     } finally {
       savingRef.current = false
     }
-  }, [draftId, name, url])
+  }, [draftId, name, url, productId])
 
   const goToStep = useCallback(async (s: number, saveData?: Record<string, unknown>) => {
     const currentStep = step
@@ -388,17 +391,17 @@ export default function CreateAgentFlow() {
       const idToUse = id ?? draftId
       setStep(s)
       const query = idToUse
-        ? `/dashboard/agents/new?draft=${idToUse}&step=${s}`
-        : `/dashboard/agents/new?step=${s}`
+        ? `/dashboard/agents/new?draft=${idToUse}&step=${s}${productQuery}`
+        : `/dashboard/agents/new?step=${s}${productQuery}`
       router.replace(query, { scroll: false })
     } else {
       setStep(s)
       const query = draftId
-        ? `/dashboard/agents/new?draft=${draftId}&step=${s}`
-        : `/dashboard/agents/new?step=${s}`
+        ? `/dashboard/agents/new?draft=${draftId}&step=${s}${productQuery}`
+        : `/dashboard/agents/new?step=${s}${productQuery}`
       router.replace(query, { scroll: false })
     }
-  }, [step, draftId, url, saveDraft, startCrawl, router])
+  }, [step, draftId, url, saveDraft, startCrawl, router, productQuery])
 
   const handleSubmit = async () => {
     if (!selectedElement || !name.trim() || !url.trim()) return
@@ -417,6 +420,7 @@ export default function CreateAgentFlow() {
       analytics_config: Object.keys(analytics_config).length ? analytics_config : undefined,
       status: 'Analyzing',
       step: 4,
+      product_id: productId,
     }
 
     try {
@@ -435,7 +439,7 @@ export default function CreateAgentFlow() {
         const res = await fetch('/api/agents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name.trim(), url: url.trim(), ...payload }),
+          body: JSON.stringify({ name: name.trim(), url: url.trim(), product_id: productId, ...payload }),
         })
         if (!res.ok) {
           const data = await res.json()
@@ -448,7 +452,7 @@ export default function CreateAgentFlow() {
       if (agentId) {
         fetch(`/api/agents/${agentId}/analyze`, { method: 'POST' }).catch(() => {})
       }
-      router.push('/dashboard/agents')
+      router.push('/dashboard')
       router.refresh()
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Failed to create agent')
@@ -459,8 +463,8 @@ export default function CreateAgentFlow() {
 
   // ── GitHub OAuth URL helper ───────────────────────────────────────────────
   const step2Next = draftId
-    ? `/dashboard/agents/new?draft=${draftId}&step=2`
-    : '/dashboard/agents/new?step=2'
+    ? `/dashboard/agents/new?draft=${draftId}&step=2${productQuery}`
+    : `/dashboard/agents/new?step=2${productQuery}`
   const githubOauthUrl = (next: string) => `/api/auth/github?next=${encodeURIComponent(next)}`
 
   // ── Derived analytics data ────────────────────────────────────────────────

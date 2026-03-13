@@ -13,8 +13,8 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('agents')
-    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, slack_team_id, slack_user_id, slack_channel_id, system_instructions, context_summary, created_at')
-    .eq('id', params.id)
+    .select('id, product_id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, analytics_config, status, step, slack_team_id, slack_user_id, slack_channel_id, system_instructions, context_summary, created_at')
+    .eq('id', (await params).id)
     .eq('user_id', user.id)
     .single()
 
@@ -27,7 +27,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -37,6 +37,7 @@ export async function PATCH(
 
   let body: {
     name?: string
+    product_id?: string | null
     url?: string
     github_repo?: string
     posthog_api_key?: string
@@ -57,9 +58,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
+  const { id } = await params
+
   // Only include fields that were explicitly provided
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (typeof body.name === 'string') update.name = body.name.trim()
+  if ('product_id' in body) update.product_id = body.product_id != null && typeof body.product_id === 'string' ? body.product_id.trim() || null : null
   if (typeof body.url === 'string') update.url = body.url.trim() || null
   if ('github_repo' in body) update.github_repo = typeof body.github_repo === 'string' ? body.github_repo.trim() : null
   if ('posthog_api_key' in body) update.posthog_api_key = typeof body.posthog_api_key === 'string' ? body.posthog_api_key.trim() : null
@@ -85,7 +89,7 @@ export async function PATCH(
   const { data, error } = await supabase
     .from('agents')
     .update(update)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
     .select('id, name, url, status, step, created_at')
     .single()
@@ -99,16 +103,17 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id } = await params
   const { error } = await supabase
     .from('agents')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
