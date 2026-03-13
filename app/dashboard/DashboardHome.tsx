@@ -18,7 +18,7 @@ export type UngroupedAgents = { id: string; name: string; status: string | null;
 
 type Props = {
   products: ProductWithAgents[]
-  ungroupedAgents: UngroupedAgents[]
+  ungroupedAgents: UngroupedAgents  // already an array type
   userDisplayName: string
 }
 
