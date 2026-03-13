@@ -93,16 +93,18 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       return
     }
     const supabase = createClient()
-    supabase
+    void supabase
       .from('projects')
       .select('id, name')
       .eq('id', id)
       .single()
-      .then(({ data }) => {
-        if (data) setCurrentProject({ id: data.id, name: data.name })
-        else setCurrentProject(null)
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setCurrentProject(null)
+          return
+        }
+        setCurrentProject({ id: data.id, name: data.name })
       })
-      .catch(() => setCurrentProject(null))
   }, [])
 
   const canContinue =
