@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
+import { deriveVertical, derivePageType } from '@/lib/taxonomy'
 
 function getSupabase() {
   return createClient(
@@ -107,7 +108,7 @@ ${combinedContext}`
 
   try {
     const resp = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system,
       messages: [{ role: 'user', content: userPrompt }],
@@ -126,9 +127,73 @@ ${combinedContext}`
         updated_at: new Date().toISOString(),
       })
       .eq('id', projectId)
+
+    // Seed knowledge_base with 3 anonymized chunks — best-effort, never throws
+    if (url) {
+      seedKnowledgeBase(url, enrichment).catch(() => {})
+    }
   } catch {
     markFailed()
   }
+}
+
+async function embedText(text: string): Promise<number[] | null> {
+  const voyageKey = process.env.VOYAGE_API_KEY
+  if (!voyageKey) return null
+  try {
+    const res = await fetch('https://api.voyageai.com/v1/embeddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${voyageKey}` },
+      body: JSON.stringify({ input: [text], model: 'voyage-3-lite' }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.data?.[0]?.embedding ?? null
+  } catch {
+    return null
+  }
+}
+
+async function seedKnowledgeBase(
+  url: string,
+  enrichment: Record<string, unknown>
+): Promise<void> {
+  const supabase = getSupabase()
+  const vertical = deriveVertical(url)
+  const pageType = derivePageType(url)
+
+  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const arr = (v: unknown) => (Array.isArray(v) ? (v as string[]).join(', ') : '')
+
+  const chunks: { chunk: string; framework_type: string }[] = [
+    {
+      chunk: `Product: ${str(enrichment.oneLiner)}. Target customer: ${str(enrichment.targetCustomer)}. North star metric: ${str(enrichment.northStarMetric)}. Stage: ${str(enrichment.companyStage)}.`,
+      framework_type: 'product_profile',
+    },
+    {
+      chunk: `Pricing model: ${str(enrichment.pricingModel)}. Key differentiators: ${arr(enrichment.keyDifferentiators)}. Product type: ${str(enrichment.productType)}.`,
+      framework_type: 'pricing_positioning',
+    },
+    {
+      chunk: `Pain themes addressed: ${arr(enrichment.painThemesAddressed)}. KPI candidates: ${arr(enrichment.kpiCandidates)}.`,
+      framework_type: 'pain_kpi',
+    },
+  ]
+
+  await Promise.all(
+    chunks.map(async ({ chunk, framework_type }) => {
+      const embedding = await embedText(chunk)
+      if (!embedding) return
+      await supabase.from('knowledge_base').insert({
+        vertical,
+        page_type: pageType,
+        chunk,
+        framework_type,
+        source: 'enrichment',
+        embedding,
+      })
+    })
+  )
 }
 
 export async function POST(req: NextRequest) {
