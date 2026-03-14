@@ -21,7 +21,7 @@ async function embedText(text: string): Promise<number[] | null> {
     const res = await fetch('https://api.voyageai.com/v1/embeddings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${voyageKey}` },
-      body: JSON.stringify({ input: [text], model: 'voyage-3-lite' }),
+      body: JSON.stringify({ input: [text], model: 'voyage-4-lite' }),
     })
     if (!res.ok) return null
     const data = await res.json()
