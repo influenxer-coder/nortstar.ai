@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { PERSONAS } from '@/lib/simulation-personas'
+import { waitUntil } from '@vercel/functions'
+import { writeLearningEvent } from '@/lib/brain'
+import { deriveVertical, derivePageType } from '@/lib/taxonomy'
 
 export const maxDuration = 120
 
@@ -279,6 +282,30 @@ Run CFR analysis. Return JSON:
     })
     .select()
     .single()
+
+  // Fire-and-forget: write high-confidence CFR hypotheses as learning signals
+  if (cfrResult?.hypotheses?.length && agent.url) {
+    const vertical = deriveVertical(agent.url)
+    const pageType = derivePageType(agent.url)
+    const highConfidence = cfrResult.hypotheses.filter(h => h.confidence === 'high')
+    if (highConfidence.length > 0) {
+      waitUntil(
+        Promise.all(
+          highConfidence.map(h =>
+            writeLearningEvent({
+              agentId: agent.id,
+              userId: user.id,
+              vertical,
+              pageType,
+              outcome: 'accepted',
+              hypothesisTitle: h.change,
+              suggestedChange: h.implementation,
+            })
+          )
+        )
+      )
+    }
+  }
 
   if (saveError) {
     console.error('[simulate] save error:', saveError)
