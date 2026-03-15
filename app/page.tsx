@@ -1,330 +1,316 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Logo } from '@/components/logo'
-import HeroHeadline from '@/components/HeroHeadline'
 
-const DIVIDER = 'border-t border-[#1a1a1a]'
+export const metadata = {
+  title: 'Agent NorthStar — Your L4 Growth PM',
+  description:
+    'Agent NorthStar is an AI assistant for senior PMs and growth leaders. It reads your PostHog data, drafts ranked hypotheses, writes Claude Code-ready specs, and closes the loop with revenue attribution. In private beta.',
+}
 
 const STEPS = [
   {
-    n: '01',
-    title: 'Connect',
-    body: 'Point NorthStar at any public URL. Connect your GitHub repo in one OAuth click.',
+    label: 'RESEARCH',
+    title: 'Connects to your stack',
+    body: 'PostHog, GitHub, Salesforce, Zendesk. OAuth connections, no implementation project. Reads your behavioral funnels, launch history, close/lost signals, and customer feedback. 20 minutes.',
   },
   {
-    n: '02',
-    title: 'Select',
-    body: 'NorthStar crawls your page and maps every interactive element. You pick the one thing to improve.',
+    label: 'HYPOTHESIS DRAFTING',
+    title: 'Surfaces the Feature Hit List',
+    body: 'Ranked hypotheses with confidence scores, specific behavioral evidence, predicted lift range, and an explicit connection to your board metric. You get the brief — not the raw data.',
   },
   {
-    n: '03',
-    title: 'Run',
-    body: 'The agent reads behavior signals, forms a hypothesis, ships a code change to 10% of traffic, and measures the outcome — all within 48 hours.',
+    label: 'SPEC WRITING',
+    title: 'You approve. The spec is written.',
+    body: 'Agent NorthStar generates a complete product spec: problem statement, success metric, acceptance criteria, test design, effort tier. Formatted for Cursor and Claude Code. Your engineer picks it up without a single clarifying question.',
   },
   {
-    n: '04',
-    title: 'Compound',
-    body: 'Every cycle makes the next hypothesis smarter. The feature gets 1% better every week. Compounding continuously.',
+    label: 'THE BUILD',
+    title: 'Cursor or Claude Code builds it',
+    body: 'The spec goes directly to your coding agent. No PM rewriting in Confluence. No engineer asking what success looks like. You review the PR. That\'s your only job in this step.',
+  },
+  {
+    label: 'RESULTS REPORTING',
+    title: 'The loop closes with a revenue number',
+    body: 'Staged rollout to 10% of users. Agent NorthStar monitors signal vs predicted lift. When the test closes — ledger entry written: hypothesis, spec, result, revenue delta. That\'s your board artifact.',
   },
 ]
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-zinc-50 overflow-x-hidden">
-      {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#1a1a1a] bg-[#0A0A0A]/90 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Logo size={28} wordmark color="white" className="shrink-0" />
-          <div className="hidden md:flex items-center gap-8 text-sm text-zinc-500">
-            <a href="#problem" className="hover:text-zinc-100 transition-colors">The problem</a>
-            <a href="#how-it-works" className="hover:text-zinc-100 transition-colors">How it works</a>
-            <a href="#who-its-for" className="hover:text-zinc-100 transition-colors">Who it&apos;s for</a>
-            <a href="#pilot" className="hover:text-zinc-100 transition-colors">Pilot</a>
-            <Link href="/case-studies" className="hover:text-zinc-100 transition-colors">Case Studies</Link>
-            <Link href="/newsroom" className="hover:text-zinc-100 transition-colors">Newsroom</Link>
-            <Link href="/rising-products" className="hover:text-zinc-100 transition-colors">Rising Products</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/auth/signin">
-              <Button variant="ghost" size="sm" className="text-zinc-500 hover:text-zinc-100 text-sm">
-                Log in
-              </Button>
-            </Link>
-            <Link href="/auth/login">
-              <Button size="sm" className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-sm px-4">
-                Request Trial →
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* ── HERO ─────────────────────────────────────────── */}
-      <section className="pt-36 pb-32 px-6 relative">
-        {/* Glow */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[280px] bg-[#7C3AED]/12 rounded-full blur-[120px]" />
-          <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[200px] bg-[#7C3AED]/18 rounded-full blur-[80px]" />
-        </div>
-
-        <div className="max-w-4xl mx-auto text-center relative">
-          <p className="inline-flex items-center gap-2 text-[#7C3AED] text-[11px] font-mono uppercase tracking-[0.18em] mb-7">
-            <span className="inline-block w-3 h-px bg-[#7C3AED]" />
-            Autonomous Feature Improvement
-            <span className="inline-block w-3 h-px bg-[#7C3AED]" />
-          </p>
-
-          <div className="mb-7">
-            <HeroHeadline />
-          </div>
-
-          <p className="text-zinc-400 text-lg max-w-[540px] mx-auto mb-10 leading-relaxed">
-            NorthStar embeds an autonomous agent on your highest-traffic features. It reads user
-            signals, forms hypotheses, ships code changes, and measures outcomes — continuously,
-            without a PM.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/auth/login">
-              <Button
-                size="lg"
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white h-11 px-7 text-sm font-medium rounded-lg"
-              >
-                Request Early Access →
-              </Button>
-            </Link>
-            <a
-              href="#how-it-works"
-              className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: "document.documentElement.style.scrollBehavior='smooth'",
+        }}
+      />
+      <div className="min-h-screen bg-white text-[#1a1a2e] overflow-x-hidden">
+        {/* ── NAV ─────────────────────────────────────────── */}
+        <nav className="sticky top-0 left-0 right-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
+          <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+            <span className="font-bold text-lg text-[#0a2342]">Agent NorthStar</span>
+            <div className="hidden md:flex items-center gap-8 text-sm text-[#4a4a6a]">
+              <a href="#how-it-works" className="hover:text-[#0a2342] transition-colors">
+                How it works
+              </a>
+              <a href="#who-its-for" className="hover:text-[#0a2342] transition-colors">
+                Who it&apos;s for
+              </a>
+              <a href="#early-access" className="hover:text-[#0a2342] transition-colors">
+                Early access
+              </a>
+            </div>
+            <Link
+              href="#early-access"
+              className="bg-[#0a2342] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#0e7c7b] transition"
             >
-              See how it works ↓
-            </a>
+              Request access →
+            </Link>
           </div>
+        </nav>
 
-          <p className="mt-8 text-xs text-zinc-600 tracking-wide">
-            Closed pilot &middot; 5 spots remaining &middot; No credit card required
-          </p>
-        </div>
-      </section>
-
-      <div className={DIVIDER} />
-
-      {/* ── PROBLEM ──────────────────────────────────────── */}
-      <section id="problem" className="py-28 px-6">
-        <div className="max-w-2xl mx-auto text-center mb-16">
-          <h2 className="text-zinc-100 mb-6">
-            Your best features are frozen.
-          </h2>
-          <p className="text-zinc-500 text-base leading-relaxed">
-            Your checkout flow has 2M visitors a month. It hasn&apos;t meaningfully changed in 6
-            months. Not because your team doesn&apos;t care — because every improvement takes 8
-            weeks of PM, design, and engineering cycles. Meanwhile your competitors compound.
-          </p>
-        </div>
-
-        <div className="max-w-3xl mx-auto grid sm:grid-cols-3 gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
-          <div className="bg-[#0A0A0A] p-8 text-center">
-            <div className="text-4xl font-bold tracking-tight text-zinc-100 mb-2">8 weeks</div>
-            <p className="text-xs text-zinc-600 leading-snug">avg improvement cycle today</p>
-          </div>
-          <div className="bg-[#0A0A0A] p-8 text-center">
-            <div className="text-4xl font-bold tracking-tight text-zinc-100 mb-2">3 features</div>
-            <p className="text-xs text-zinc-600 leading-snug">shipped per quarter without NorthStar</p>
-          </div>
-          <div className="bg-[#0A0A0A] p-8 text-center">
-            <div className="text-4xl font-bold tracking-tight text-[#7C3AED] mb-2">1%</div>
-            <p className="text-xs text-zinc-600 leading-snug">weekly compounding improvement with NorthStar</p>
-          </div>
-        </div>
-      </section>
-
-      <div className={DIVIDER} />
-
-      {/* ── HOW IT WORKS ─────────────────────────────────── */}
-      <section id="how-it-works" className="py-28 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-14">
-            <p className="text-[#7C3AED] text-[11px] font-mono uppercase tracking-[0.18em] mb-3">
-              The Loop
+        {/* ── HERO ─────────────────────────────────────────── */}
+        <section className="py-32 px-6 bg-white">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 bg-[#e8f5f5] text-[#0e7c7b] text-xs font-medium tracking-widest uppercase px-4 py-2 rounded-full border border-[#0e7c7b]/20 mb-8">
+              IN BETA · TESTED BY PMS AT META, SNAP & GOOGLE
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-[#0a2342] leading-tight text-center">
+              Meet your L4 Growth PM.
+              <br />
+              Knows your data. Writes the spec.
+              <br />
+              Hands it to Cursor. Shows your board the number.
+            </h1>
+            <p className="text-xl text-[#4a4a6a] max-w-2xl mx-auto mt-8 leading-relaxed text-center">
+              Agent NorthStar does the research legwork a great L4 would do — reads your PostHog funnels, drafts ranked hypotheses, writes Claude Code and Cursor-ready specs, and reports results back to you. You stay the strategist. It handles the execution work.
             </p>
-            <h2 className="text-zinc-100">
-              Four steps. Runs forever.
-            </h2>
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
-            {STEPS.map(({ n, title, body }) => (
-              <div
-                key={n}
-                className="bg-[#0A0A0A] p-8 group hover:bg-[#0d0b12] transition-colors duration-200"
+            <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+              <Link
+                href="#early-access"
+                className="bg-[#0a2342] text-white px-8 py-4 rounded-xl text-base font-medium hover:bg-[#0e7c7b] transition inline-block text-center"
               >
-                <span className="text-xs font-mono text-zinc-700 group-hover:text-[#7C3AED] transition-colors">
-                  {n}
-                </span>
-                <h3 className="text-base font-semibold text-zinc-100 mt-3 mb-2">{title}</h3>
-                <p className="text-sm text-zinc-500 leading-relaxed">{body}</p>
+                Request early access →
+              </Link>
+              <a
+                href="#how-it-works"
+                className="text-[#0a2342] border border-[#0a2342]/20 px-8 py-4 rounded-xl text-base font-medium hover:border-[#0e7c7b] hover:text-[#0e7c7b] transition inline-block text-center"
+              >
+                See what it does in a day ↓
+              </a>
+            </div>
+            <p className="mt-6 text-sm text-[#4a4a6a] text-center">
+              Private beta · We review every request personally.
+            </p>
+          </div>
+        </section>
+
+        {/* ── THE MATH ─────────────────────────────────────── */}
+        <section id="the-math" className="py-24 px-6 bg-[#f4f6f8]">
+          <h2 className="text-3xl font-bold text-[#0a2342] text-center mb-16">
+            The hiring decision you&apos;ve been avoiding
+          </h2>
+          <div className="max-w-3xl mx-auto grid md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-2xl p-8 border border-gray-200">
+              <h3 className="text-lg font-semibold text-[#4a4a6a] mb-6">A great L4 Growth PM</h3>
+              <ul className="space-y-4">
+                {[
+                  '$150–180K/year total comp',
+                  '3 months to hire',
+                  '3 months to fully onboard',
+                  'Manages their own priorities',
+                  'Leaves when a better offer comes',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+                    <span className="text-[#4a4a6a] text-base">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-[#0a2342] rounded-2xl p-8">
+              <h3 className="text-lg font-semibold text-white/70 mb-6">Agent NorthStar</h3>
+              <ul className="space-y-4">
+                {[
+                  '$30K/year',
+                  'Connected in 20 minutes',
+                  'First Hit List same day',
+                  'Executes what you direct',
+                  'Gets smarter every loop',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-[#0e7c7b] shrink-0" />
+                    <span className="text-white text-base">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="text-xl font-semibold text-[#0a2342] text-center mt-12">
+            Same output. A fraction of the cost. Available today.
+          </p>
+        </section>
+
+        {/* ── HOW IT WORKS ─────────────────────────────────── */}
+        <section id="how-it-works" className="py-24 px-6 bg-white">
+          <p className="text-xs tracking-widest uppercase text-[#0e7c7b] text-center mb-4">
+            WHAT YOUR L4 HANDLES
+          </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-[#0a2342] text-center mb-4">
+            From your data to your board&apos;s revenue number.
+          </h2>
+          <p className="text-lg text-[#4a4a6a] text-center mb-16">
+            Five steps. You make two decisions. Agent NorthStar handles the rest.
+          </p>
+          <div className="max-w-2xl mx-auto relative">
+            <div className="absolute left-6 top-6 bottom-0 w-px bg-[#e5e7eb]" aria-hidden />
+            {STEPS.map((step, i) => (
+              <div key={step.label} className="flex gap-6 items-start pb-12 last:pb-0">
+                <div className="w-12 h-12 rounded-full bg-[#0a2342] text-white flex items-center justify-center text-sm font-bold shrink-0 relative z-10">
+                  {i + 1}
+                </div>
+                <div>
+                  <p className="text-xs tracking-widest uppercase text-[#0e7c7b] mb-1">{step.label}</p>
+                  <h3 className="text-xl font-bold text-[#0a2342] mb-2">{step.title}</h3>
+                  <p className="text-[#4a4a6a] leading-relaxed">{step.body}</p>
+                </div>
               </div>
             ))}
           </div>
+          <div className="mt-8 bg-[#f4f6f8] rounded-xl p-6 max-w-2xl mx-auto">
+            <p className="text-sm text-[#4a4a6a] text-center italic">
+              Steps 1–3 are fully live in beta. Steps 4–5 are in active development with our beta cohort.
+            </p>
+          </div>
+        </section>
 
-          <p className="text-center text-xs text-zinc-700 mt-8 font-mono tracking-wide">
-            Cycle time: hours. Not months.
-          </p>
-        </div>
-      </section>
-
-      <div className={DIVIDER} />
-
-      {/* ── THE MATH ─────────────────────────────────────── */}
-      <section className="py-32 px-6">
-        <div className="max-w-lg mx-auto text-center">
-          <h2 className="text-zinc-100 mb-20">
-            Small improvements.<br />Massive revenue impact.
-          </h2>
-
-          <div className="space-y-8 mb-12">
-            <div>
-              <div
-                className="font-bold tracking-tight text-[#7C3AED] leading-none"
-                style={{ fontSize: 'clamp(80px, 14vw, 120px)' }}
-              >
-                2%
-              </div>
-              <p className="text-zinc-600 text-sm mt-3">conversion improvement</p>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <div className="h-px w-10 bg-[#1a1a1a]" />
-              <span className="text-zinc-700 text-sm font-mono">↓</span>
-              <div className="h-px w-10 bg-[#1a1a1a]" />
-            </div>
-            <div>
-              <div
-                className="font-bold tracking-tight text-zinc-100 leading-none"
-                style={{ fontSize: 'clamp(80px, 14vw, 120px)' }}
-              >
-                $10M
-              </div>
-              <p className="text-zinc-600 text-sm mt-3">on a $500M revenue surface</p>
+        {/* ── CURSOR + CLAUDE CODE ─────────────────────────── */}
+        <section className="py-16 px-6 bg-[#0a2342]">
+          <div className="max-w-3xl mx-auto text-center">
+            <p className="text-2xl md:text-3xl font-bold text-white leading-relaxed">
+              Cursor builds what you tell it to build. Agent NorthStar figures out what to build. Then tells Cursor.
+            </p>
+            <p className="text-lg text-white/70 max-w-xl mx-auto mt-8">
+              When you approve a spec, Agent NorthStar hands it directly to your coding agent — formatted and ready. You review the PR. You approve the rollout. You read the number. Everything between those decisions runs automatically.
+            </p>
+            <div className="mt-12 flex items-center justify-center gap-8 flex-wrap">
+              <span className="font-bold text-white/60 text-xl">Cursor</span>
+              <span className="text-white/30 text-xl">+</span>
+              <span className="font-bold text-white/60 text-xl">Claude Code</span>
             </div>
           </div>
+        </section>
 
-          <p className="text-zinc-500 text-sm max-w-[400px] mx-auto leading-relaxed">
-            NorthStar runs that experiment automatically every 48 hours. Every week the number gets
-            bigger. That&apos;s the compounding advantage.
+        {/* ── WHO&apos;S TESTING IT ───────────────────────────── */}
+        <section id="who-its-for" className="py-24 px-6 bg-white">
+          <p className="text-xs tracking-widest uppercase text-[#0e7c7b] text-center mb-4">
+            WHO&apos;S TESTING IT
           </p>
-        </div>
-      </section>
-
-      <div className={DIVIDER} />
-
-      {/* ── WHO IT'S FOR ─────────────────────────────────── */}
-      <section id="who-its-for" className="py-28 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-zinc-100 text-center mb-16">
-            Built for companies with high-traffic surfaces
-            <br className="hidden sm:block" /> and slow improvement cycles.
+          <h2 className="text-3xl font-bold text-[#0a2342] text-center max-w-2xl mx-auto mb-16">
+            Built for senior PMs who know exactly what needs to happen — and don&apos;t have enough hours to make it happen.
           </h2>
-
-          <div className="grid md:grid-cols-2 gap-16 md:gap-24">
-            <div>
-              <p className="text-[11px] font-mono text-zinc-600 uppercase tracking-[0.18em] mb-6">
-                Right fit
-              </p>
-              <ul className="space-y-4">
+          <div className="max-w-3xl mx-auto grid md:grid-cols-2 gap-8">
+            <div className="bg-[#f4f6f8] rounded-2xl p-8">
+              <h3 className="text-lg font-semibold text-[#0a2342] mb-6">Right fit</h3>
+              <ul className="space-y-3">
                 {[
-                  '500K+ monthly visitors on a key surface',
-                  'Improvements currently take 6–12 weeks',
-                  'Clear conversion or engagement metric to optimize',
-                  'Public-facing pages (landing, pricing, signup, checkout)',
+                  'Head of Growth or VP Product',
+                  'Series B or C B2B SaaS',
+                  'Joined in the last 12 months',
+                  'Board metric to move this quarter',
+                  'Not enough hours to do the research yourself',
+                  'Team using Cursor or Claude Code',
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-zinc-400">
-                    <span className="text-emerald-500 shrink-0 mt-0.5 font-mono">✓</span>
-                    {item}
+                  <li key={item} className="flex items-start gap-3">
+                    <span className="text-[#0e7c7b] font-bold shrink-0">✓</span>
+                    <span className="text-[#1a1a2e]">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-
-            <div>
-              <p className="text-[11px] font-mono text-zinc-600 uppercase tracking-[0.18em] mb-6">
-                What you get
+            <div className="bg-white rounded-2xl p-8 border border-gray-200">
+              <h3 className="text-lg font-semibold text-[#0a2342] mb-6">What beta testers are saying</h3>
+              <p className="text-lg text-[#1a1a2e] leading-relaxed italic mb-6">
+                This is what a great L4 does. Except it&apos;s already done it by the time I arrive in the morning.
               </p>
-              <ul className="space-y-4">
-                {[
-                  'Autonomous agent per feature',
-                  'Hypothesis formulated from real user signals',
-                  'Code changes shipped via your existing GitHub + CI/CD',
-                  'Results reported to Slack within 48 hours',
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-zinc-400">
-                    <span className="text-[#7C3AED] shrink-0 mt-0.5 font-mono">→</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <p className="text-sm text-[#4a4a6a]">— Senior PM, currently in beta</p>
+              <div className="border-t border-gray-100 my-6" />
+              <p className="text-sm text-[#4a4a6a]">
+                Current beta includes PMs from Meta, Snap, and Google.
+              </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className={DIVIDER} />
+        {/* ── FOUNDER NOTE ─────────────────────────────────── */}
+        <section className="py-24 px-6 bg-[#f4f6f8]">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-xs tracking-widest uppercase text-[#0e7c7b] mb-4">
+              WHY WE BUILT THIS
+            </p>
+            <p className="text-lg text-[#1a1a2e] leading-relaxed mb-6">
+              I spent 10 years as a PM across Google, Yahoo, Apple, Facebook, Instagram, and Snap. The best product teams I worked with had one thing others didn&apos;t — they knew what to build before they built it. They moved from hypothesis to code to revenue proof in weeks, not quarters.
+            </p>
+            <p className="text-lg text-[#1a1a2e] leading-relaxed mb-6">
+              Most teams can&apos;t do that. Not because they&apos;re slow — because the tools don&apos;t exist. Amplitude tells you what&apos;s broken. Jira tracks what you&apos;re building. Nothing closes the loop from your data all the way to a revenue number on a board slide.
+            </p>
+            <p className="text-lg text-[#1a1a2e] leading-relaxed mb-6">
+              Agent NorthStar is that loop. Built from a decade of watching what world-class product teams actually do — and making it available to every growth team that can&apos;t afford to hire those people.
+            </p>
+            <p className="text-base font-semibold text-[#0a2342]">Amrit Lal, Founder</p>
+            <p className="text-sm text-[#4a4a6a] mt-1">
+              10 years across Google, Yahoo, Apple, Facebook, Instagram, Snap
+            </p>
+          </div>
+        </section>
 
-      {/* ── PILOT CTA ────────────────────────────────────── */}
-      <section id="pilot" className="py-28 px-6">
-        <div className="max-w-md mx-auto">
-          <div
-            className="rounded-2xl border border-[#7C3AED]/15 bg-[#0d0b12] p-10 md:p-12 text-center"
-            style={{
-              boxShadow:
-                '0 0 0 1px rgba(124,58,237,0.08), 0 0 60px -10px rgba(124,58,237,0.25)',
-            }}
-          >
-            <p className="text-[#7C3AED] text-[11px] font-mono uppercase tracking-[0.18em] mb-5">
-              Closed Pilot
+        {/* ── EARLY ACCESS ─────────────────────────────────── */}
+        <section id="early-access" className="py-24 px-6 bg-[#0a2342]">
+          <div className="max-w-xl mx-auto text-center">
+            <p className="text-xs tracking-widest uppercase text-[#0e7c7b] mb-4">
+              EARLY ACCESS
             </p>
-            <h2 className="text-zinc-100 mb-5">
-              We&apos;re running a closed pilot with 5 companies.
-            </h2>
-            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
-              You bring a real surface with real traffic. We prove the loop closes — signal in,
-              hypothesis formed, change shipped, metric moves. That&apos;s the demo.
+            <h2 className="text-4xl font-bold text-white mb-6">Request access</h2>
+            <p className="text-lg text-white/70 leading-relaxed mb-12">
+              We&apos;re accepting a small number of teams for the next beta cohort. We&apos;re looking for growth leaders at Series B or C companies with a specific board metric to move this quarter.
+              <br /><br />
+              Tell us what metric you&apos;re working on. We read every request and reach out within 48 hours if it&apos;s a fit.
             </p>
-            <Link href="/auth/login">
-              <Button
-                size="lg"
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white h-11 px-8 text-sm font-medium w-full sm:w-auto rounded-lg"
+            <form action="/auth/login" method="get" className="flex flex-col sm:flex-row gap-3 w-full">
+              <input
+                type="text"
+                name="metric"
+                placeholder="What metric are you trying to move this quarter?"
+                className="w-full sm:flex-1 px-5 py-4 rounded-xl text-base text-[#1a1a2e] bg-white border-0 focus:outline-none focus:ring-2 focus:ring-[#0e7c7b]"
+              />
+              <button
+                type="submit"
+                className="bg-[#0e7c7b] text-white px-6 py-4 rounded-xl font-medium whitespace-nowrap hover:bg-[#0a6b6a] transition"
               >
-                Request Early Access →
-              </Button>
-            </Link>
-            <p className="mt-5 text-xs text-zinc-600">
-              We&apos;ll reach out within 48 hours. No pitch. Just the product.
+                Request access →
+              </button>
+            </form>
+            <p className="mt-4 text-sm text-white/50 text-center">
+              No pitch. No credit card. We&apos;ll reach out personally.
             </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className={DIVIDER} />
-
-      {/* ── FOOTER ───────────────────────────────────────── */}
-      <footer className="py-12 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Logo size={18} className="shrink-0" />
-            <span className="text-sm font-medium tracking-wide">NorthStar</span>
+        {/* ── FOOTER ────────────────────────────────────────── */}
+        <footer className="bg-[#0a0a0a] py-12 px-6">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <span className="font-bold text-white text-lg">Agent NorthStar</span>
+              <div className="flex gap-6 text-sm text-white/40 hover:[&>a]:text-white/70">
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+                <a href="#">Security</a>
+              </div>
+            </div>
+            <p className="mt-8 text-center text-sm text-white/30">
+              Built in San Francisco. In beta — not ready to rush.
+            </p>
           </div>
-          <p className="text-xs text-zinc-600 text-center md:text-left max-w-sm leading-relaxed">
-            Built by a PM who spent a decade at Snap, Meta, Apple, and Google. This is the tool
-            that should have existed the whole time.
-          </p>
-          <div className="flex items-center gap-6 text-xs text-zinc-600">
-            <Link href="/rising-products" className="hover:text-zinc-400 transition-colors">Rising Products</Link>
-            <a href="#" className="hover:text-zinc-400 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-zinc-400 transition-colors">Terms</a>
-            <a href="#" className="hover:text-zinc-400 transition-colors">Security</a>
-          </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </>
   )
 }
