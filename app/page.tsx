@@ -49,24 +49,40 @@ export default function LandingPage() {
             <p className="text-xs tracking-widest uppercase text-[#0e7c7b] font-medium mb-8">
               Private beta
             </p>
-            <h1 className="text-4xl md:text-8xl font-bold text-white leading-none tracking-tight">
-              Products are broken.
+            <h1 className="text-4xl md:text-8xl font-bold text-white leading-tight tracking-tight">
+              Your next PM hire costs $180K.
+              <br />
+              NorthStar costs $30K and ships by morning.
             </h1>
-            <p className="text-4xl md:text-8xl font-bold text-[#0e7c7b] leading-none tracking-tight mt-2 mb-6">
-              Agent NorthStar fixes them.
+            <p className="mt-6 text-base md:text-lg text-white/60 tracking-tight">
+              Autonomous agent that reads your analytics, forms hypotheses, ships code changes, and closes the loop to revenue — without a meeting.
             </p>
-            <p className="text-base text-white/40 tracking-wide font-mono mb-10">
-              Data → Hypothesis → Spec → Cursor builds → Revenue attributed.
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href="/auth/login"
+                className="inline-block bg-[#0e7c7b] text-white font-medium text-base px-8 py-4 rounded-xl hover:bg-[#0a6b6a] transition-colors"
+              >
+                Run NorthStar on my product →
+              </Link>
+              <a
+                href="#how-it-works"
+                className="inline-block text-sm text-white/70 hover:text-white transition-colors underline-offset-4 hover:underline"
+              >
+                See how it works ↓
+              </a>
+            </div>
+            <p className="mt-3 text-xs text-white/40">
+              We&apos;ll reach out within 24 hours with a hypothesis already formed on your highest-traffic surface.
             </p>
-            <Link
-              href="/auth/login"
-              className="inline-block bg-[#0e7c7b] text-white font-medium text-base px-8 py-4 rounded-xl hover:bg-[#0a6b6a] transition-colors"
-            >
-              Request access →
-            </Link>
-            <p className="text-xs text-white/30 text-center mt-4">
-              Tested by PMs at Meta, Snap, Google.
-            </p>
+            <div className="mt-10 space-y-3">
+              <p className="text-xs text-white/40 text-center">
+                Tested by PMs at Meta · Snap · Google · Apple
+              </p>
+              <p className="text-sm text-white/50 text-center italic">
+                &quot;It had already formed three hypotheses by the time I opened Slack.&quot;
+              </p>
+              <p className="text-xs text-white/30 text-center">— Head of Product, Series C SaaS</p>
+            </div>
 
             {/* Product visual — hidden on mobile, visible sm+ */}
             <div className="hidden sm:block max-w-2xl mx-auto mt-20 mb-0 bg-[#111111] rounded-2xl border border-white/[0.08] overflow-hidden">
@@ -125,7 +141,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── THREE STATS ─────────────────────────────────── */}
-        <section className="py-24 border-t border-white/5">
+        <section id="how-it-works" className="py-24 border-t border-white/5">
           <div className="max-w-3xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             <div>
               <p className="text-4xl font-bold text-white">48h</p>
@@ -142,13 +158,49 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── ONE QUOTE ────────────────────────────────────── */}
+        {/* ── REVENUE ATTRIBUTION ─────────────────────────── */}
         <section className="py-24 border-t border-white/5">
-          <div className="max-w-2xl mx-auto px-6 text-center">
-            <p className="text-2xl font-light text-white/70 leading-relaxed italic mb-6">
-              This is what a great L4 PM does. Except it&apos;s already done it by the time I arrive in the morning.
+          <div className="max-w-3xl mx-auto px-6">
+            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-6">
+              Every change ships with a revenue number.
+            </h2>
+            <p className="text-sm md:text-base text-white/60 leading-relaxed mb-4">
+              Amplitude shows you the drop-off. Productboard helps you prioritize it. NorthStar fixes it, ships it, and tells you what it was worth — before your next standup.
             </p>
-            <p className="text-sm text-white/30">— Senior PM, currently in beta</p>
+            <p className="text-sm md:text-base text-white/60 leading-relaxed mb-8">
+              Most teams can&apos;t answer &quot;what did that feature change deliver?&quot; NorthStar closes that loop automatically. Every hypothesis that ships comes back with attribution attached.
+            </p>
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 inline-flex items-center justify-between gap-4 text-sm text-white">
+              <span className="font-medium">Loop closed in 14 days · $340K ARR attributed</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── ICP / WHO IT'S FOR ──────────────────────────── */}
+        <section className="py-24 border-t border-white/5">
+          <div className="max-w-2xl mx-auto px-6">
+            <h2 className="text-xl md:text-2xl font-semibold text-white mb-6">
+              Built for VP/Head of Product at Series B–D SaaS companies who are being asked to ship more without adding headcount.
+            </h2>
+            <ul className="space-y-3 text-sm text-white/60">
+              <li>• You have a surface with real traffic and a clear conversion metric</li>
+              <li>• Your current improvement cycle takes 6–12 weeks</li>
+              <li>• You&apos;re measured on revenue impact, not tickets closed</li>
+              <li>• You&apos;re about to hire a PM — or just did</li>
+            </ul>
+          </div>
+        </section>
+
+        {/* ── ZERO MEETINGS CALLOUT ───────────────────────── */}
+        <section className="py-16 border-t border-white/5">
+          <div className="max-w-3xl mx-auto px-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-6 text-center">
+              <p className="text-sm md:text-base text-white/70 leading-relaxed">
+                No roadmap meetings. No prioritization debates. No spec reviews.
+                <br />
+                NorthStar reads the data, makes the call, and ships — while you focus on what only humans can do.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -174,7 +226,7 @@ export default function LandingPage() {
                 type="submit"
                 className="bg-[#0e7c7b] text-white text-sm font-medium px-6 py-4 rounded-xl hover:bg-[#0a6b6a] transition-colors whitespace-nowrap"
               >
-                Request access →
+                Run NorthStar on my product →
               </button>
             </form>
             <p className="mt-4 text-xs text-white/20 text-center">No pitch. No credit card.</p>
@@ -184,7 +236,9 @@ export default function LandingPage() {
         {/* ── FOOTER ────────────────────────────────────────── */}
         <footer className="py-8 border-t border-white/5">
           <div className="max-w-5xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
-            <span className="text-sm font-medium text-white/30">Agent NorthStar</span>
+            <span className="text-sm font-medium text-white/30">
+              NorthStar · Autonomous product improvement · Built in San Francisco
+            </span>
             <div className="flex gap-6">
               <a href="#" className="text-sm text-white/20 hover:text-white/40 transition-colors">
                 Privacy
