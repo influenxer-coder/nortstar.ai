@@ -50,9 +50,9 @@ export default function LandingPage() {
               Private beta
             </p>
             <h1 className="text-4xl md:text-8xl font-bold text-white leading-tight tracking-tight">
-              Your next PM hire costs $180K.
+              Every product deserves to get 1% better.
               <br />
-              NorthStar costs $30K and ships by morning.
+              Every week.
             </h1>
             <p className="mt-6 text-base md:text-lg text-white/60 tracking-tight">
               Autonomous agent that reads your analytics, forms hypotheses, ships code changes, and closes the loop to revenue — without a meeting.
