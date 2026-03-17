@@ -191,7 +191,7 @@ async function runAgentStream({
 
 // ─── Step Progress Bar ────────────────────────────────────────────────────────
 
-function StepBar({ current }: { current: number }) {
+function StepBar({ current, onGoBack }: { current: number; onGoBack?: (n: number) => void }) {
   return (
     <div className="flex items-start gap-0 select-none">
       {STEP_LABELS.map((label, i) => {
@@ -202,9 +202,10 @@ function StepBar({ current }: { current: number }) {
           <div key={n} className="flex items-center">
             <div className="flex flex-col items-center gap-1">
               <div
+                onClick={() => done && onGoBack?.(n)}
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
                   done
-                    ? 'bg-[#22c55e] text-white'
+                    ? 'bg-[#22c55e] text-white cursor-pointer hover:opacity-80'
                     : active
                     ? 'bg-[#4f8ef7] text-white'
                     : 'bg-[#1f1f1f] text-[#444] border border-[#2a2a2a]'
@@ -392,6 +393,7 @@ export default function ProductOnboardingFlow() {
         if (Array.isArray(d.sub_metrics) && d.sub_metrics.length > 0) setSubMetrics(d.sub_metrics)
         if (d.strategy_json) {
           setStep1Result(d.strategy_json as StrategyResultData)
+          setStep1Screen('report')
         }
         if (typeof d.strategy_markdown === 'string' && d.strategy_markdown.trim()) {
           setStep1ReportMd(d.strategy_markdown)
@@ -420,6 +422,13 @@ export default function ProductOnboardingFlow() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nsMetric])
+
+  // ── Auto-restore step 1 report when navigating back ───────────────────────
+  useEffect(() => {
+    if (step === 1 && step1Result && step1Screen === 'form') {
+      setStep1Screen('report')
+    }
+  }, [step, step1Result, step1Screen])
 
   // ── Navigation helpers ─────────────────────────────────────────────────────
   const goToStep = useCallback((n: number, pid?: string) => {
@@ -754,7 +763,7 @@ export default function ProductOnboardingFlow() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to dashboard
           </Link>
-          <StepBar current={step} />
+          <StepBar current={step} onGoBack={(n) => goToStep(n)} />
         </div>
 
         {/* Error banner */}
