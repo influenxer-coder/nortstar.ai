@@ -984,86 +984,96 @@ export default function ProductOnboardingFlow() {
 
             {/* Two-column: cards left, chat right */}
             <div className="flex gap-6" style={{ height: 'calc(100vh - 180px)' }}>
-              {/* Left: strategy cards */}
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                {/* Product overview */}
+              {/* Left: strategy cards — one per element */}
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+
+                {/* 1. Product */}
                 <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-base font-semibold text-[#f0f0f0]">{step1Result.input_product?.name}</p>
-                      <p className="text-xs text-[#555] mt-0.5">{step1Result.input_product?.category}</p>
-                    </div>
+                  <div className="flex items-start justify-between mb-3">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Product</p>
                     {step1Result.stage && (
-                      <span className="text-xs px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#a0a0a0] shrink-0 ml-3 capitalize">
-                        {step1Result.stage}
-                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#666] capitalize">{step1Result.stage}</span>
                     )}
                   </div>
+                  <p className="text-base font-semibold text-[#f0f0f0] mb-0.5">{step1Result.input_product?.name}</p>
+                  {step1Result.input_product?.category && <p className="text-xs text-[#555] mb-3">{step1Result.input_product.category}</p>}
                   {step1Result.input_product?.core_value_prop && (
-                    <p className="text-sm text-[#a0a0a0] mb-2">{step1Result.input_product.core_value_prop}</p>
+                    <p className="text-sm text-[#a0a0a0] mb-3">{step1Result.input_product.core_value_prop}</p>
                   )}
-                  {step1Result.input_product?.target_customer && (
-                    <p className="text-xs text-[#555]">Target: {step1Result.input_product.target_customer}</p>
+                  {step1Result.input_product?.job_it_replaces && (
+                    <div className="mt-2 pt-3 border-t border-[#1a1a1a]">
+                      <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Job it replaces</p>
+                      <p className="text-xs text-[#666]">{step1Result.input_product.job_it_replaces}</p>
+                    </div>
                   )}
                   {step1Result.framework_applied && (
-                    <p className="text-xs text-[#444] mt-1">Framework: {step1Result.framework_applied}</p>
+                    <div className="mt-2 pt-3 border-t border-[#1a1a1a]">
+                      <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Framework</p>
+                      <p className="text-xs text-[#666]">{step1Result.framework_applied}</p>
+                      {step1Result.framework_selection_reasoning && (
+                        <p className="text-xs text-[#444] mt-1 italic">{step1Result.framework_selection_reasoning}</p>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                {/* What the space is */}
-                {step1Result.recommended_wedge && (
+                {/* 2. ICP */}
+                {(step1Result.input_product?.target_customer || step1Result.icp_inference_reasoning) && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Ideal Customer Profile</p>
+                    {step1Result.input_product?.target_customer && (
+                      <p className="text-sm text-[#e0e0e0] mb-2">{step1Result.input_product.target_customer}</p>
+                    )}
+                    {step1Result.icp_inference_reasoning && (
+                      <p className="text-xs text-[#555] italic">{step1Result.icp_inference_reasoning}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Market Space */}
+                {(step1Result.status_quo?.description || step1Result.recommended_wedge) && (
                   <div className="rounded-xl border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-5">
-                    <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">What the Space Is</p>
-                    <p className="text-sm text-[#e0e0e0]">{step1Result.recommended_wedge}</p>
+                    <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium mb-3">Market Space</p>
+                    {step1Result.status_quo?.description && (
+                      <p className="text-sm text-[#e0e0e0] mb-3">{step1Result.status_quo.description}</p>
+                    )}
+                    {(step1Result.status_quo?.frustrations?.length ?? 0) > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] text-[#4f8ef7]/60 uppercase tracking-widest mb-1.5">Current frustrations</p>
+                        <ul className="space-y-1">
+                          {step1Result.status_quo!.frustrations!.map((f, i) => (
+                            <li key={i} className="text-xs text-[#a0a0a0] flex gap-2"><span className="text-[#4f8ef7]/40 shrink-0">—</span>{f}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {step1Result.recommended_wedge && (
+                      <div className="pt-3 border-t border-[#4f8ef7]/10">
+                        <p className="text-[10px] text-[#4f8ef7]/60 uppercase tracking-widest mb-1.5">Recommended wedge</p>
+                        <p className="text-xs text-[#a0a0a0]">{step1Result.recommended_wedge}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Top competitors */}
-                {((step1Result.direct_competitors?.length ?? 0) > 0 || (step1Result.indirect_competitors?.length ?? 0) > 0) && (
+                {/* 4. Direct Competitors */}
+                {(step1Result.direct_competitors?.length ?? 0) > 0 && (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Top Competitors</p>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-xs text-[#555] mb-2">Direct</p>
-                        <div className="space-y-2">
-                          {step1Result.direct_competitors?.slice(0, 4).map((c, i) => (
-                            <div key={i}>
-                              <p className="text-sm text-[#e0e0e0]">{c.name}</p>
-                              {c.what_they_do && <p className="text-xs text-[#555]">{c.what_they_do}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-[#555] mb-2">Indirect</p>
-                        <div className="space-y-2">
-                          {step1Result.indirect_competitors?.slice(0, 4).map((c, i) => (
-                            <div key={i}>
-                              <p className="text-sm text-[#e0e0e0]">{c.name}</p>
-                              {c.what_they_do && <p className="text-xs text-[#555]">{c.what_they_do}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Top opportunities */}
-                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Top Opportunities</p>
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Direct Competitors</p>
                     <div className="space-y-4">
-                      {step1Result.ranked_opportunities!.slice(0, 3).map((opp, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <span className="text-xs text-[#4f8ef7] font-mono mt-0.5 shrink-0 w-5">#{opp.rank ?? i + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-[#f0f0f0]">{opp.opportunity}</p>
-                            {opp.target_segment && <p className="text-xs text-[#555] mt-0.5">{opp.target_segment}</p>}
-                            {opp.recommended_action && <p className="text-xs text-[#444] mt-1">{opp.recommended_action}</p>}
-                          </div>
-                          {opp.composite_score != null && (
-                            <span className="text-xs text-[#4f8ef7] font-mono shrink-0">{opp.composite_score}</span>
+                      {step1Result.direct_competitors!.map((c, i) => (
+                        <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
+                          <p className="text-sm font-medium text-[#f0f0f0] mb-1">{c.name}</p>
+                          {c.what_they_do && <p className="text-xs text-[#666] mb-2">{c.what_they_do}</p>}
+                          {(c.complaints?.length ?? 0) > 0 && (
+                            <div>
+                              <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Top complaints</p>
+                              <ul className="space-y-0.5">
+                                {c.complaints!.slice(0, 3).map((q, j) => (
+                                  <li key={j} className="text-xs text-[#555] flex gap-2"><span className="shrink-0 text-red-500/40">✗</span>{q}</li>
+                                ))}
+                              </ul>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -1071,40 +1081,150 @@ export default function ProductOnboardingFlow() {
                   </div>
                 )}
 
-                {/* Emerging trends */}
-                {(step1Result.emerging_trends?.length ?? 0) > 0 && (
+                {/* 5. Indirect Competitors / Alternatives */}
+                {(step1Result.indirect_competitors?.length ?? 0) > 0 && (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Emerging Trends</p>
-                    <div className="space-y-3">
-                      {step1Result.emerging_trends!.slice(0, 4).map((t, i) => (
-                        <div key={i}>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-sm text-[#f0f0f0]">{t.trend}</p>
-                            {t.momentum && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#1a1a1a] text-[#666]">{t.momentum}</span>
-                            )}
-                          </div>
-                          {t.time_horizon && <p className="text-xs text-[#555]">{t.time_horizon}</p>}
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Indirect Alternatives</p>
+                    <div className="space-y-4">
+                      {step1Result.indirect_competitors!.map((c, i) => (
+                        <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
+                          <p className="text-sm font-medium text-[#f0f0f0] mb-1">{c.name}</p>
+                          {c.what_they_do && <p className="text-xs text-[#666] mb-2">{c.what_they_do}</p>}
+                          {(c.complaints?.length ?? 0) > 0 && (
+                            <ul className="space-y-0.5">
+                              {c.complaints!.slice(0, 2).map((q, j) => (
+                                <li key={j} className="text-xs text-[#555] flex gap-2"><span className="shrink-0 text-[#444]">—</span>{q}</li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Unmet needs */}
-                {(step1Result.unmet_needs?.length ?? 0) > 0 && (
+                {/* 6. Ranked Opportunities */}
+                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Unmet Needs</p>
-                    <div className="space-y-3">
-                      {step1Result.unmet_needs!.slice(0, 4).map((n, i) => (
-                        <div key={i}>
-                          <p className="text-sm text-[#f0f0f0]">{n.need}</p>
-                          {n.how_widespread && <p className="text-xs text-[#555] mt-0.5">{n.how_widespread}</p>}
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Ranked Opportunities</p>
+                    <div className="space-y-5">
+                      {step1Result.ranked_opportunities!.slice(0, 3).map((opp, i) => (
+                        <div key={i} className="pb-5 border-b border-[#1a1a1a] last:pb-0 last:border-0">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs text-[#4f8ef7] font-mono shrink-0 mt-0.5">#{opp.rank ?? i + 1}</span>
+                              <p className="text-sm font-medium text-[#f0f0f0]">{opp.opportunity}</p>
+                            </div>
+                            {opp.composite_score != null && (
+                              <span className="text-sm font-semibold text-[#4f8ef7] font-mono shrink-0">{opp.composite_score}<span className="text-[10px] text-[#444]">/10</span></span>
+                            )}
+                          </div>
+                          {opp.target_segment && <p className="text-xs text-[#555] mb-2 ml-4">{opp.target_segment}</p>}
+                          <div className="ml-4 grid grid-cols-3 gap-2 mb-2">
+                            {opp.segment_size_score != null && (
+                              <div className="bg-[#111] rounded-lg p-2">
+                                <p className="text-[10px] text-[#444] mb-1">Segment size</p>
+                                <p className="text-sm font-semibold text-[#a0a0a0]">{opp.segment_size_score}<span className="text-[10px] text-[#444]">/10</span></p>
+                              </div>
+                            )}
+                            {opp.pain_urgency_score != null && (
+                              <div className="bg-[#111] rounded-lg p-2">
+                                <p className="text-[10px] text-[#444] mb-1">Pain urgency</p>
+                                <p className="text-sm font-semibold text-[#a0a0a0]">{opp.pain_urgency_score}<span className="text-[10px] text-[#444]">/10</span></p>
+                              </div>
+                            )}
+                            {opp.strategic_fit_score != null && (
+                              <div className="bg-[#111] rounded-lg p-2">
+                                <p className="text-[10px] text-[#444] mb-1">Strategic fit</p>
+                                <p className="text-sm font-semibold text-[#a0a0a0]">{opp.strategic_fit_score}<span className="text-[10px] text-[#444]">/10</span></p>
+                              </div>
+                            )}
+                          </div>
+                          {opp.recommended_action && (
+                            <p className="text-xs text-[#555] ml-4 italic">{opp.recommended_action}</p>
+                          )}
+                          {opp.pm_comment && (
+                            <p className="text-xs text-[#4f8ef7]/60 ml-4 mt-1">PM note: {opp.pm_comment}</p>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+
+                {/* 7. Unmet Needs */}
+                {(step1Result.unmet_needs?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Unmet Needs</p>
+                    <div className="space-y-4">
+                      {step1Result.unmet_needs!.map((n, i) => (
+                        <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <p className="text-sm font-medium text-[#f0f0f0]">{n.need}</p>
+                            {n.how_widespread && <span className="text-[10px] text-[#555] shrink-0 mt-0.5">{n.how_widespread}</span>}
+                          </div>
+                          {n.evidence && <p className="text-xs text-[#666] mb-1">{n.evidence}</p>}
+                          {n.trend_connection && <p className="text-xs text-[#444] italic">Why now: {n.trend_connection}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. Emerging Trends */}
+                {(step1Result.emerging_trends?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Emerging Trends</p>
+                    <div className="space-y-4">
+                      {step1Result.emerging_trends!.map((t, i) => (
+                        <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium text-[#f0f0f0]">{t.trend}</p>
+                            {t.momentum && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1a1a1a] text-[#666]">{t.momentum}</span>}
+                          </div>
+                          {t.time_horizon && <p className="text-xs text-[#555] mb-1">{t.time_horizon}</p>}
+                          {t.evidence && <p className="text-xs text-[#444] italic">{t.evidence}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 9. Momentum Advantages */}
+                {(step1Result.momentum_advantages?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#22c55e]/20 bg-[#22c55e]/5 p-5">
+                    <p className="text-[10px] text-[#22c55e]/70 uppercase tracking-widest font-medium mb-3">Momentum Advantages</p>
+                    <div className="space-y-4">
+                      {step1Result.momentum_advantages!.map((m, i) => (
+                        <div key={i} className="pb-4 border-b border-[#22c55e]/10 last:pb-0 last:border-0">
+                          <p className="text-sm font-medium text-[#f0f0f0] mb-1">{m.advantage}</p>
+                          {m.trend_backing && <p className="text-xs text-[#666] mb-1">Backed by: {m.trend_backing}</p>}
+                          {m.recommendation && <p className="text-xs text-[#22c55e]/60 italic">{m.recommendation}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 10. Threats */}
+                {((step1Result.new_threats?.length ?? 0) > 0 || (step1Result.threats_to_monitor?.length ?? 0) > 0) && (
+                  <div className="rounded-xl border border-red-900/30 bg-red-950/10 p-5">
+                    <p className="text-[10px] text-red-500/60 uppercase tracking-widest font-medium mb-3">Threats</p>
+                    <div className="space-y-3">
+                      {[...(step1Result.new_threats ?? []), ...(step1Result.threats_to_monitor ?? [])].map((t, i) => (
+                        <div key={i} className="pb-3 border-b border-red-900/10 last:pb-0 last:border-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <p className="text-sm font-medium text-[#f0f0f0]">{t.threat}</p>
+                            {t.urgency && <span className="text-[10px] text-red-500/60 shrink-0 mt-0.5">{t.urgency}</span>}
+                          </div>
+                          {t.who_is_driving_it && <p className="text-xs text-[#555]">Driven by: {t.who_is_driving_it}</p>}
+                          {t.recommended_response && <p className="text-xs text-[#444] italic mt-1">{t.recommended_response}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Right: chat panel */}
