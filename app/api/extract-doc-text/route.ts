@@ -21,12 +21,32 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'No file provided' }, { status: 400 })
     }
     const name = (file.name || '').toLowerCase()
-    const buffer = Buffer.from(await file.arrayBuffer())
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    if (buffer.length === 0) {
+      return Response.json({ error: 'File is empty' }, { status: 400 })
+    }
+
     let text = ''
     if (name.endsWith('.pdf')) {
-      text = await extractPdf(buffer)
+      try {
+        text = await extractPdf(buffer)
+      } catch (pdfErr) {
+        console.error('[extract-doc-text] PDF:', pdfErr)
+        return Response.json({
+          error: 'Could not read PDF. The file may be corrupted, password-protected, or an image-only PDF.',
+        }, { status: 422 })
+      }
     } else if (name.endsWith('.docx')) {
-      text = await extractDocx(buffer)
+      try {
+        text = await extractDocx(buffer)
+      } catch (docxErr) {
+        console.error('[extract-doc-text] DOCX:', docxErr)
+        return Response.json({
+          error: 'Could not read DOCX. The file may be corrupted or in an unsupported format.',
+        }, { status: 422 })
+      }
     } else if (name.endsWith('.txt') || name.endsWith('.md')) {
       text = buffer.toString('utf-8')
     } else {
@@ -35,6 +55,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ text: text || '' })
   } catch (e) {
     console.error('[extract-doc-text]', e)
-    return Response.json({ error: 'Failed to extract text' }, { status: 500 })
+    const message = e instanceof Error ? e.message : 'Failed to extract text'
+    return Response.json({ error: message }, { status: 500 })
   }
 }
