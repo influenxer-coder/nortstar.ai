@@ -112,6 +112,82 @@ async function extractStrategyDocText(file: File): Promise<string> {
   return j.text ?? ''
 }
 
+// ─── Agent stream (NDJSON) ────────────────────────────────────────────────────
+type AgentEvent =
+  | { type: 'log'; message?: string; content?: string }
+  | { type: 'result'; data: unknown }
+  | { type: 'error'; message?: string }
+
+async function runAgentStream({
+  url,
+  description = '',
+  strategy_doc = '',
+  onLog,
+  onResult,
+  onError,
+  signal,
+}: {
+  url: string
+  description?: string
+  strategy_doc?: string
+  onLog: (msg: string) => void
+  onResult: (data: unknown) => void
+  onError: (msg: string) => void
+  signal?: AbortSignal
+}): Promise<void> {
+  const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL
+  if (!agentUrl) throw new Error('Agent URL not configured (NEXT_PUBLIC_AGENT_URL).')
+
+  const res = await fetch(agentUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+    body: JSON.stringify({ url, description, strategy_doc: strategy_doc || undefined }),
+  })
+
+  if (!res.ok || !res.body) throw new Error(res.status === 0 ? 'Connection lost' : `Request failed (${res.status})`)
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.trim()) continue
+      let event: AgentEvent | null = null
+      try {
+        event = JSON.parse(line) as AgentEvent
+      } catch {
+        continue
+      }
+      if (event.type === 'log') {
+        const msg = event.message ?? event.content ?? ''
+        if (msg) onLog(msg)
+      }
+      if (event.type === 'result') onResult(event.data)
+      if (event.type === 'error') onError(event.message ?? 'Unknown error')
+    }
+  }
+  if (buffer.trim()) {
+    try {
+      const event = JSON.parse(buffer.trim()) as AgentEvent
+      if (event.type === 'log') {
+        const msg = event.message ?? event.content ?? ''
+        if (msg) onLog(msg)
+      }
+      if (event.type === 'result') onResult(event.data)
+      if (event.type === 'error') onError(event.message ?? 'Unknown error')
+    } catch {
+      // ignore incomplete final line
+    }
+  }
+}
+
 // ─── Step Progress Bar ────────────────────────────────────────────────────────
 
 function StepBar({ current }: { current: number }) {
@@ -202,16 +278,16 @@ export default function ProductOnboardingFlow() {
   // Step 1 sub-states: form → streaming → report (no navigation)
   type Step1Screen = 'form' | 'streaming' | 'report'
   const [step1Screen, setStep1Screen] = useState<Step1Screen>('form')
+  const [step1CurrentStatus, setStep1CurrentStatus] = useState('')
   const [step1Logs, setStep1Logs] = useState<string[]>([])
-  const [step1Phase, setStep1Phase] = useState(0)
+  const [step1Running, setStep1Running] = useState(false)
   const [step1Elapsed, setStep1Elapsed] = useState(0)
   const [step1Result, setStep1Result] = useState<StrategyResultData | null>(null)
   const [step1Error, setStep1Error] = useState('')
   const [step1ReportMd, setStep1ReportMd] = useState('')
   const [strategyReportResult, setStrategyReportResult] = useState<StrategyResultData | null>(null)
+  const [step1DetailsOpen, setStep1DetailsOpen] = useState(false)
   const step1AbortRef = useRef<AbortController | null>(null)
-  const step1LogPanelRef = useRef<HTMLDivElement>(null)
-  const step1UserScrolledRef = useRef(false)
   const step1ElapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // doc source tab: 'upload' | 'url' | 'drive'
   const [docTab, setDocTab] = useState<'upload' | 'url' | 'drive'>('upload')
@@ -359,12 +435,12 @@ export default function ProductOnboardingFlow() {
     setError('')
     setStep1Error('')
     setStep1Screen('streaming')
+    setStep1CurrentStatus('Connecting…')
     setStep1Logs([])
-    setStep1Phase(0)
+    setStep1Running(true)
     setStep1Elapsed(0)
     setStep1Result(null)
     setStep1ReportMd('')
-    step1UserScrolledRef.current = false
 
     let strategyDocText = ''
     if (docFile) {
@@ -373,142 +449,79 @@ export default function ProductOnboardingFlow() {
       } catch (err) {
         setStep1Error(err instanceof Error ? err.message : 'Failed to extract document text')
         setStep1Screen('form')
+        setStep1Running(false)
         return
       }
-    }
-
-    // Modal API: fetch + ReadableStream only (no axios). See docs/MODAL_AGENT_API.md.
-    const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL
-    if (!agentUrl) {
-      setStep1Error('Agent URL not configured (NEXT_PUBLIC_AGENT_URL).')
-      setStep1Screen('form')
-      return
     }
 
     const controller = new AbortController()
     step1AbortRef.current = controller
-
     const start = Date.now()
     step1ElapsedIntervalRef.current = setInterval(() => {
-      setStep1Elapsed(Math.floor((Date.now() - start) / 1000))
+      setStep1Elapsed((t) => Math.floor((Date.now() - start) / 1000))
     }, 1000)
 
-    const phaseFromLine = (line: string): number => {
-      if (line.includes('[Phase 4]')) return 5
-      if (line.includes('[Phase 2.5]')) return 4
-      if (line.includes('[Phase 2]')) return 3
-      if (line.includes('[Phase 1.5]')) return 2
-      if (line.includes('[Phase 1]')) return 1
-      return 0
+    const stopRunning = () => {
+      setStep1Running(false)
+      clearInterval(step1ElapsedIntervalRef.current ?? undefined)
+      step1ElapsedIntervalRef.current = null
+      step1AbortRef.current = null
     }
 
     try {
-      const res = await fetch(agentUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          description: productDescription.trim(),
-          strategy_doc: strategyDocText || undefined,
-        }),
+      await runAgentStream({
+        url,
+        description: productDescription.trim(),
+        strategy_doc: strategyDocText,
         signal: controller.signal,
-      })
-      if (!res.ok || !res.body) {
-        setStep1Error(res.status === 0 ? 'Connection lost — try again' : `Request failed (${res.status})`)
-        setStep1Screen('form')
-        return
-      }
-      const reader = res.body.getReader()
-      const dec = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += dec.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-          try {
-            const obj = JSON.parse(trimmed) as { type?: string; message?: string; content?: string; data?: StrategyResultData }
-            const logMsg = obj.type === 'log' && (typeof obj.message === 'string' ? obj.message : typeof obj.content === 'string' ? obj.content : null)
-            if (logMsg) {
-              setStep1Logs((prev) => [...prev, logMsg])
-              const p = phaseFromLine(logMsg)
-              if (p > 0) setStep1Phase((curr) => Math.max(curr, p))
-            } else if (obj.type === 'result' && obj.data) {
-              clearInterval(step1ElapsedIntervalRef.current ?? undefined)
-              step1ElapsedIntervalRef.current = null
-              setStep1Result(obj.data)
-              setStep1ReportMd(buildReportMarkdown(obj.data))
-              setStep1Screen('report')
-              return
-            } else if (obj.type === 'error' && typeof obj.message === 'string') {
-              const msg = obj.message
-              if (msg.includes('Could not parse model output as JSON') && msg.includes('Raw output')) {
-                const jsonMatch = msg.match(/```\s*\n?([\s\S]*?)\n?```/)
-                if (jsonMatch) {
-                  try {
-                    const data = JSON.parse(jsonMatch[1].trim()) as StrategyResultData
-                    if (data && (data.input_product != null || data.ranked_opportunities != null)) {
-                      clearInterval(step1ElapsedIntervalRef.current ?? undefined)
-                      step1ElapsedIntervalRef.current = null
-                      setStep1Result(data)
-                      setStep1ReportMd(buildReportMarkdown(data))
-                      setStep1Screen('report')
-                      return
-                    }
-                  } catch {
-                    /* fall through to show error */
-                  }
+        onLog: (msg) => {
+          setStep1CurrentStatus(msg)
+          setStep1Logs((prev) => [...prev, msg])
+        },
+        onResult: (data) => {
+          stopRunning()
+          const d = data as StrategyResultData
+          setStep1Result(d)
+          setStep1ReportMd(buildReportMarkdown(d))
+          setStep1Screen('report')
+        },
+        onError: (msg) => {
+          if (msg.includes('Could not parse model output as JSON') && msg.includes('Raw output')) {
+            const jsonMatch = msg.match(/```\s*\n?([\s\S]*?)\n?```/)
+            if (jsonMatch) {
+              try {
+                const data = JSON.parse(jsonMatch[1].trim()) as StrategyResultData
+                if (data && (data.input_product != null || data.ranked_opportunities != null)) {
+                  stopRunning()
+                  setStep1Result(data)
+                  setStep1ReportMd(buildReportMarkdown(data))
+                  setStep1Screen('report')
+                  return
                 }
+              } catch {
+                /* fall through */
               }
-              setStep1Error(msg)
-              setStep1Screen('form')
-              return
             }
-          } catch {
-            setStep1Logs((prev) => [...prev, trimmed])
-            const p = phaseFromLine(trimmed)
-            if (p > 0) setStep1Phase((curr) => Math.max(curr, p))
           }
-        }
-      }
-      if (buffer.trim()) {
-        try {
-          const obj = JSON.parse(buffer.trim()) as { type?: string; message?: string; data?: StrategyResultData }
-          if (obj.type === 'result' && obj.data) {
-            clearInterval(step1ElapsedIntervalRef.current ?? undefined)
-            setStep1Result(obj.data)
-            setStep1ReportMd(buildReportMarkdown(obj.data))
-            setStep1Screen('report')
-            return
-          }
-        } catch {
-          setStep1Logs((prev) => [...prev, buffer.trim()])
-        }
-      }
-      setStep1Error('Connection lost — try again')
-      setStep1Screen('form')
+          stopRunning()
+          setStep1Error(msg)
+          setStep1Screen('form')
+        },
+      })
     } catch (err) {
+      stopRunning()
       if ((err as Error).name === 'AbortError') {
         setStep1Screen('form')
       } else {
         setStep1Error(err instanceof Error ? err.message : 'Connection lost — try again')
         setStep1Screen('form')
       }
-    } finally {
-      clearInterval(step1ElapsedIntervalRef.current ?? undefined)
-      step1ElapsedIntervalRef.current = null
-      step1AbortRef.current = null
     }
   }, [productUrl, productDescription, docFile])
 
   const cancelStep1Stream = useCallback(() => {
-    if (step1AbortRef.current) {
-      step1AbortRef.current.abort()
-    }
+    step1AbortRef.current?.abort()
+    setStep1Running(false)
     setStep1Screen('form')
   }, [])
 
@@ -691,9 +704,12 @@ export default function ProductOnboardingFlow() {
             </p>
 
             {step1Error && (
-              <div className="mb-5 rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
-                {step1Error}
-                <button type="button" onClick={() => setStep1Error('')} className="ml-2 text-red-300 hover:text-white underline">Dismiss</button>
+              <div className="mb-5 rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400 flex flex-wrap items-center justify-between gap-2">
+                <span>{step1Error}</span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setStep1Error('')} className="text-red-300 hover:text-white underline text-xs">Dismiss</button>
+                  <button type="button" onClick={() => { setStep1Error(''); runStep1Stream() }} className="text-xs font-medium text-red-300 hover:text-white underline">Try again</button>
+                </div>
               </div>
             )}
 
@@ -769,21 +785,46 @@ export default function ProductOnboardingFlow() {
         )}
 
         {step === 1 && step1Screen === 'streaming' && (
-          <div className="flex flex-col items-center justify-center py-12">
+          <div className="py-8">
             <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-6">Step 1 of 6</p>
 
-            {/* Claude-style pulsating icon */}
-            <div className="flex items-center justify-center gap-1 mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+            {/* Top row: pulsing dot + one-line current status */}
+            <div className="flex items-center gap-3 mb-2">
+              {step1Running ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                </div>
+              ) : (
+                <div className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
+              )}
+              <p className="text-sm text-[#a0a0a0] min-h-[1.25rem] truncate flex-1">
+                {step1CurrentStatus || 'Researching your product…'}
+              </p>
             </div>
+            <p className="text-xs text-[#555] mb-4">{step1Elapsed}s</p>
 
-            {/* One line: current activity streamed */}
-            <p className="text-sm text-[#a0a0a0] text-center min-h-[1.25rem] mb-1">
-              {step1Logs.length > 0 ? step1Logs[step1Logs.length - 1] : 'Researching your product...'}
-            </p>
-            <p className="text-xs text-[#555] mb-8">{step1Elapsed}s</p>
+            {/* Collapsible Details: full log history */}
+            {step1Logs.length > 0 && (
+              <div className="mb-4 rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setStep1DetailsOpen((o) => !o)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-[#666] hover:text-[#a0a0a0] hover:bg-[#1a1a1a] transition-colors"
+                >
+                  <span>Details</span>
+                  <span className="text-[#444]">{step1DetailsOpen ? '▼' : '▶'}</span>
+                </button>
+                {step1DetailsOpen && (
+                  <div className="max-h-48 overflow-y-auto border-t border-[#2a2a2a] p-3 font-mono text-[12px] text-[#666] leading-relaxed space-y-0.5">
+                    {step1Logs.map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="button"
