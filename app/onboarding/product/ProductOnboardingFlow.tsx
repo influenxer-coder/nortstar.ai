@@ -256,6 +256,45 @@ async function runAgentStream({
   }
 }
 
+// ─── Claude-style markdown renderer ──────────────────────────────────────────
+
+const MD_COMPONENTS: import('react-markdown').Components = {
+  p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed">{children}</p>,
+  h1: ({ children }) => <p className="text-sm font-semibold text-[#f0f0f0] mt-3 mb-1 first:mt-0">{children}</p>,
+  h2: ({ children }) => <p className="text-sm font-semibold text-[#f0f0f0] mt-3 mb-1 first:mt-0">{children}</p>,
+  h3: ({ children }) => <p className="text-xs font-semibold text-[#d0d0d0] mt-2 mb-0.5 first:mt-0">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-[#f0f0f0]">{children}</strong>,
+  em: ({ children }) => <em className="italic text-[#a0a0a0]">{children}</em>,
+  ul: ({ children }) => <ul className="my-1.5 space-y-0.5 pl-4">{children}</ul>,
+  ol: ({ children }) => <ol className="my-1.5 space-y-0.5 pl-4 list-decimal">{children}</ol>,
+  li: ({ children }) => <li className="text-sm leading-relaxed list-disc marker:text-[#555]">{children}</li>,
+  code: ({ children, className }) =>
+    className
+      ? <code className="block my-1.5 rounded-md bg-[#111] border border-[#2a2a2a] px-3 py-2 text-xs font-mono text-[#e0e0e0] overflow-x-auto whitespace-pre">{children}</code>
+      : <code className="rounded px-1 py-0.5 bg-[#1a1a1a] text-xs font-mono text-[#c0c0c0]">{children}</code>,
+  pre: ({ children }) => <>{children}</>,
+  blockquote: ({ children }) => <blockquote className="border-l-2 border-[#4f8ef7]/40 pl-3 my-1.5 text-[#888] italic">{children}</blockquote>,
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto rounded-lg border border-[#2a2a2a]">
+      <table className="w-full text-xs border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-[#1a1a1a]">{children}</thead>,
+  tbody: ({ children }) => <tbody className="divide-y divide-[#1a1a1a]">{children}</tbody>,
+  tr: ({ children }) => <tr>{children}</tr>,
+  th: ({ children }) => <th className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-[#888]">{children}</th>,
+  td: ({ children }) => <td className="px-3 py-2 text-[#a0a0a0] align-top">{children}</td>,
+  hr: () => <hr className="my-2 border-[#2a2a2a]" />,
+}
+
+function MarkdownMessage({ content }: { content: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+      {content}
+    </ReactMarkdown>
+  )
+}
+
 // ─── Step Progress Bar ────────────────────────────────────────────────────────
 
 function StepBar({ current, onGoBack }: { current: number; onGoBack?: (n: number) => void }) {
@@ -1738,15 +1777,13 @@ export default function ProductOnboardingFlow() {
                   {chatMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div
-                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                        className={`max-w-[85%] rounded-lg px-3 py-2 ${
                           m.role === 'user'
-                            ? 'bg-[#4f8ef7] text-white'
-                            : 'bg-[#1a1a1a] text-[#e0e0e0] prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:text-[#f0f0f0] prose-headings:font-semibold prose-headings:my-2 prose-li:my-0 prose-ul:my-1 prose-ol:my-1 prose-strong:text-[#f0f0f0] prose-table:text-xs prose-td:py-1 prose-th:py-1'
+                            ? 'bg-[#4f8ef7] text-white text-sm'
+                            : 'bg-[#1a1a1a] text-[#c0c0c0]'
                         }`}
                       >
-                        {m.role === 'assistant'
-                          ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                          : m.content}
+                        {m.role === 'assistant' ? <MarkdownMessage content={m.content} /> : m.content}
                       </div>
                     </div>
                   ))}
@@ -2192,14 +2229,8 @@ export default function ProductOnboardingFlow() {
                   )}
                   {step2ChatMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`rounded-xl px-3 py-2 max-w-[90%] text-xs ${m.role === 'user' ? 'bg-[#4f8ef7]/20 text-[#c0d4f5]' : 'bg-[#1a1a1a] text-[#a0a0a0]'}`}>
-                        {m.role === 'assistant' ? (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-invert prose-xs max-w-none text-xs [&>*]:text-[#a0a0a0] [&>ul]:pl-4 [&>ol]:pl-4 [&>table]:text-[11px] [&>pre]:text-[11px]">
-                            {m.content}
-                          </ReactMarkdown>
-                        ) : (
-                          m.content
-                        )}
+                      <div className={`rounded-xl px-3 py-2 max-w-[90%] ${m.role === 'user' ? 'bg-[#4f8ef7]/20 text-[#c0d4f5] text-sm' : 'bg-[#1a1a1a] text-[#c0c0c0]'}`}>
+                        {m.role === 'assistant' ? <MarkdownMessage content={m.content} /> : m.content}
                       </div>
                     </div>
                   ))}
