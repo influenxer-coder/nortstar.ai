@@ -161,7 +161,8 @@ async function runAgentStream({
       if (!line.trim()) continue
       let event: AgentEvent | null = null
       try {
-        event = JSON.parse(line) as AgentEvent
+        const raw = line.startsWith('data: ') ? line.slice(6) : line
+        event = JSON.parse(raw) as AgentEvent
       } catch {
         continue
       }
@@ -289,6 +290,11 @@ export default function ProductOnboardingFlow() {
   const [step1DetailsOpen, setStep1DetailsOpen] = useState(false)
   const step1AbortRef = useRef<AbortController | null>(null)
   const step1ElapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Step 1 chat (strategy report right panel)
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatBottomRef = useRef<HTMLDivElement>(null)
   // doc source tab: 'upload' | 'url' | 'drive'
   const [docTab, setDocTab] = useState<'upload' | 'url' | 'drive'>('upload')
   // Google Drive
@@ -675,6 +681,32 @@ export default function ProductOnboardingFlow() {
   }, [])
   const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), [])
 
+  // ── Step 1 chat ─────────────────────────────────────────────────────────────
+  const handleChat = useCallback(async () => {
+    if (!chatInput.trim() || chatLoading || !step1Result) return
+    const message = chatInput.trim()
+    setChatInput('')
+    setChatMessages((prev) => [...prev, { role: 'user', content: message }])
+    setChatLoading(true)
+    try {
+      const res = await fetch('/api/onboarding/strategy-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, strategy_json: step1Result }),
+      })
+      const d = await res.json()
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: d.reply ?? 'No response.' }])
+    } catch {
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: 'Something went wrong. Try again.' }])
+    } finally {
+      setChatLoading(false)
+    }
+  }, [chatInput, chatLoading, step1Result])
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
   // ── Can-continue guards ────────────────────────────────────────────────────
   const can1 = productUrl.trim() !== ''
   const can2 = !!nsMetric.trim()
@@ -686,7 +718,7 @@ export default function ProductOnboardingFlow() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#f0f0f0]">
-      <div className="max-w-[600px] mx-auto px-6 py-10">
+      <div className={step === 1 && step1Screen === 'report' ? 'max-w-[1200px] mx-auto px-6 py-10' : 'max-w-[600px] mx-auto px-6 py-10'}>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
@@ -849,41 +881,224 @@ export default function ProductOnboardingFlow() {
           </div>
         )}
 
-        {step === 1 && step1Screen === 'report' && (
+        {step === 1 && step1Screen === 'report' && step1Result && (
           <div>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
-            <h2 className="text-xl font-semibold text-[#f0f0f0] mb-6">Strategy report</h2>
-
-            <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-6 mb-6 prose prose-invert prose-sm max-w-none prose-p:text-[#e0e0e0] prose-headings:text-[#f0f0f0] prose-strong:text-[#f0f0f0] prose-li:text-[#e0e0e0]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{step1ReportMd}</ReactMarkdown>
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-1">Step 1 of 6</p>
+                <h2 className="text-xl font-semibold text-[#f0f0f0]">Strategy Report</h2>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = (step1Result.input_product?.name ?? 'product').replace(/[^a-z0-9-_]/gi, '-').toLowerCase()
+                    const date = new Date().toISOString().slice(0, 10)
+                    const blob = new Blob([step1ReportMd], { type: 'text/markdown' })
+                    const a = document.createElement('a')
+                    a.href = URL.createObjectURL(blob)
+                    a.download = `northstar-strategy-${name}-${date}.md`
+                    a.click()
+                    URL.revokeObjectURL(a.href)
+                  }}
+                  className="py-2 px-4 rounded-lg text-sm border border-[#2a2a2a] text-[#a0a0a0] hover:text-[#f0f0f0] hover:border-[#3a3a3a] transition-colors"
+                >
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStep1ContinueToOnboarding}
+                  className="py-2 px-5 rounded-lg text-sm font-semibold"
+                  style={{ background: '#4f8ef7', color: '#fff' }}
+                >
+                  Continue to onboarding →
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const name = (step1Result?.input_product?.name ?? 'product').replace(/[^a-z0-9-_]/gi, '-').toLowerCase()
-                  const date = new Date().toISOString().slice(0, 10)
-                  const filename = `northstar-strategy-${name}-${date}.md`
-                  const blob = new Blob([step1ReportMd], { type: 'text/markdown' })
-                  const a = document.createElement('a')
-                  a.href = URL.createObjectURL(blob)
-                  a.download = filename
-                  a.click()
-                  URL.revokeObjectURL(a.href)
-                }}
-                className="flex-1 py-3 px-4 rounded-lg text-sm font-medium border border-[#2a2a2a] text-[#f0f0f0] hover:border-[#3a3a3a] hover:bg-[#1a1a1a] transition-colors"
-              >
-                Download report
-              </button>
-              <button
-                type="button"
-                onClick={handleStep1ContinueToOnboarding}
-                className="flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-colors"
-                style={{ background: '#4f8ef7', color: '#fff' }}
-              >
-                Continue to onboarding →
-              </button>
+            {/* Two-column: cards left, chat right */}
+            <div className="flex gap-6" style={{ height: 'calc(100vh - 180px)' }}>
+              {/* Left: strategy cards */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                {/* Product overview */}
+                <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-base font-semibold text-[#f0f0f0]">{step1Result.input_product?.name}</p>
+                      <p className="text-xs text-[#555] mt-0.5">{step1Result.input_product?.category}</p>
+                    </div>
+                    {step1Result.stage && (
+                      <span className="text-xs px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#a0a0a0] shrink-0 ml-3 capitalize">
+                        {step1Result.stage}
+                      </span>
+                    )}
+                  </div>
+                  {step1Result.input_product?.core_value_prop && (
+                    <p className="text-sm text-[#a0a0a0] mb-2">{step1Result.input_product.core_value_prop}</p>
+                  )}
+                  {step1Result.input_product?.target_customer && (
+                    <p className="text-xs text-[#555]">Target: {step1Result.input_product.target_customer}</p>
+                  )}
+                  {step1Result.framework_applied && (
+                    <p className="text-xs text-[#444] mt-1">Framework: {step1Result.framework_applied}</p>
+                  )}
+                </div>
+
+                {/* Recommended wedge */}
+                {step1Result.recommended_wedge && (
+                  <div className="rounded-xl border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-5">
+                    <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Recommended Wedge</p>
+                    <p className="text-sm text-[#e0e0e0]">{step1Result.recommended_wedge}</p>
+                  </div>
+                )}
+
+                {/* Ranked opportunities */}
+                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Top Opportunities</p>
+                    <div className="space-y-4">
+                      {step1Result.ranked_opportunities!.slice(0, 3).map((opp, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <span className="text-xs text-[#4f8ef7] font-mono mt-0.5 shrink-0 w-5">#{opp.rank ?? i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-[#f0f0f0]">{opp.opportunity}</p>
+                            {opp.target_segment && <p className="text-xs text-[#555] mt-0.5">{opp.target_segment}</p>}
+                            {opp.recommended_action && <p className="text-xs text-[#444] mt-1">{opp.recommended_action}</p>}
+                          </div>
+                          {opp.composite_score != null && (
+                            <span className="text-xs text-[#4f8ef7] font-mono shrink-0">{opp.composite_score}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Competitive landscape */}
+                {((step1Result.direct_competitors?.length ?? 0) > 0 || (step1Result.indirect_competitors?.length ?? 0) > 0) && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Competitive Landscape</p>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs text-[#555] mb-2">Direct</p>
+                        <div className="space-y-2">
+                          {step1Result.direct_competitors?.slice(0, 4).map((c, i) => (
+                            <div key={i}>
+                              <p className="text-sm text-[#e0e0e0]">{c.name}</p>
+                              {c.what_they_do && <p className="text-xs text-[#555]">{c.what_they_do}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#555] mb-2">Indirect</p>
+                        <div className="space-y-2">
+                          {step1Result.indirect_competitors?.slice(0, 4).map((c, i) => (
+                            <div key={i}>
+                              <p className="text-sm text-[#e0e0e0]">{c.name}</p>
+                              {c.what_they_do && <p className="text-xs text-[#555]">{c.what_they_do}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Emerging trends */}
+                {(step1Result.emerging_trends?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Emerging Trends</p>
+                    <div className="space-y-3">
+                      {step1Result.emerging_trends!.slice(0, 4).map((t, i) => (
+                        <div key={i}>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-sm text-[#f0f0f0]">{t.trend}</p>
+                            {t.momentum && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#1a1a1a] text-[#666]">{t.momentum}</span>
+                            )}
+                          </div>
+                          {t.time_horizon && <p className="text-xs text-[#555]">{t.time_horizon}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Unmet needs */}
+                {(step1Result.unmet_needs?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Unmet Needs</p>
+                    <div className="space-y-3">
+                      {step1Result.unmet_needs!.slice(0, 4).map((n, i) => (
+                        <div key={i}>
+                          <p className="text-sm text-[#f0f0f0]">{n.need}</p>
+                          {n.how_widespread && <p className="text-xs text-[#555] mt-0.5">{n.how_widespread}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: chat panel */}
+              <div className="w-[340px] shrink-0 flex flex-col border border-[#2a2a2a] rounded-xl bg-[#0d0d0d] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#2a2a2a] shrink-0">
+                  <p className="text-sm font-medium text-[#f0f0f0]">Ask about your strategy</p>
+                  <p className="text-xs text-[#444] mt-0.5">Competitors, positioning, opportunities…</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {chatMessages.length === 0 && (
+                    <p className="text-xs text-[#444]">Ask NorthStar anything about this strategy report.</p>
+                  )}
+                  {chatMessages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                          m.role === 'user'
+                            ? 'bg-[#4f8ef7] text-white'
+                            : 'bg-[#1a1a1a] text-[#e0e0e0]'
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-[#1a1a1a] rounded-lg px-3 py-2">
+                        <div className="flex gap-1 items-center">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+                <div className="border-t border-[#2a2a2a] p-3 shrink-0">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat() } }}
+                      placeholder="Ask a question…"
+                      className="flex-1 bg-[#1a1a1a] text-sm text-[#f0f0f0] placeholder-[#444] border border-[#2a2a2a] rounded-lg px-3 py-2 focus:outline-none focus:border-[#4f8ef7] transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleChat}
+                      disabled={!chatInput.trim() || chatLoading}
+                      className="px-3 py-2 bg-[#4f8ef7] text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-[#6b9ef7] transition-colors"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
