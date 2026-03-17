@@ -979,40 +979,18 @@ export default function ProductOnboardingFlow() {
                   )}
                 </div>
 
-                {/* Recommended wedge */}
+                {/* What the space is */}
                 {step1Result.recommended_wedge && (
                   <div className="rounded-xl border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-5">
-                    <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Recommended Wedge</p>
+                    <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">What the Space Is</p>
                     <p className="text-sm text-[#e0e0e0]">{step1Result.recommended_wedge}</p>
                   </div>
                 )}
 
-                {/* Ranked opportunities */}
-                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Top Opportunities</p>
-                    <div className="space-y-4">
-                      {step1Result.ranked_opportunities!.slice(0, 3).map((opp, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <span className="text-xs text-[#4f8ef7] font-mono mt-0.5 shrink-0 w-5">#{opp.rank ?? i + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-[#f0f0f0]">{opp.opportunity}</p>
-                            {opp.target_segment && <p className="text-xs text-[#555] mt-0.5">{opp.target_segment}</p>}
-                            {opp.recommended_action && <p className="text-xs text-[#444] mt-1">{opp.recommended_action}</p>}
-                          </div>
-                          {opp.composite_score != null && (
-                            <span className="text-xs text-[#4f8ef7] font-mono shrink-0">{opp.composite_score}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Competitive landscape */}
+                {/* Top competitors */}
                 {((step1Result.direct_competitors?.length ?? 0) > 0 || (step1Result.indirect_competitors?.length ?? 0) > 0) && (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Competitive Landscape</p>
+                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Top Competitors</p>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <p className="text-xs text-[#555] mb-2">Direct</p>
@@ -1036,6 +1014,28 @@ export default function ProductOnboardingFlow() {
                           ))}
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Top opportunities */}
+                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-xs text-[#a0a0a0] uppercase tracking-widest font-medium mb-4">Top Opportunities</p>
+                    <div className="space-y-4">
+                      {step1Result.ranked_opportunities!.slice(0, 3).map((opp, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <span className="text-xs text-[#4f8ef7] font-mono mt-0.5 shrink-0 w-5">#{opp.rank ?? i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-[#f0f0f0]">{opp.opportunity}</p>
+                            {opp.target_segment && <p className="text-xs text-[#555] mt-0.5">{opp.target_segment}</p>}
+                            {opp.recommended_action && <p className="text-xs text-[#444] mt-1">{opp.recommended_action}</p>}
+                          </div>
+                          {opp.composite_score != null && (
+                            <span className="text-xs text-[#4f8ef7] font-mono shrink-0">{opp.composite_score}</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
