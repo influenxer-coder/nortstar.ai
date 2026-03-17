@@ -594,6 +594,7 @@ export default function ProductOnboardingFlow() {
       if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
       const pid = data.id as string
       setProjectId(pid)
+      resumedRef.current = true // prevent resume effect from overriding step after navigation
       if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', pid)
       goToStep(2, pid)
     } catch (err) {
