@@ -332,8 +332,9 @@ export default function ProductOnboardingFlow() {
   const projectIdParam = searchParams.get('projectId')
   const stepParam = searchParams.get('step')
 
-  const [step, setStep] = useState(Math.min(TOTAL_STEPS, Math.max(1, parseInt(stepParam || '1', 10) || 1)))
-  const [projectId, setProjectId] = useState<string | null>(projectIdParam)
+  // Initialize to SSR-safe defaults; actual values set from URL in mount effect
+  const [step, setStep] = useState(1)
+  const [projectId, setProjectId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const resumedRef = useRef(false)
@@ -408,6 +409,14 @@ export default function ProductOnboardingFlow() {
   const [analyticsValidating, setAnalyticsValidating] = useState<Record<string, boolean>>({})
   const [analyticsErrors, setAnalyticsErrors] = useState<Record<string, string>>({})
   const [selectedTool, setSelectedTool] = useState<string | null>('posthog')
+
+  // ── Initialize step + projectId from URL params (client-only, avoids SSR mismatch) ──
+  useEffect(() => {
+    if (projectIdParam) setProjectId(projectIdParam)
+    const n = parseInt(stepParam || '1', 10) || 1
+    setStep(Math.min(TOTAL_STEPS, Math.max(1, n)))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentionally only on mount
 
   // ── Google Drive: handle OAuth return ─────────────────────────────────────
   useEffect(() => {
