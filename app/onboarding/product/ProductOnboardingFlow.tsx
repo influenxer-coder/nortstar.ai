@@ -1022,6 +1022,12 @@ export default function ProductOnboardingFlow() {
     step2ChatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [step2ChatMessages])
 
+  // ── Debug: log metrics result shape so we can catch object-render issues ──
+  useEffect(() => {
+    if (!step2Result) return
+    console.log('[NorthStar] step2Result received:', JSON.stringify(step2Result, null, 2))
+  }, [step2Result])
+
   // ── Can-continue guards ────────────────────────────────────────────────────
   const can1 = productUrl.trim() !== ''
   const can2 = true
@@ -2161,9 +2167,10 @@ export default function ProductOnboardingFlow() {
                       <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
                         <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Refined KRs</p>
                         <ul className="space-y-1">
-                          {step2Result.stress_test.refined_key_results!.map((kr, i) => (
-                            <li key={i} className="text-xs text-[#555] flex gap-2"><span className="text-[#22c55e]/40 shrink-0">→</span>{kr}</li>
-                          ))}
+                          {step2Result.stress_test.refined_key_results!.map((kr, i) => {
+                            const krText = typeof kr === 'string' ? kr : (kr as MetricsKRFull).kr ?? JSON.stringify(kr)
+                            return <li key={i} className="text-xs text-[#555] flex gap-2"><span className="text-[#22c55e]/40 shrink-0">→</span>{krText}</li>
+                          })}
                         </ul>
                       </div>
                     )}
