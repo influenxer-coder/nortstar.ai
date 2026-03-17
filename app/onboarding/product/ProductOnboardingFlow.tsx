@@ -1992,13 +1992,23 @@ export default function ProductOnboardingFlow() {
                   </div>
                 )}
 
-                {/* 3. Key Results */}
-                {(step2Result.key_results_full?.length ?? step2Result.key_results?.length ?? 0) > 0 && (
+                {/* 3. Key Results — key_results may be array OR object {"KR 1": "...", ...} */}
+                {(() => {
+                  const rawKr = step2Result.key_results
+                  const krStrings: string[] = Array.isArray(rawKr)
+                    ? (rawKr as unknown[]).map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
+                    : rawKr && typeof rawKr === 'object'
+                    ? Object.values(rawKr as Record<string, string>)
+                    : []
+                  const items: MetricsKRFull[] = step2Result.key_results_full?.length
+                    ? step2Result.key_results_full
+                    : krStrings.map((kr) => ({ kr }))
+                  if (!items.length) return null
+                  return (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
                     <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Key Results</p>
                     <div className="space-y-2">
-                      {(step2Result.key_results_full ?? step2Result.key_results?.map((kr) => ({ kr })) ?? []).map((item, i) => {
-                        const krObj = item as MetricsKRFull
+                      {items.map((krObj, i) => {
                         const isExpanded = !!step2KrExpanded[i]
                         return (
                           <div key={i} className="rounded-lg border border-[#1a1a1a] bg-[#111] overflow-hidden">
@@ -2008,7 +2018,7 @@ export default function ProductOnboardingFlow() {
                               className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[#1a1a1a] transition-colors"
                             >
                               <span className="shrink-0 mt-0.5 text-[10px] font-semibold text-[#4f8ef7]/60 w-5">KR{i + 1}</span>
-                              <p className="text-xs text-[#a0a0a0] flex-1 leading-relaxed">{krObj.kr ?? (item as { kr: string }).kr}</p>
+                              <p className="text-xs text-[#a0a0a0] flex-1 leading-relaxed">{krObj.kr ?? ''}</p>
                               <span className="text-[10px] text-[#444] shrink-0 mt-0.5">{isExpanded ? '▼' : '▶'}</span>
                             </button>
                             {isExpanded && (
@@ -2050,7 +2060,8 @@ export default function ProductOnboardingFlow() {
                       })}
                     </div>
                   </div>
-                )}
+                  )
+                })()}
 
                 {/* 4. Health Metrics */}
                 {(step2Result.health_metrics?.length ?? 0) > 0 && (
