@@ -23,12 +23,20 @@ export default function LandingPage() {
         <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-white/[0.08] bg-[#0a0a0a]/90 backdrop-blur-sm">
           <div className="max-w-5xl mx-auto px-6 h-full flex items-center justify-between">
             <span className="font-medium text-sm text-white tracking-tight">Agent NorthStar</span>
-            <Link
-              href="/auth/login"
-              className="bg-white text-[#0a0a0a] text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#0e7c7b] hover:text-white transition-colors"
-            >
-              Request access →
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/auth/signin"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/auth/login"
+                className="bg-white text-[#0a0a0a] text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#0e7c7b] hover:text-white transition-colors"
+              >
+                Request access →
+              </Link>
+            </div>
           </div>
         </nav>
 
