@@ -45,10 +45,15 @@ export interface StrategyResultThreat {
   recommended_response?: string
 }
 
+export interface StrategyResultCustomerBehaviorShift {
+  shift?: string
+  evidence?: string
+}
+
 export interface StrategyResultMarketTrends {
   emerging_trends?: StrategyResultTrend[]
   new_threats?: StrategyResultThreat[]
-  customer_behavior_shifts?: string[]
+  customer_behavior_shifts?: StrategyResultCustomerBehaviorShift[] | string[]
 }
 
 export interface StrategyResultPLGMotion {

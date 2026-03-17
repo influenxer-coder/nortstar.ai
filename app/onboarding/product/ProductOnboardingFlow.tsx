@@ -1373,9 +1373,19 @@ export default function ProductOnboardingFlow() {
                         <div className="mt-4 pt-4 border-t border-[#1a1a1a]">
                           <p className="text-[10px] text-[#444] uppercase tracking-widest mb-2">Customer behavior shifts</p>
                           <ul className="space-y-1">
-                            {step1Result.market_trends!.customer_behavior_shifts!.map((s, i) => (
-                              <li key={i} className="text-xs text-[#555] flex gap-2"><span className="shrink-0 text-[#444]">→</span>{s}</li>
-                            ))}
+                            {step1Result.market_trends!.customer_behavior_shifts!.map((s, i) => {
+                              const shift = typeof s === 'string' ? s : (s as { shift?: string; evidence?: string }).shift ?? ''
+                              const evidence = typeof s === 'string' ? undefined : (s as { shift?: string; evidence?: string }).evidence
+                              return (
+                                <li key={i} className="flex gap-2">
+                                  <span className="shrink-0 text-[#444] mt-0.5">→</span>
+                                  <div>
+                                    <p className="text-xs text-[#555]">{shift}</p>
+                                    {evidence && <p className="text-[10px] text-[#444] italic">{evidence}</p>}
+                                  </div>
+                                </li>
+                              )
+                            })}
                           </ul>
                         </div>
                       )}
