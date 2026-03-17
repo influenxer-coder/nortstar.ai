@@ -926,6 +926,37 @@ export default function ProductOnboardingFlow() {
               <div className="flex gap-3">
                 <button
                   type="button"
+                  onClick={async () => {
+                    if (!projectId) {
+                      // No project saved yet — just reset to blank form
+                      setStep1Result(null)
+                      setStep1ReportMd('')
+                      setStep1Screen('form')
+                      setProductUrl('')
+                      setProductDescription('')
+                      setDocFile(null)
+                      return
+                    }
+                    if (!window.confirm('Delete this product and all its data? This cannot be undone.')) return
+                    try {
+                      await fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
+                    } catch { /* best effort */ }
+                    if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
+                    setProjectId(null)
+                    setStep1Result(null)
+                    setStep1ReportMd('')
+                    setStep1Screen('form')
+                    setProductUrl('')
+                    setProductDescription('')
+                    setDocFile(null)
+                    router.replace('/onboarding/product', { scroll: false })
+                  }}
+                  className="py-2 px-4 rounded-lg text-sm border border-red-900/50 text-red-500 hover:border-red-700 hover:text-red-400 transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     const name = (step1Result.input_product?.name ?? 'product').replace(/[^a-z0-9-_]/gi, '-').toLowerCase()
                     const date = new Date().toISOString().slice(0, 10)
