@@ -36,6 +36,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Allowlist updatable fields
   const allowed = [
     'name', 'url', 'doc_url', 'has_doc',
+    'description', 'strategy_doc',
     'north_star_metric', 'north_star_current', 'north_star_target',
     'icp', 'sub_metrics', 'analytics_config',
     'strategy_json', 'strategy_markdown',

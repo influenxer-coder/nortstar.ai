@@ -7,7 +7,16 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { name?: string; url?: string; doc_url?: string; has_doc?: boolean }
+  let body: {
+    name?: string
+    url?: string
+    doc_url?: string
+    has_doc?: boolean
+    description?: string
+    strategy_doc?: string
+    strategy_json?: unknown
+    strategy_markdown?: string
+  }
   try {
     body = await req.json()
   } catch {
@@ -22,6 +31,10 @@ export async function POST(req: NextRequest) {
       url: body.url ?? null,
       doc_url: body.doc_url ?? null,
       has_doc: body.has_doc ?? false,
+      description: body.description ?? null,
+      strategy_doc: body.strategy_doc ?? null,
+      strategy_json: body.strategy_json ?? {},
+      strategy_markdown: body.strategy_markdown ?? null,
       enrichment_status: 'running',
       onboarding_step: 1,
     })

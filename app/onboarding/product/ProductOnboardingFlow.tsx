@@ -374,6 +374,7 @@ export default function ProductOnboardingFlow() {
       .then((d) => {
         if (d.error) return
         if (d.url) setProductUrl(d.url)
+        if (typeof d.description === 'string') setProductDescription(d.description)
         if (d.doc_url) setDocUrl(d.doc_url)
         if (d.north_star_metric) setNsMetric(d.north_star_metric)
         if (d.north_star_current) setNsCurrent(d.north_star_current)
@@ -383,6 +384,12 @@ export default function ProductOnboardingFlow() {
         if (d.icp?.industry) setIcpIndustry(d.icp.industry)
         if (d.icp?.pain_points) setIcpPain(d.icp.pain_points)
         if (Array.isArray(d.sub_metrics) && d.sub_metrics.length > 0) setSubMetrics(d.sub_metrics)
+        if (d.strategy_json) {
+          setStep1Result(d.strategy_json as StrategyResultData)
+        }
+        if (typeof d.strategy_markdown === 'string' && d.strategy_markdown.trim()) {
+          setStep1ReportMd(d.strategy_markdown)
+        }
         const resumeStep = Math.min(TOTAL_STEPS, Math.max(1, (d.onboarding_step ?? 1)))
         setStep(resumeStep)
       })
@@ -547,6 +554,8 @@ export default function ProductOnboardingFlow() {
           name,
           url: productUrl.trim() || null,
           has_doc: !!docFile,
+          description: productDescription.trim() || null,
+          strategy_doc: undefined, // optional: could persist extracted text later
           strategy_json: step1Result,
           strategy_markdown: step1ReportMd,
         }),
