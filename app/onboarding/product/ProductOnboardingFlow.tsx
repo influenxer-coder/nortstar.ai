@@ -61,6 +61,73 @@ const ANALYTICS_TOOLS = [
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// ─── Metrics agent result types ───────────────────────────────────────────────
+
+interface MetricsGoal {
+  objective?: string
+  objective_reasoning?: string
+  timeframe?: string
+  connection_to_strategy?: string
+}
+
+interface MetricsNorthStar {
+  metric?: string
+  current_value?: string
+  target_value?: string
+  why_this_metric?: string
+  measurement_method?: string
+  similar_company_example?: string
+}
+
+interface MetricsKRFull {
+  kr?: string
+  metric_type?: string
+  current_baseline?: string
+  target?: string
+  why_this_kr?: string
+  measurement_method?: string
+  industry_benchmark?: string
+  leading_or_lagging?: string
+}
+
+interface MetricsHealthMetric {
+  metric?: string
+  threshold?: string
+  why_it_matters?: string
+}
+
+interface MetricsInputMetric {
+  metric?: string
+  drives?: string
+  why_high_correlation?: string
+}
+
+interface MetricsNotToMeasure {
+  metric?: string
+  why_not?: string
+}
+
+interface MetricsStressTest {
+  overall_quality?: string
+  issues_found?: { issue?: string; affected_kr?: string; fix?: string }[]
+  refined_key_results?: string[]
+  confidence_score?: number
+  confidence_reasoning?: string
+}
+
+interface MetricsResultData {
+  framework_applied?: string
+  framework_reasoning?: string
+  goal?: MetricsGoal
+  north_star_metric?: MetricsNorthStar
+  key_results?: string[]
+  key_results_full?: MetricsKRFull[]
+  health_metrics?: MetricsHealthMetric[]
+  input_metrics?: MetricsInputMetric[]
+  what_not_to_measure?: MetricsNotToMeasure[]
+  stress_test?: MetricsStressTest
+}
+
 type SubMetric = { name: string; current: string; target: string }
 
 type DriveFile = {
@@ -309,6 +376,22 @@ export default function ProductOnboardingFlow() {
   const [nsMetric, setNsMetric] = useState('')
   const [nsCurrent, setNsCurrent] = useState('')
   const [nsTarget, setNsTarget] = useState('')
+  type Step2Screen = 'form' | 'streaming' | 'report'
+  const [step2Screen, setStep2Screen] = useState<Step2Screen>('form')
+  const [step2CurrentStatus, setStep2CurrentStatus] = useState('')
+  const [step2Logs, setStep2Logs] = useState<string[]>([])
+  const [step2Running, setStep2Running] = useState(false)
+  const [step2Elapsed, setStep2Elapsed] = useState(0)
+  const [step2Result, setStep2Result] = useState<MetricsResultData | null>(null)
+  const [step2Error, setStep2Error] = useState('')
+  const [step2DetailsOpen, setStep2DetailsOpen] = useState(false)
+  const step2AbortRef = useRef<AbortController | null>(null)
+  const step2ElapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [step2ChatMessages, setStep2ChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [step2ChatInput, setStep2ChatInput] = useState('')
+  const [step2ChatLoading, setStep2ChatLoading] = useState(false)
+  const step2ChatBottomRef = useRef<HTMLDivElement>(null)
+  const [step2KrExpanded, setStep2KrExpanded] = useState<Record<number, boolean>>({})
 
   // ── Step 3 ─────────────────────────────────────────────────────────────────
   const [icpRole, setIcpRole] = useState('')
@@ -398,6 +481,10 @@ export default function ProductOnboardingFlow() {
         if (typeof d.strategy_markdown === 'string' && d.strategy_markdown.trim()) {
           setStep1ReportMd(d.strategy_markdown)
         }
+        if (d.metrics_json) {
+          setStep2Result(d.metrics_json as MetricsResultData)
+          setStep2Screen('report')
+        }
         const resumeStep = Math.min(TOTAL_STEPS, Math.max(1, (d.onboarding_step ?? 1)))
         setStep(resumeStep)
       })
@@ -429,6 +516,13 @@ export default function ProductOnboardingFlow() {
       setStep1Screen('report')
     }
   }, [step, step1Result, step1Screen])
+
+  // ── Auto-restore step 2 report when navigating back ───────────────────────
+  useEffect(() => {
+    if (step === 2 && step2Result && step2Screen === 'form') {
+      setStep2Screen('report')
+    }
+  }, [step, step2Result, step2Screen])
 
   // ── Navigation helpers ─────────────────────────────────────────────────────
   const goToStep = useCallback((n: number, pid?: string) => {
@@ -579,6 +673,149 @@ export default function ProductOnboardingFlow() {
     setStep1Screen('form')
   }, [])
 
+  // ── Step 2: stream metrics agent ───────────────────────────────────────────
+  const runStep2Stream = useCallback(async () => {
+    const strategyMd = step1ReportMd || buildReportMarkdown(step1Result ?? {})
+    setStep2Error('')
+    setStep2Screen('streaming')
+    setStep2CurrentStatus('Connecting…')
+    setStep2Logs([])
+    setStep2Running(true)
+    setStep2Elapsed(0)
+    setStep2Result(null)
+
+    const controller = new AbortController()
+    step2AbortRef.current = controller
+    const start = Date.now()
+    step2ElapsedIntervalRef.current = setInterval(() => {
+      setStep2Elapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+
+    const PROGRESS_STEPS = [
+      'Connecting to NorthStar metrics agent…',
+      'Selecting metrics framework…',
+      'Researching industry benchmarks…',
+      'Generating goal and key results…',
+      'Stress testing key results…',
+      'Finalizing metrics report…',
+    ]
+    let progressIdx = 0
+    const progressInterval = setInterval(() => {
+      progressIdx = Math.min(progressIdx + 1, PROGRESS_STEPS.length - 1)
+      setStep2CurrentStatus((cur) => {
+        if (PROGRESS_STEPS.includes(cur) || cur === 'Connecting…') return PROGRESS_STEPS[progressIdx]
+        return cur
+      })
+    }, 4000)
+
+    const stopRunning = () => {
+      setStep2Running(false)
+      clearInterval(step2ElapsedIntervalRef.current ?? undefined)
+      step2ElapsedIntervalRef.current = null
+      step2AbortRef.current = null
+      clearInterval(progressInterval)
+    }
+
+    const metricsUrl = process.env.NEXT_PUBLIC_METRICS_AGENT_URL
+    if (!metricsUrl) {
+      stopRunning()
+      setStep2Error('Metrics agent URL not configured (NEXT_PUBLIC_METRICS_AGENT_URL).')
+      setStep2Screen('form')
+      return
+    }
+
+    try {
+      const northStarInput: Record<string, string> = {}
+      if (nsMetric.trim()) northStarInput.metric = nsMetric.trim()
+      if (nsCurrent.trim()) northStarInput.current_value = nsCurrent.trim()
+      if (nsTarget.trim()) northStarInput.target_value = nsTarget.trim()
+
+      const res = await fetch(metricsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({ strategy_markdown: strategyMd, north_star_input: northStarInput }),
+      })
+      if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          let event: AgentEvent | null = null
+          try {
+            const raw = line.startsWith('data: ') ? line.slice(6) : line
+            event = JSON.parse(raw) as AgentEvent
+          } catch { continue }
+          if (event.type === 'log') {
+            const msg = event.message ?? event.content ?? ''
+            if (msg) { setStep2CurrentStatus(msg); setStep2Logs((prev) => [...prev, msg]) }
+          }
+          if (event.type === 'result') {
+            stopRunning()
+            const d = event.data as MetricsResultData
+            setStep2Result(d)
+            if (projectId) {
+              fetch(`/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ metrics_json: d }),
+              }).catch(() => {})
+            }
+            setStep2Screen('report')
+          }
+          if (event.type === 'error') {
+            stopRunning()
+            setStep2Error(event.message ?? 'Unknown error')
+            setStep2Screen('form')
+          }
+        }
+      }
+      // flush remaining buffer
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer.trim()) as AgentEvent
+          if (event.type === 'result') {
+            stopRunning()
+            const d = event.data as MetricsResultData
+            setStep2Result(d)
+            if (projectId) {
+              fetch(`/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ metrics_json: d }),
+              }).catch(() => {})
+            }
+            setStep2Screen('report')
+          }
+          if (event.type === 'error') { stopRunning(); setStep2Error(event.message ?? 'Unknown error'); setStep2Screen('form') }
+        } catch { /* ignore */ }
+      }
+    } catch (err) {
+      stopRunning()
+      if ((err as Error).name === 'AbortError') {
+        setStep2Screen('form')
+      } else {
+        setStep2Error(err instanceof Error ? err.message : 'Connection lost — try again')
+        setStep2Screen('form')
+      }
+    }
+  }, [step1ReportMd, step1Result, nsMetric, nsCurrent, nsTarget, projectId])
+
+  const cancelStep2Stream = useCallback(() => {
+    step2AbortRef.current?.abort()
+    setStep2Running(false)
+    setStep2Screen('form')
+  }, [])
+
   const handleStep1ContinueToOnboarding = useCallback(async () => {
     if (!step1Result) return
     setStrategyReportResult(step1Result)
@@ -626,14 +863,23 @@ export default function ProductOnboardingFlow() {
   // ── Step 2: submit ─────────────────────────────────────────────────────────
   const handleStep2 = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!nsMetric.trim()) return
+    await runStep2Stream()
+  }, [runStep2Stream])
+
+  const handleStep2Confirm = useCallback(async () => {
     setSaving(true)
     try {
-      await patch({ north_star_metric: nsMetric.trim(), north_star_current: nsCurrent.trim(), north_star_target: nsTarget.trim(), onboarding_step: 2 })
+      await patch({
+        north_star_metric: step2Result?.north_star_metric?.metric ?? nsMetric.trim(),
+        north_star_current: step2Result?.north_star_metric?.current_value ?? nsCurrent.trim(),
+        north_star_target: step2Result?.north_star_metric?.target_value ?? nsTarget.trim(),
+        metrics_json: step2Result,
+        onboarding_step: 2,
+      })
       goToStep(3)
     } catch { setError('Failed to save') }
     finally { setSaving(false) }
-  }, [nsMetric, nsCurrent, nsTarget, patch, goToStep])
+  }, [step2Result, nsMetric, nsCurrent, nsTarget, patch, goToStep])
 
   // ── Step 3: submit ─────────────────────────────────────────────────────────
   const handleStep3 = useCallback(async (e: React.FormEvent) => {
@@ -741,9 +987,35 @@ export default function ProductOnboardingFlow() {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
+  // ── Step 2 chat ──────────────────────────────────────────────────────────────
+  const handleStep2Chat = useCallback(async () => {
+    if (!step2ChatInput.trim() || step2ChatLoading || !step2Result) return
+    const message = step2ChatInput.trim()
+    setStep2ChatInput('')
+    setStep2ChatMessages((prev) => [...prev, { role: 'user', content: message }])
+    setStep2ChatLoading(true)
+    try {
+      const res = await fetch('/api/onboarding/metrics-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, metrics_json: step2Result }),
+      })
+      const d = await res.json()
+      setStep2ChatMessages((prev) => [...prev, { role: 'assistant', content: d.reply ?? 'No response.' }])
+    } catch {
+      setStep2ChatMessages((prev) => [...prev, { role: 'assistant', content: 'Something went wrong. Try again.' }])
+    } finally {
+      setStep2ChatLoading(false)
+    }
+  }, [step2ChatInput, step2ChatLoading, step2Result])
+
+  useEffect(() => {
+    step2ChatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [step2ChatMessages])
+
   // ── Can-continue guards ────────────────────────────────────────────────────
   const can1 = productUrl.trim() !== ''
-  const can2 = !!nsMetric.trim()
+  const can2 = true
   const can3 = !!icpRole.trim()
   // steps 4, 5 are always continuable (sub-metrics and analytics are optional)
 
@@ -752,7 +1024,7 @@ export default function ProductOnboardingFlow() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#f0f0f0]">
-      <div className={step === 1 && step1Screen === 'report' ? 'max-w-[1200px] mx-auto px-6 py-10' : 'max-w-[600px] mx-auto px-6 py-10'}>
+      <div className={(step === 1 && step1Screen === 'report') || (step === 2 && step2Screen === 'report') ? 'max-w-[1200px] mx-auto px-6 py-10' : 'max-w-[600px] mx-auto px-6 py-10'}>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
@@ -1501,17 +1773,24 @@ export default function ProductOnboardingFlow() {
           </div>
         )}
 
-        {/* ── Step 2: NorthStar Metric ─────────────────────────────────────── */}
-        {step === 2 && (
+        {/* ── Step 2: Goal & Metrics (form → streaming → report) ──────────── */}
+        {step === 2 && step2Screen === 'form' && (
           <form onSubmit={handleStep2}>
             <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 2 of 6</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">What&apos;s your NorthStar metric?</h1>
+            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Set your goal &amp; metrics</h1>
             <p className="text-sm text-[#666] mb-8">
-              The one number your entire team is building toward. NorthStar will score every hypothesis against this.
+              NorthStar will generate a goal, north star metric, and full KPI hierarchy from your strategy. Optionally hint at your north star metric below.
             </p>
 
+            {step2Error && (
+              <div className="mb-5 rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400 flex flex-wrap items-center justify-between gap-2">
+                <span>{step2Error}</span>
+                <button type="button" onClick={() => setStep2Error('')} className="text-red-300 hover:text-white underline text-xs">Dismiss</button>
+              </div>
+            )}
+
             <div className="mb-5">
-              <label className={labelCls}>Metric name</label>
+              <label className={labelCls}>North star metric hint <span className="text-[#444] normal-case">(optional)</span></label>
               <input
                 type="text"
                 value={nsMetric}
@@ -1519,7 +1798,6 @@ export default function ProductOnboardingFlow() {
                 placeholder="e.g. ARR, Activation Rate, D30 Retention"
                 className={inputCls}
                 autoFocus
-                disabled={saving}
               />
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {METRIC_SUGGESTIONS.map((s) => (
@@ -1539,22 +1817,398 @@ export default function ProductOnboardingFlow() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="grid grid-cols-2 gap-4 mb-8">
               <div>
-                <label className={labelCls}>Current value</label>
+                <label className={labelCls}>Current value <span className="text-[#444] normal-case">(optional)</span></label>
                 <input type="text" value={nsCurrent} onChange={(e) => setNsCurrent(e.target.value)}
-                  placeholder='e.g. "$450K" or "23%"' className={inputCls} disabled={saving} />
+                  placeholder='e.g. "$450K" or "23%"' className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>90-day target</label>
+                <label className={labelCls}>90-day target <span className="text-[#444] normal-case">(optional)</span></label>
                 <input type="text" value={nsTarget} onChange={(e) => setNsTarget(e.target.value)}
-                  placeholder='e.g. "$700K" or "35%"' className={inputCls} disabled={saving} />
+                  placeholder='e.g. "$700K" or "35%"' className={inputCls} />
               </div>
             </div>
 
-            <ContinueBtn disabled={!can2} loading={saving} />
+            <button
+              type="submit"
+              className="w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150"
+              style={{ background: '#4f8ef7', color: '#fff' }}
+            >
+              Generate goal &amp; metrics →
+            </button>
             <BackBtn onClick={() => goToStep(1)} />
           </form>
+        )}
+
+        {step === 2 && step2Screen === 'streaming' && (
+          <div className="py-8">
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-6">Step 2 of 6</p>
+
+            <div className="flex items-center gap-3 mb-2">
+              {step2Running ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                </div>
+              ) : (
+                <div className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
+              )}
+              <p className="text-sm text-[#a0a0a0] min-h-[1.25rem] truncate flex-1">
+                {step2CurrentStatus || 'Generating your goal & metrics…'}
+              </p>
+            </div>
+            <p className="text-xs text-[#555] mb-4">{step2Elapsed}s</p>
+
+            {step2Logs.length > 0 && (
+              <div className="mb-4 rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setStep2DetailsOpen((o) => !o)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-[#666] hover:text-[#a0a0a0] hover:bg-[#1a1a1a] transition-colors"
+                >
+                  <span>Details</span>
+                  <span className="text-[#444]">{step2DetailsOpen ? '▼' : '▶'}</span>
+                </button>
+                {step2DetailsOpen && (
+                  <div className="max-h-48 overflow-y-auto border-t border-[#2a2a2a] p-3 font-mono text-[12px] text-[#666] leading-relaxed space-y-0.5">
+                    {step2Logs.map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={cancelStep2Stream}
+              className="py-2.5 px-5 text-sm text-[#666] hover:text-[#f0f0f0] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {step === 2 && step2Screen === 'report' && step2Result && (
+          <div>
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-1">Step 2 of 6</p>
+                <h2 className="text-xl font-semibold text-[#f0f0f0]">Goal &amp; Metrics</h2>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setStep2Screen('form'); setStep2Result(null); setStep2ChatMessages([]) }}
+                  className="py-2 px-4 rounded-lg text-sm border border-[#2a2a2a] text-[#666] hover:text-[#f0f0f0] hover:border-[#3a3a3a] transition-colors"
+                >
+                  Re-run
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStep2Confirm}
+                  disabled={saving}
+                  className="py-2 px-5 rounded-lg text-sm font-semibold disabled:opacity-50"
+                  style={{ background: '#4f8ef7', color: '#fff' }}
+                >
+                  {saving ? 'Saving…' : 'Confirm & continue →'}
+                </button>
+              </div>
+            </div>
+
+            {/* Two-column: cards left, chat right */}
+            <div className="flex gap-6" style={{ height: 'calc(100vh - 180px)' }}>
+              {/* Left: metrics cards */}
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+
+                {/* 1. Goal */}
+                {step2Result.goal && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Goal</p>
+                      {step2Result.goal.timeframe && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#4f8ef7]">{step2Result.goal.timeframe}</span>
+                      )}
+                    </div>
+                    {step2Result.goal.objective && (
+                      <p className="text-base font-semibold text-[#f0f0f0] mb-2 leading-snug">{step2Result.goal.objective}</p>
+                    )}
+                    {step2Result.goal.connection_to_strategy && (
+                      <p className="text-xs text-[#666] mb-2">{step2Result.goal.connection_to_strategy}</p>
+                    )}
+                    {step2Result.goal.objective_reasoning && (
+                      <p className="text-xs text-[#444] italic">{step2Result.goal.objective_reasoning}</p>
+                    )}
+                    {step2Result.framework_applied && (
+                      <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
+                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Framework</p>
+                        <p className="text-xs text-[#666]">{step2Result.framework_applied}</p>
+                        {step2Result.framework_reasoning && (
+                          <p className="text-xs text-[#3a3a3a] mt-0.5 italic">{step2Result.framework_reasoning}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. North Star Metric */}
+                {step2Result.north_star_metric && (
+                  <div className="rounded-xl border border-[#4f8ef7]/20 bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium mb-3">North Star Metric</p>
+                    {step2Result.north_star_metric.metric && (
+                      <p className="text-base font-semibold text-[#f0f0f0] mb-3">{step2Result.north_star_metric.metric}</p>
+                    )}
+                    {(step2Result.north_star_metric.current_value || step2Result.north_star_metric.target_value) && (
+                      <div className="flex items-center gap-3 mb-3 p-3 rounded-lg bg-[#111] border border-[#1a1a1a]">
+                        <div className="text-center">
+                          <p className="text-[10px] text-[#444] uppercase tracking-widest mb-0.5">Now</p>
+                          <p className="text-sm font-semibold text-[#a0a0a0]">{step2Result.north_star_metric.current_value || '—'}</p>
+                        </div>
+                        <div className="text-[#2a2a2a] text-lg">→</div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-[#444] uppercase tracking-widest mb-0.5">Target</p>
+                          <p className="text-sm font-semibold text-[#4f8ef7]">{step2Result.north_star_metric.target_value || '—'}</p>
+                        </div>
+                      </div>
+                    )}
+                    {step2Result.north_star_metric.why_this_metric && (
+                      <p className="text-xs text-[#666] mb-2">{step2Result.north_star_metric.why_this_metric}</p>
+                    )}
+                    {step2Result.north_star_metric.measurement_method && (
+                      <div className="flex gap-2 mb-1">
+                        <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Measure via</p>
+                        <p className="text-xs text-[#555]">{step2Result.north_star_metric.measurement_method}</p>
+                      </div>
+                    )}
+                    {step2Result.north_star_metric.similar_company_example && (
+                      <div className="flex gap-2">
+                        <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Similar co.</p>
+                        <p className="text-xs text-[#555] italic">{step2Result.north_star_metric.similar_company_example}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Key Results */}
+                {(step2Result.key_results_full?.length ?? step2Result.key_results?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Key Results</p>
+                    <div className="space-y-2">
+                      {(step2Result.key_results_full ?? step2Result.key_results?.map((kr) => ({ kr })) ?? []).map((item, i) => {
+                        const krObj = item as MetricsKRFull
+                        const isExpanded = !!step2KrExpanded[i]
+                        return (
+                          <div key={i} className="rounded-lg border border-[#1a1a1a] bg-[#111] overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setStep2KrExpanded((prev) => ({ ...prev, [i]: !prev[i] }))}
+                              className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[#1a1a1a] transition-colors"
+                            >
+                              <span className="shrink-0 mt-0.5 text-[10px] font-semibold text-[#4f8ef7]/60 w-5">KR{i + 1}</span>
+                              <p className="text-xs text-[#a0a0a0] flex-1 leading-relaxed">{krObj.kr ?? (item as { kr: string }).kr}</p>
+                              <span className="text-[10px] text-[#444] shrink-0 mt-0.5">{isExpanded ? '▼' : '▶'}</span>
+                            </button>
+                            {isExpanded && (
+                              <div className="px-4 pb-3 border-t border-[#1a1a1a] space-y-2 pt-2">
+                                {krObj.why_this_kr && (
+                                  <div className="flex gap-2">
+                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Why</p>
+                                    <p className="text-xs text-[#555]">{krObj.why_this_kr}</p>
+                                  </div>
+                                )}
+                                {(krObj.current_baseline || krObj.target) && (
+                                  <div className="flex gap-2">
+                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Baseline→Target</p>
+                                    <p className="text-xs text-[#555]">{krObj.current_baseline} → {krObj.target}</p>
+                                  </div>
+                                )}
+                                {krObj.measurement_method && (
+                                  <div className="flex gap-2">
+                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Measure via</p>
+                                    <p className="text-xs text-[#555]">{krObj.measurement_method}</p>
+                                  </div>
+                                )}
+                                {krObj.industry_benchmark && (
+                                  <div className="flex gap-2">
+                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Benchmark</p>
+                                    <p className="text-xs text-[#444] italic">{krObj.industry_benchmark}</p>
+                                  </div>
+                                )}
+                                {(krObj.metric_type || krObj.leading_or_lagging) && (
+                                  <div className="flex gap-2">
+                                    {krObj.metric_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#555] capitalize">{krObj.metric_type}</span>}
+                                    {krObj.leading_or_lagging && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#555] capitalize">{krObj.leading_or_lagging}</span>}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Health Metrics */}
+                {(step2Result.health_metrics?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Health Metrics</p>
+                    <div className="space-y-2">
+                      {step2Result.health_metrics!.map((h, i) => (
+                        <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
+                          {h.metric && <p className="text-xs font-medium text-[#a0a0a0] mb-1">{h.metric}</p>}
+                          {h.threshold && <p className="text-[10px] text-[#22c55e]/70">{h.threshold}</p>}
+                          {h.why_it_matters && <p className="text-[10px] text-[#444] mt-0.5 italic">{h.why_it_matters}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Input Metrics */}
+                {(step2Result.input_metrics?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Input Metrics</p>
+                    <div className="space-y-2">
+                      {step2Result.input_metrics!.map((m, i) => (
+                        <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
+                          {m.metric && <p className="text-xs font-medium text-[#a0a0a0] mb-1">{m.metric}</p>}
+                          {m.drives && <p className="text-[10px] text-[#4f8ef7]/70">Drives: {m.drives}</p>}
+                          {m.why_high_correlation && <p className="text-[10px] text-[#444] mt-0.5 italic">{m.why_high_correlation}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Do Not Measure */}
+                {(step2Result.what_not_to_measure?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Do Not Measure</p>
+                    <div className="space-y-1.5">
+                      {step2Result.what_not_to_measure!.map((m, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-red-500/40 shrink-0 mt-0.5 text-xs">✕</span>
+                          <div>
+                            {m.metric && <p className="text-xs text-[#666] line-through decoration-red-900">{m.metric}</p>}
+                            {m.why_not && <p className="text-[10px] text-[#444] italic">{m.why_not}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. Stress Test */}
+                {step2Result.stress_test && (
+                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Stress Test</p>
+                      <div className="flex items-center gap-2">
+                        {step2Result.stress_test.confidence_score != null && (
+                          <span className="text-[10px] text-[#666]">Confidence: {step2Result.stress_test.confidence_score}/10</span>
+                        )}
+                        {step2Result.stress_test.overall_quality && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${
+                            step2Result.stress_test.overall_quality === 'strong' ? 'border-[#22c55e]/40 text-[#22c55e]' :
+                            step2Result.stress_test.overall_quality === 'weak' ? 'border-red-800/40 text-red-400' :
+                            'border-yellow-800/40 text-yellow-400'
+                          }`}>{step2Result.stress_test.overall_quality.replace('_', ' ')}</span>
+                        )}
+                      </div>
+                    </div>
+                    {step2Result.stress_test.confidence_reasoning && (
+                      <p className="text-xs text-[#444] italic mb-3">{step2Result.stress_test.confidence_reasoning}</p>
+                    )}
+                    {(step2Result.stress_test.issues_found?.length ?? 0) > 0 && (
+                      <div className="space-y-2">
+                        {step2Result.stress_test.issues_found!.map((issue, i) => (
+                          <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
+                            {issue.issue && <p className="text-xs text-[#a0a0a0] mb-1">{issue.issue}</p>}
+                            {issue.affected_kr && <p className="text-[10px] text-[#555]">KR: {issue.affected_kr}</p>}
+                            {issue.fix && <p className="text-[10px] text-[#22c55e]/70 mt-0.5">Fix: {issue.fix}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(step2Result.stress_test.refined_key_results?.length ?? 0) > 0 && (
+                      <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
+                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Refined KRs</p>
+                        <ul className="space-y-1">
+                          {step2Result.stress_test.refined_key_results!.map((kr, i) => (
+                            <li key={i} className="text-xs text-[#555] flex gap-2"><span className="text-[#22c55e]/40 shrink-0">→</span>{kr}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Right: chat panel */}
+              <div className="w-[360px] shrink-0 flex flex-col rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#1a1a1a]">
+                  <p className="text-xs font-medium text-[#a0a0a0]">Ask NorthStar</p>
+                  <p className="text-[10px] text-[#444] mt-0.5">Challenge or refine your goal &amp; KPIs</p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {step2ChatMessages.length === 0 && (
+                    <p className="text-xs text-[#444] text-center mt-4">Ask about a KR, suggest a different metric, or challenge the goal.</p>
+                  )}
+                  {step2ChatMessages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`rounded-xl px-3 py-2 max-w-[90%] text-xs ${m.role === 'user' ? 'bg-[#4f8ef7]/20 text-[#c0d4f5]' : 'bg-[#1a1a1a] text-[#a0a0a0]'}`}>
+                        {m.role === 'assistant' ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-invert prose-xs max-w-none text-xs [&>*]:text-[#a0a0a0] [&>ul]:pl-4 [&>ol]:pl-4 [&>table]:text-[11px] [&>pre]:text-[11px]">
+                            {m.content}
+                          </ReactMarkdown>
+                        ) : (
+                          m.content
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {step2ChatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-[#1a1a1a] rounded-xl px-3 py-2 flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={step2ChatBottomRef} />
+                </div>
+
+                <div className="border-t border-[#1a1a1a] p-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={step2ChatInput}
+                      onChange={(e) => setStep2ChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStep2Chat() } }}
+                      placeholder="e.g. Suggest a better north star metric…"
+                      className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-3 py-2 text-xs text-[#f0f0f0] placeholder:text-[#444] focus:outline-none focus:border-[#4f8ef7]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleStep2Chat}
+                      disabled={!step2ChatInput.trim() || step2ChatLoading}
+                      className="px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40 transition-colors"
+                      style={{ background: '#4f8ef7', color: '#fff' }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── Step 3: ICP ───────────────────────────────────────────────────── */}

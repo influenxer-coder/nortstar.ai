@@ -40,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     'north_star_metric', 'north_star_current', 'north_star_target',
     'icp', 'sub_metrics', 'analytics_config',
     'strategy_json', 'strategy_markdown',
+    'metrics_json',
     'onboarding_step', 'onboarding_completed',
   ]
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
