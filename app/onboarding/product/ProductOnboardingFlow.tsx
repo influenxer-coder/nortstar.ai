@@ -483,6 +483,14 @@ export default function ProductOnboardingFlow() {
           const d = data as StrategyResultData
           setStep1Result(d)
           setStep1ReportMd(buildReportMarkdown(d))
+          // If a project already exists, persist strategy JSON/markdown for future context.
+          if (projectId) {
+            fetch(`/api/projects/${projectId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ strategy_json: d, strategy_markdown: buildReportMarkdown(d) }),
+            }).catch(() => {})
+          }
           setStep1Screen('report')
         },
         onError: (msg) => {
@@ -539,6 +547,8 @@ export default function ProductOnboardingFlow() {
           name,
           url: productUrl.trim() || null,
           has_doc: !!docFile,
+          strategy_json: step1Result,
+          strategy_markdown: step1ReportMd,
         }),
       })
       const data = await res.json()
@@ -655,12 +665,6 @@ export default function ProductOnboardingFlow() {
     if (f && /\.(pdf|txt|md|docx)$/i.test(f.name)) setDocFile(f)
   }, [])
   const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), [])
-
-  // ── Step 1 log panel: auto-scroll to bottom unless user scrolled up ─────────
-  useEffect(() => {
-    if (step1Screen !== 'streaming' || step1UserScrolledRef.current || !step1LogPanelRef.current) return
-    step1LogPanelRef.current.scrollTop = step1LogPanelRef.current.scrollHeight
-  }, [step1Screen, step1Logs])
 
   // ── Can-continue guards ────────────────────────────────────────────────────
   const can1 = productUrl.trim() !== ''
