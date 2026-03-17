@@ -445,7 +445,26 @@ export default function ProductOnboardingFlow() {
               setStep1Screen('report')
               return
             } else if (obj.type === 'error' && typeof obj.message === 'string') {
-              setStep1Error(obj.message)
+              const msg = obj.message
+              if (msg.includes('Could not parse model output as JSON') && msg.includes('Raw output')) {
+                const jsonMatch = msg.match(/```\s*\n?([\s\S]*?)\n?```/)
+                if (jsonMatch) {
+                  try {
+                    const data = JSON.parse(jsonMatch[1].trim()) as StrategyResultData
+                    if (data && (data.input_product != null || data.ranked_opportunities != null)) {
+                      clearInterval(step1ElapsedIntervalRef.current ?? undefined)
+                      step1ElapsedIntervalRef.current = null
+                      setStep1Result(data)
+                      setStep1ReportMd(buildReportMarkdown(data))
+                      setStep1Screen('report')
+                      return
+                    }
+                  } catch {
+                    /* fall through to show error */
+                  }
+                }
+              }
+              setStep1Error(msg)
               setStep1Screen('form')
               return
             }
