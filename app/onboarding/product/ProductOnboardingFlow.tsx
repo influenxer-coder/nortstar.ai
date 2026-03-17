@@ -1992,16 +1992,19 @@ export default function ProductOnboardingFlow() {
                   </div>
                 )}
 
-                {/* 3. Key Results — key_results may be array OR object {"KR 1": "...", ...} */}
+                {/* 3. Key Results — both key_results and key_results_full may be objects, not arrays */}
                 {(() => {
-                  const rawKr = step2Result.key_results
-                  const krStrings: string[] = Array.isArray(rawKr)
-                    ? (rawKr as unknown[]).map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
-                    : rawKr && typeof rawKr === 'object'
-                    ? Object.values(rawKr as Record<string, string>)
-                    : []
-                  const items: MetricsKRFull[] = step2Result.key_results_full?.length
-                    ? step2Result.key_results_full
+                  function toArray<T>(v: unknown): T[] {
+                    if (!v) return []
+                    if (Array.isArray(v)) return v as T[]
+                    if (typeof v === 'object') return Object.values(v as Record<string, T>)
+                    return []
+                  }
+                  const krFullArr: MetricsKRFull[] = toArray<MetricsKRFull>(step2Result.key_results_full)
+                  const krStrings: string[] = toArray<unknown>(step2Result.key_results)
+                    .map((v) => (typeof v === 'string' ? v : typeof v === 'object' && v && 'kr' in v ? String((v as MetricsKRFull).kr ?? '') : String(v)))
+                  const items: MetricsKRFull[] = krFullArr.length
+                    ? krFullArr
                     : krStrings.map((kr) => ({ kr }))
                   if (!items.length) return null
                   return (
