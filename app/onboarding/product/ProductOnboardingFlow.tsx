@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Check, ChevronRight, Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { buildReportMarkdown, type StrategyResultData } from './strategyReportBuilder'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -86,6 +89,27 @@ function validateUrl(raw: string): boolean {
     const u = new URL(raw)
     return u.protocol === 'http:' || u.protocol === 'https:'
   } catch { return false }
+}
+
+async function extractStrategyDocText(file: File): Promise<string> {
+  const name = (file.name || '').toLowerCase()
+  if (name.endsWith('.txt') || name.endsWith('.md')) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve((r.result as string) ?? '')
+      r.onerror = () => reject(new Error('Failed to read file'))
+      r.readAsText(file, 'utf-8')
+    })
+  }
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch('/api/extract-doc-text', { method: 'POST', body: form })
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}))
+    throw new Error(j.error ?? 'Failed to extract text')
+  }
+  const j = await res.json()
+  return j.text ?? ''
 }
 
 // ─── Step Progress Bar ────────────────────────────────────────────────────────
@@ -171,9 +195,24 @@ export default function ProductOnboardingFlow() {
 
   // ── Step 1 ─────────────────────────────────────────────────────────────────
   const [productUrl, setProductUrl] = useState('')
+  const [productDescription, setProductDescription] = useState('')
   const [docUrl, setDocUrl] = useState('')
   const [docFile, setDocFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Step 1 sub-states: form → streaming → report (no navigation)
+  type Step1Screen = 'form' | 'streaming' | 'report'
+  const [step1Screen, setStep1Screen] = useState<Step1Screen>('form')
+  const [step1Logs, setStep1Logs] = useState<string[]>([])
+  const [step1Phase, setStep1Phase] = useState(0)
+  const [step1Elapsed, setStep1Elapsed] = useState(0)
+  const [step1Result, setStep1Result] = useState<StrategyResultData | null>(null)
+  const [step1Error, setStep1Error] = useState('')
+  const [step1ReportMd, setStep1ReportMd] = useState('')
+  const [strategyReportResult, setStrategyReportResult] = useState<StrategyResultData | null>(null)
+  const step1AbortRef = useRef<AbortController | null>(null)
+  const step1LogPanelRef = useRef<HTMLDivElement>(null)
+  const step1UserScrolledRef = useRef(false)
+  const step1ElapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // doc source tab: 'upload' | 'url' | 'drive'
   const [docTab, setDocTab] = useState<'upload' | 'url' | 'drive'>('upload')
   // Google Drive
@@ -313,50 +352,185 @@ export default function ProductOnboardingFlow() {
     })
   }, [projectId])
 
-  // ── Step 1: submit ─────────────────────────────────────────────────────────
-  const handleStep1 = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
+  // ── Step 1: submit → stream logs → report ───────────────────────────────────
+  const runStep1Stream = useCallback(async () => {
+    const url = productUrl.trim()
+    if (!url) return
     setError('')
-    if (!productUrl.trim() && !docFile && !docUrl.trim() && !selectedDriveFile) return
-    setSaving(true)
-    // If a Drive file is selected, use its webViewLink as the doc URL
-    const resolvedDocUrl = selectedDriveFile ? selectedDriveFile.webViewLink : docUrl.trim() || null
-    try {
-      const name = productUrl.trim() ? domainFromUrl(productUrl.trim()) : 'My Product'
-      let pid = projectId
-      if (!pid) {
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            url: productUrl.trim() || null,
-            doc_url: resolvedDocUrl,
-            has_doc: !!docFile || !!selectedDriveFile,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
-        pid = data.id as string
-        setProjectId(pid)
-        fetch('/api/enrich-project', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId: pid, url: productUrl.trim() || null, docUrl: resolvedDocUrl }),
-        }).catch(() => {})
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('northstar_current_project_id', pid)
-        }
-      } else {
-        await patch({ url: productUrl.trim() || null, doc_url: resolvedDocUrl, has_doc: !!docFile || !!selectedDriveFile, name, onboarding_step: 1 })
+    setStep1Error('')
+    setStep1Screen('streaming')
+    setStep1Logs([])
+    setStep1Phase(0)
+    setStep1Elapsed(0)
+    setStep1Result(null)
+    setStep1ReportMd('')
+    step1UserScrolledRef.current = false
+
+    let strategyDocText = ''
+    if (docFile) {
+      try {
+        strategyDocText = await extractStrategyDocText(docFile)
+      } catch (err) {
+        setStep1Error(err instanceof Error ? err.message : 'Failed to extract document text')
+        setStep1Screen('form')
+        return
       }
+    }
+
+    // Modal API: fetch + ReadableStream only (no axios). See docs/MODAL_AGENT_API.md.
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL
+    if (!agentUrl) {
+      setStep1Error('Agent URL not configured (NEXT_PUBLIC_AGENT_URL).')
+      setStep1Screen('form')
+      return
+    }
+
+    const controller = new AbortController()
+    step1AbortRef.current = controller
+
+    const start = Date.now()
+    step1ElapsedIntervalRef.current = setInterval(() => {
+      setStep1Elapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+
+    const phaseFromLine = (line: string): number => {
+      if (line.includes('[Phase 4]')) return 5
+      if (line.includes('[Phase 2.5]')) return 4
+      if (line.includes('[Phase 2]')) return 3
+      if (line.includes('[Phase 1.5]')) return 2
+      if (line.includes('[Phase 1]')) return 1
+      return 0
+    }
+
+    try {
+      const res = await fetch(agentUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          description: productDescription.trim(),
+          strategy_doc: strategyDocText || undefined,
+        }),
+        signal: controller.signal,
+      })
+      if (!res.ok || !res.body) {
+        setStep1Error(res.status === 0 ? 'Connection lost — try again' : `Request failed (${res.status})`)
+        setStep1Screen('form')
+        return
+      }
+      const reader = res.body.getReader()
+      const dec = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += dec.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const obj = JSON.parse(trimmed) as { type?: string; message?: string; data?: StrategyResultData }
+            if (obj.type === 'log' && typeof obj.message === 'string') {
+              const msg = obj.message
+              setStep1Logs((prev) => [...prev, msg])
+              const p = phaseFromLine(msg)
+              if (p > 0) setStep1Phase((curr) => Math.max(curr, p))
+            } else if (obj.type === 'result' && obj.data) {
+              clearInterval(step1ElapsedIntervalRef.current ?? undefined)
+              step1ElapsedIntervalRef.current = null
+              setStep1Result(obj.data)
+              setStep1ReportMd(buildReportMarkdown(obj.data))
+              setStep1Screen('report')
+              return
+            } else if (obj.type === 'error' && typeof obj.message === 'string') {
+              setStep1Error(obj.message)
+              setStep1Screen('form')
+              return
+            }
+          } catch {
+            setStep1Logs((prev) => [...prev, trimmed])
+            const p = phaseFromLine(trimmed)
+            if (p > 0) setStep1Phase((curr) => Math.max(curr, p))
+          }
+        }
+      }
+      if (buffer.trim()) {
+        try {
+          const obj = JSON.parse(buffer.trim()) as { type?: string; message?: string; data?: StrategyResultData }
+          if (obj.type === 'result' && obj.data) {
+            clearInterval(step1ElapsedIntervalRef.current ?? undefined)
+            setStep1Result(obj.data)
+            setStep1ReportMd(buildReportMarkdown(obj.data))
+            setStep1Screen('report')
+            return
+          }
+        } catch {
+          setStep1Logs((prev) => [...prev, buffer.trim()])
+        }
+      }
+      setStep1Error('Connection lost — try again')
+      setStep1Screen('form')
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        setStep1Screen('form')
+      } else {
+        setStep1Error(err instanceof Error ? err.message : 'Connection lost — try again')
+        setStep1Screen('form')
+      }
+    } finally {
+      clearInterval(step1ElapsedIntervalRef.current ?? undefined)
+      step1ElapsedIntervalRef.current = null
+      step1AbortRef.current = null
+    }
+  }, [productUrl, productDescription, docFile])
+
+  const cancelStep1Stream = useCallback(() => {
+    if (step1AbortRef.current) {
+      step1AbortRef.current.abort()
+    }
+    setStep1Screen('form')
+  }, [])
+
+  const handleStep1ContinueToOnboarding = useCallback(async () => {
+    if (!step1Result) return
+    setStrategyReportResult(step1Result)
+    setSaving(true)
+    setError('')
+    try {
+      const name = step1Result.input_product?.name || domainFromUrl(productUrl.trim()) || 'My Product'
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          url: productUrl.trim() || null,
+          has_doc: !!docFile,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
+      const pid = data.id as string
+      setProjectId(pid)
+      if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', pid)
       goToStep(2, pid)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)
     }
-  }, [productUrl, docFile, docUrl, selectedDriveFile, projectId, patch, goToStep])
+  }, [step1Result, productUrl, docFile, goToStep])
+
+  // Keep legacy handleStep1 for any non-stream path (e.g. if agent URL missing we already handle in runStep1Stream)
+  const handleStep1 = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!productUrl.trim()) return
+      runStep1Stream()
+    },
+    [productUrl, runStep1Stream]
+  )
 
   // ── Step 2: submit ─────────────────────────────────────────────────────────
   const handleStep2 = useCallback(async (e: React.FormEvent) => {
@@ -442,16 +616,22 @@ export default function ProductOnboardingFlow() {
     finally { setSaving(false) }
   }, [patch, router])
 
-  // ── Drag & drop for step 1 ─────────────────────────────────────────────────
+  // ── Drag & drop for step 1 strategy doc ────────────────────────────────────
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     const f = e.dataTransfer.files[0]
-    if (f && /\.(pdf|pptx?|docx?)$/i.test(f.name)) setDocFile(f)
+    if (f && /\.(pdf|txt|md|docx)$/i.test(f.name)) setDocFile(f)
   }, [])
   const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), [])
 
+  // ── Step 1 log panel: auto-scroll to bottom unless user scrolled up ─────────
+  useEffect(() => {
+    if (step1Screen !== 'streaming' || step1UserScrolledRef.current || !step1LogPanelRef.current) return
+    step1LogPanelRef.current.scrollTop = step1LogPanelRef.current.scrollHeight
+  }, [step1Screen, step1Logs])
+
   // ── Can-continue guards ────────────────────────────────────────────────────
-  const can1 = productUrl.trim() !== '' || !!docFile || docUrl.trim() !== '' || !!selectedDriveFile
+  const can1 = productUrl.trim() !== ''
   const can2 = !!nsMetric.trim()
   const can3 = !!icpRole.trim()
   // steps 4, 5 are always continuable (sub-metrics and analytics are optional)
@@ -482,17 +662,24 @@ export default function ProductOnboardingFlow() {
           </div>
         )}
 
-        {/* ── Step 1: Your Product ─────────────────────────────────────────── */}
-        {step === 1 && (
+        {/* ── Step 1: Your Product (form → streaming → report) ───────────────── */}
+        {step === 1 && step1Screen === 'form' && (
           <form onSubmit={handleStep1}>
             <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
             <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Tell NorthStar about your product</h1>
             <p className="text-sm text-[#666] mb-8">
-              Share your product URL and strategy doc. NorthStar will start learning immediately.
+              Share your product URL and optional strategy doc. NorthStar will analyze and produce a strategy report.
             </p>
 
+            {step1Error && (
+              <div className="mb-5 rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+                {step1Error}
+                <button type="button" onClick={() => setStep1Error('')} className="ml-2 text-red-300 hover:text-white underline">Dismiss</button>
+              </div>
+            )}
+
             <div className="mb-5">
-              <label htmlFor="product-url" className={labelCls}>Product website</label>
+              <label htmlFor="product-url" className={labelCls}>Product URL</label>
               <input
                 id="product-url"
                 type="url"
@@ -501,188 +688,173 @@ export default function ProductOnboardingFlow() {
                 placeholder="https://yourproduct.com"
                 className={inputCls}
                 autoFocus
-                disabled={saving}
+                required
               />
             </div>
 
-            <div className="my-5 flex items-center gap-4">
-              <div className="flex-1 h-px bg-[#1f1f1f]" />
-              <span className="text-xs text-[#444]">and / or</span>
-              <div className="flex-1 h-px bg-[#1f1f1f]" />
-            </div>
-
             <div className="mb-5">
-              <label className={labelCls}>Product strategy doc</label>
-
-              {/* Tab switcher */}
-              <div className="flex mb-3 rounded-lg overflow-hidden border border-[#2a2a2a]" style={{ background: '#0d0d0d' }}>
-                {(['upload', 'url', 'drive'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setDocTab(tab)}
-                    className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                      docTab === tab
-                        ? 'bg-[#1a1a1a] text-[#f0f0f0]'
-                        : 'text-[#555] hover:text-[#888]'
-                    }`}
-                  >
-                    {tab === 'upload' && 'Upload file'}
-                    {tab === 'url' && 'Paste URL'}
-                    {tab === 'drive' && (
-                      <span className="flex items-center justify-center gap-1.5">
-                        <svg width="12" height="12" viewBox="0 0 87.3 78" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                          <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066DA"/>
-                          <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.55A9 9 0 000 53.05h27.5z" fill="#00AC47"/>
-                          <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#EA4335"/>
-                          <path d="M43.65 25L57.4 1.2A9.16 9.16 0 0053.55 0H33.75c-1.45 0-2.85.4-4.05 1.2z" fill="#00832D"/>
-                          <path d="M59.8 53.05H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h49.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684FC"/>
-                          <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28.05H87.2c0-1.55-.4-3.1-1.2-4.5z" fill="#FFBA00"/>
-                        </svg>
-                        Google Drive
-                        {driveConnected && <Check className="w-3 h-3 text-[#22c55e]" />}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* Upload tab */}
-              {docTab === 'upload' && (
-                <>
-                  <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onClick={() => !docFile && fileInputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && !docFile && fileInputRef.current?.click()}
-                    className="rounded-lg border border-dashed border-[#2a2a2a] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#3a3a3a] transition-colors"
-                    style={{ background: '#0d0d0d' }}
-                  >
-                    {docFile ? (
-                      <div className="flex items-center justify-between w-full gap-2 text-sm text-[#f0f0f0]">
-                        <span className="truncate">{docFile.name}</span>
-                        <span className="text-[#555] shrink-0">({(docFile.size / 1024).toFixed(1)} KB)</span>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setDocFile(null) }} className="shrink-0 text-[#666] hover:text-[#f0f0f0] px-1">×</button>
-                      </div>
-                    ) : (
-                      <>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#444]">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="17 8 12 3 7 8" />
-                          <line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                        <p className="text-sm text-[#666]">Drop a PDF, PPTX, or DOCX</p>
-                        <p className="text-xs text-[#444]">or click to browse</p>
-                      </>
-                    )}
-                  </div>
-                  <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.ppt,.docx,.doc" className="hidden" aria-hidden
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setDocFile(f) }} />
-                </>
-              )}
-
-              {/* Paste URL tab */}
-              {docTab === 'url' && (
-                <input
-                  type="url"
-                  value={docUrl}
-                  onChange={(e) => setDocUrl(e.target.value)}
-                  placeholder="https://notion.so/... or https://docs.google.com/..."
-                  className={inputCls}
-                  autoFocus
-                  disabled={saving}
-                />
-              )}
-
-              {/* Google Drive tab */}
-              {docTab === 'drive' && (
-                <div className="rounded-lg border border-[#2a2a2a] overflow-hidden" style={{ background: '#0d0d0d' }}>
-                  {!driveConnected ? (
-                    <div className="p-6 flex flex-col items-center gap-3">
-                      <svg width="32" height="28" viewBox="0 0 87.3 78" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066DA"/>
-                        <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.55A9 9 0 000 53.05h27.5z" fill="#00AC47"/>
-                        <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#EA4335"/>
-                        <path d="M43.65 25L57.4 1.2A9.16 9.16 0 0053.55 0H33.75c-1.45 0-2.85.4-4.05 1.2z" fill="#00832D"/>
-                        <path d="M59.8 53.05H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h49.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684FC"/>
-                        <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28.05H87.2c0-1.55-.4-3.1-1.2-4.5z" fill="#FFBA00"/>
-                      </svg>
-                      <p className="text-sm text-[#666] text-center">
-                        Connect Google Drive to browse your Docs and Slides
-                      </p>
-                      <a
-                        href={`/api/auth/google-drive?next=${encodeURIComponent(
-                          `/onboarding/product${projectId ? `?projectId=${projectId}&step=1` : '?step=1'}`
-                        )}`}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-                        style={{ background: '#4f8ef7' }}
-                      >
-                        Connect Google Drive
-                      </a>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Search */}
-                      <div className="px-3 py-2 border-b border-[#2a2a2a]">
-                        <input
-                          type="text"
-                          value={driveSearch}
-                          onChange={(e) => {
-                            setDriveSearch(e.target.value)
-                            fetchDriveFiles(e.target.value)
-                          }}
-                          onFocus={() => driveFiles.length === 0 && fetchDriveFiles('')}
-                          placeholder="Search your Docs, Slides, PDFs..."
-                          className="w-full bg-transparent text-sm text-[#f0f0f0] placeholder:text-[#444] focus:outline-none py-1"
-                          autoFocus
-                        />
-                      </div>
-                      {/* File list */}
-                      <div className="max-h-52 overflow-y-auto">
-                        {driveLoading && (
-                          <p className="text-xs text-[#444] text-center py-6">Loading...</p>
-                        )}
-                        {!driveLoading && driveFiles.length === 0 && (
-                          <p className="text-xs text-[#444] text-center py-6">No documents found</p>
-                        )}
-                        {!driveLoading && driveFiles.map((file) => (
-                          <button
-                            key={file.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedDriveFile(selectedDriveFile?.id === file.id ? null : file)
-                              // Clear manual URL input if picking from Drive
-                              setDocUrl('')
-                            }}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-[#1a1a1a] last:border-0 ${
-                              selectedDriveFile?.id === file.id
-                                ? 'bg-[#4f8ef7]/10'
-                                : 'hover:bg-[#1a1a1a]'
-                            }`}
-                          >
-                            <DriveFileIcon mimeType={file.mimeType} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-[#f0f0f0] truncate">{file.name}</p>
-                              <p className="text-[10px] text-[#444]">
-                                {new Date(file.modifiedTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </p>
-                            </div>
-                            {selectedDriveFile?.id === file.id && (
-                              <Check className="w-4 h-4 text-[#4f8ef7] shrink-0" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+              <label htmlFor="product-description" className={labelCls}>Product description <span className="text-[#444] normal-case">(optional)</span></label>
+              <textarea
+                id="product-description"
+                value={productDescription}
+                onChange={(e) => setProductDescription(e.target.value)}
+                placeholder="Describe your product, who it's for, and what problem it solves. Include anything not obvious from the URL."
+                rows={4}
+                className={inputCls + ' resize-y min-h-[100px]'}
+              />
             </div>
 
-            <ContinueBtn disabled={!can1} loading={saving} />
+            <div className="mb-6">
+              <label className={labelCls}>Upload strategy doc (optional)</label>
+              <p className="text-[11px] text-[#555] mb-2">PRD, positioning doc, ICP notes — the agent will use this as additional context</p>
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onClick={() => !docFile && fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && !docFile && fileInputRef.current?.click()}
+                className="rounded-lg border border-dashed border-[#2a2a2a] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#3a3a3a] transition-colors"
+                style={{ background: '#0d0d0d' }}
+              >
+                {docFile ? (
+                  <div className="flex items-center justify-between w-full gap-2 text-sm text-[#f0f0f0]">
+                    <span className="truncate">{docFile.name}</span>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setDocFile(null) }} className="shrink-0 text-[#666] hover:text-[#f0f0f0] px-1.5 py-0.5 rounded border border-[#2a2a2a]">× Remove</button>
+                  </div>
+                ) : (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#444]">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <p className="text-sm text-[#666]">Drop .pdf, .txt, .md, or .docx</p>
+                    <p className="text-xs text-[#444]">or click to browse</p>
+                  </>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.docx" className="hidden" aria-hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) setDocFile(f) }} />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!can1}
+              className="w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150 mt-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: can1 ? '#4f8ef7' : '#1a1a2a', color: can1 ? '#fff' : '#888' }}
+            >
+              Analyze my product →
+            </button>
           </form>
+        )}
+
+        {step === 1 && step1Screen === 'streaming' && (
+          <div>
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
+            <h2 className="text-xl font-semibold text-[#f0f0f0] mb-1">Agent is researching your product...</h2>
+            <p className="text-sm text-[#666] mb-4">{step1Elapsed}s elapsed</p>
+
+            {/* Phase stepper */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
+              {[
+                { label: 'Understanding product', phase: 1 },
+                { label: 'Selecting framework', phase: 2 },
+                { label: 'Mapping competitors', phase: 3 },
+                { label: 'Researching trends', phase: 4 },
+                { label: 'Ranking opportunities', phase: 5 },
+              ].map(({ label, phase }) => {
+                const done = step1Phase > phase
+                const active = step1Phase === phase
+                return (
+                  <div key={phase} className="flex items-center gap-1.5">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
+                        done ? 'bg-[#22c55e] text-white' : active ? 'bg-[#4f8ef7] text-white animate-pulse' : 'bg-[#1f1f1f] text-[#444] border border-[#2a2a2a]'
+                      }`}
+                    >
+                      {done ? <Check className="w-3 h-3" /> : phase}
+                    </div>
+                    <span className={`text-[10px] font-medium hidden sm:inline ${active ? 'text-[#4f8ef7]' : done ? 'text-[#22c55e]' : 'text-[#444]'}`}>{label}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div
+              ref={step1LogPanelRef}
+              className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-y-auto mb-4 font-mono text-[13px] leading-relaxed"
+              style={{ maxHeight: '60vh' }}
+              onScroll={(e) => {
+                const el = e.currentTarget
+                const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30
+                if (!atBottom) step1UserScrolledRef.current = true
+                else step1UserScrolledRef.current = false
+              }}
+            >
+              <div className="p-4 space-y-0.5">
+                {step1Logs.map((line, i) => {
+                  const isPhase = /^\[Phase\s/i.test(line)
+                  const isTool = line.startsWith('→')
+                  return (
+                    <div
+                      key={i}
+                      className={`py-0.5 ${isPhase ? 'text-[#f0f0f0] border-l-2 border-[#4f8ef7] pl-2' : isTool ? 'text-[#0ea5e9]' : 'text-[#666]'}`}
+                    >
+                      {line}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={cancelStep1Stream}
+              className="w-full py-2.5 text-sm text-[#666] hover:text-[#f0f0f0] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {step === 1 && step1Screen === 'report' && (
+          <div>
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
+            <h2 className="text-xl font-semibold text-[#f0f0f0] mb-6">Strategy report</h2>
+
+            <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-6 mb-6 prose prose-invert prose-sm max-w-none prose-p:text-[#e0e0e0] prose-headings:text-[#f0f0f0] prose-strong:text-[#f0f0f0] prose-li:text-[#e0e0e0]">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{step1ReportMd}</ReactMarkdown>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const name = (step1Result?.input_product?.name ?? 'product').replace(/[^a-z0-9-_]/gi, '-').toLowerCase()
+                  const date = new Date().toISOString().slice(0, 10)
+                  const filename = `northstar-strategy-${name}-${date}.md`
+                  const blob = new Blob([step1ReportMd], { type: 'text/markdown' })
+                  const a = document.createElement('a')
+                  a.href = URL.createObjectURL(blob)
+                  a.download = filename
+                  a.click()
+                  URL.revokeObjectURL(a.href)
+                }}
+                className="flex-1 py-3 px-4 rounded-lg text-sm font-medium border border-[#2a2a2a] text-[#f0f0f0] hover:border-[#3a3a3a] hover:bg-[#1a1a1a] transition-colors"
+              >
+                Download report
+              </button>
+              <button
+                type="button"
+                onClick={handleStep1ContinueToOnboarding}
+                className="flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-colors"
+                style={{ background: '#4f8ef7', color: '#fff' }}
+              >
+                Continue to onboarding →
+              </button>
+            </div>
+          </div>
         )}
 
         {/* ── Step 2: NorthStar Metric ─────────────────────────────────────── */}
