@@ -474,11 +474,35 @@ export default function ProductOnboardingFlow() {
       setStep1Elapsed((t) => Math.floor((Date.now() - start) / 1000))
     }, 1000)
 
+    // Synthetic progress: rotate status messages when Modal sends no log events
+    const PROGRESS_STEPS = [
+      'Connecting to NorthStar agent…',
+      'Reading your product URL…',
+      'Researching the competitive landscape…',
+      'Identifying market trends…',
+      'Analyzing unmet customer needs…',
+      'Scoring growth opportunities…',
+      'Synthesizing your strategy report…',
+    ]
+    let progressIdx = 0
+    const progressInterval = setInterval(() => {
+      progressIdx = Math.min(progressIdx + 1, PROGRESS_STEPS.length - 1)
+      setStep1CurrentStatus((cur) => {
+        // Only update if no real log event has overwritten the synthetic message
+        if (PROGRESS_STEPS.includes(cur) || cur === 'Connecting…') {
+          return PROGRESS_STEPS[progressIdx]
+        }
+        return cur
+      })
+    }, 4000)
+    const stopProgress = () => clearInterval(progressInterval)
+
     const stopRunning = () => {
       setStep1Running(false)
       clearInterval(step1ElapsedIntervalRef.current ?? undefined)
       step1ElapsedIntervalRef.current = null
       step1AbortRef.current = null
+      stopProgress()
     }
 
     try {
