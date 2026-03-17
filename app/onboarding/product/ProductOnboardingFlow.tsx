@@ -783,7 +783,7 @@ export default function ProductOnboardingFlow() {
               className="w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150 mt-2 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: can1 ? '#4f8ef7' : '#1a1a2a', color: can1 ? '#fff' : '#888' }}
             >
-              Analyze my product →
+              Start analysis →
             </button>
           </form>
         )}
