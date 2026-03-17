@@ -431,11 +431,11 @@ export default function ProductOnboardingFlow() {
           const trimmed = line.trim()
           if (!trimmed) continue
           try {
-            const obj = JSON.parse(trimmed) as { type?: string; message?: string; data?: StrategyResultData }
-            if (obj.type === 'log' && typeof obj.message === 'string') {
-              const msg = obj.message
-              setStep1Logs((prev) => [...prev, msg])
-              const p = phaseFromLine(msg)
+            const obj = JSON.parse(trimmed) as { type?: string; message?: string; content?: string; data?: StrategyResultData }
+            const logMsg = obj.type === 'log' && (typeof obj.message === 'string' ? obj.message : typeof obj.content === 'string' ? obj.content : null)
+            if (logMsg) {
+              setStep1Logs((prev) => [...prev, logMsg])
+              const p = phaseFromLine(logMsg)
               if (p > 0) setStep1Phase((curr) => Math.max(curr, p))
             } else if (obj.type === 'result' && obj.data) {
               clearInterval(step1ElapsedIntervalRef.current ?? undefined)
@@ -769,68 +769,26 @@ export default function ProductOnboardingFlow() {
         )}
 
         {step === 1 && step1Screen === 'streaming' && (
-          <div>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
-            <h2 className="text-xl font-semibold text-[#f0f0f0] mb-1">Agent is researching your product...</h2>
-            <p className="text-sm text-[#666] mb-4">{step1Elapsed}s elapsed</p>
+          <div className="flex flex-col items-center justify-center py-12">
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-6">Step 1 of 6</p>
 
-            {/* Phase stepper */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
-              {[
-                { label: 'Understanding product', phase: 1 },
-                { label: 'Selecting framework', phase: 2 },
-                { label: 'Mapping competitors', phase: 3 },
-                { label: 'Researching trends', phase: 4 },
-                { label: 'Ranking opportunities', phase: 5 },
-              ].map(({ label, phase }) => {
-                const done = step1Phase > phase
-                const active = step1Phase === phase
-                return (
-                  <div key={phase} className="flex items-center gap-1.5">
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
-                        done ? 'bg-[#22c55e] text-white' : active ? 'bg-[#4f8ef7] text-white animate-pulse' : 'bg-[#1f1f1f] text-[#444] border border-[#2a2a2a]'
-                      }`}
-                    >
-                      {done ? <Check className="w-3 h-3" /> : phase}
-                    </div>
-                    <span className={`text-[10px] font-medium hidden sm:inline ${active ? 'text-[#4f8ef7]' : done ? 'text-[#22c55e]' : 'text-[#444]'}`}>{label}</span>
-                  </div>
-                )
-              })}
+            {/* Claude-style pulsating icon */}
+            <div className="flex items-center justify-center gap-1 mb-6">
+              <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
             </div>
 
-            <div
-              ref={step1LogPanelRef}
-              className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-y-auto mb-4 font-mono text-[13px] leading-relaxed"
-              style={{ maxHeight: '60vh' }}
-              onScroll={(e) => {
-                const el = e.currentTarget
-                const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30
-                if (!atBottom) step1UserScrolledRef.current = true
-                else step1UserScrolledRef.current = false
-              }}
-            >
-              <div className="p-4 space-y-0.5">
-                {step1Logs.map((line, i) => {
-                  const isPhase = /^\[Phase\s/i.test(line)
-                  const isTool = line.startsWith('→')
-                  return (
-                    <div
-                      key={i}
-                      className={`py-0.5 ${isPhase ? 'text-[#f0f0f0] border-l-2 border-[#4f8ef7] pl-2' : isTool ? 'text-[#0ea5e9]' : 'text-[#666]'}`}
-                    >
-                      {line}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            {/* One line: current activity streamed */}
+            <p className="text-sm text-[#a0a0a0] text-center min-h-[1.25rem] mb-1">
+              {step1Logs.length > 0 ? step1Logs[step1Logs.length - 1] : 'Researching your product...'}
+            </p>
+            <p className="text-xs text-[#555] mb-8">{step1Elapsed}s</p>
 
             <button
               type="button"
               onClick={cancelStep1Stream}
-              className="w-full py-2.5 text-sm text-[#666] hover:text-[#f0f0f0] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors"
+              className="py-2.5 px-5 text-sm text-[#666] hover:text-[#f0f0f0] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors"
             >
               Cancel
             </button>
