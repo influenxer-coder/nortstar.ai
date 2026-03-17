@@ -1115,7 +1115,7 @@ export default function ProductOnboardingFlow() {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {chatMessages.length === 0 && (
-                    <p className="text-xs text-[#444]">Ask NorthStar anything about this strategy report.</p>
+                    <p className="text-xs text-[#444]">Challenge assumptions, add context, or ask NorthStar to evolve any part of this strategy.</p>
                   )}
                   {chatMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -1123,10 +1123,12 @@ export default function ProductOnboardingFlow() {
                         className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                           m.role === 'user'
                             ? 'bg-[#4f8ef7] text-white'
-                            : 'bg-[#1a1a1a] text-[#e0e0e0]'
+                            : 'bg-[#1a1a1a] text-[#e0e0e0] prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:text-[#f0f0f0] prose-headings:font-semibold prose-headings:my-2 prose-li:my-0 prose-ul:my-1 prose-ol:my-1 prose-strong:text-[#f0f0f0] prose-table:text-xs prose-td:py-1 prose-th:py-1'
                         }`}
                       >
-                        {m.content}
+                        {m.role === 'assistant'
+                          ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                          : m.content}
                       </div>
                     </div>
                   ))}
@@ -1150,7 +1152,7 @@ export default function ProductOnboardingFlow() {
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat() } }}
-                      placeholder="Ask a question…"
+                      placeholder="Evolve the strategy, challenge assumptions…"
                       className="flex-1 bg-[#1a1a1a] text-sm text-[#f0f0f0] placeholder-[#444] border border-[#2a2a2a] rounded-lg px-3 py-2 focus:outline-none focus:border-[#4f8ef7] transition-colors"
                     />
                     <button
