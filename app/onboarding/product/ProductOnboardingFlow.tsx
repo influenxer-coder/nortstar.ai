@@ -5,14 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Check, ChevronRight, Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { Check, ChevronRight, Plus, Trash2, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import { buildReportMarkdown, type StrategyResultData } from './strategyReportBuilder'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TOTAL_STEPS = 5
 
-const STEP_LABELS = ['Product', 'NorthStar', 'Growth Levers', 'Data Sources', 'Review']
+const STEP_LABELS = ['Product', 'NorthStar', 'Data Sources', 'Growth Levers', 'Review']
 
 const METRIC_SUGGESTIONS = [
   'ARR', 'MRR', 'MAU', 'WAU', 'DAU',
@@ -44,22 +44,46 @@ const SUB_METRIC_PRESETS: Record<string, string[]> = {
   'NPS Score': ['Detractor Rate', 'Feature Satisfaction', 'Support CSAT', 'Response Rate'],
 }
 
-const ANALYTICS_TOOLS = [
+type AnalyticsField = { key: string; label: string; type: string; placeholder: string; helper: string }
+type AnalyticsTool = { id: string; name: string; initials: string; color: string; recommended?: boolean; fields: AnalyticsField[] }
+
+const ANALYTICS_TOOLS: AnalyticsTool[] = [
   { id: 'posthog', name: 'PostHog', initials: 'PH', color: '#f97316', recommended: true,
     fields: [
-      { key: 'api_key', label: 'API Key', type: 'password', placeholder: 'phx_...' },
-      { key: 'project_id', label: 'Project ID', type: 'text', placeholder: '12345' },
+      { key: 'api_key', label: 'API Key', type: 'password', placeholder: 'phx_...', helper: 'PostHog → Settings → Project → API Keys' },
+      { key: 'project_id', label: 'Project ID', type: 'text', placeholder: '12345', helper: 'PostHog → Settings → Project' },
     ],
   },
-  { id: 'amplitude', name: 'Amplitude', initials: 'AM', color: '#0ea5e9',
-    fields: [{ key: 'api_key', label: 'API Key', type: 'password', placeholder: 'your-api-key' }],
+  { id: 'mixpanel', name: 'Mixpanel', initials: 'MX', color: '#6366f1', recommended: true,
+    fields: [{ key: 'project_token', label: 'Project Token', type: 'password', placeholder: 'abc123...', helper: 'Mixpanel → Settings → Project Details' }],
   },
-  { id: 'mixpanel', name: 'Mixpanel', initials: 'MX', color: '#6366f1',
-    fields: [{ key: 'project_token', label: 'Project Token', type: 'password', placeholder: 'abc123...' }],
+  { id: 'ga4', name: 'Google Analytics 4', initials: 'GA', color: '#3b82f6',
+    fields: [{ key: 'measurement_id', label: 'Measurement ID', type: 'text', placeholder: 'G-XXXXXXXXXX', helper: 'GA4 → Admin → Data Streams → Measurement Protocol' }],
+  },
+  { id: 'amplitude', name: 'Amplitude', initials: 'AM', color: '#0ea5e9',
+    fields: [{ key: 'api_key', label: 'API Key', type: 'password', placeholder: 'your-api-key', helper: 'Amplitude → Settings → Projects' }],
+  },
+  { id: 'segment', name: 'Segment', initials: 'SG', color: '#22c55e',
+    fields: [{ key: 'write_key', label: 'Write Key', type: 'password', placeholder: 'your-write-key', helper: 'Segment → Sources → Your Source → API Keys' }],
+  },
+  { id: 'heap', name: 'Heap', initials: 'HP', color: '#14b8a6',
+    fields: [{ key: 'app_id', label: 'App ID', type: 'text', placeholder: '1234567890', helper: 'Heap → Account → Privacy & Security' }],
+  },
+  { id: 'fullstory', name: 'Fullstory', initials: 'FS', color: '#1d4ed8',
+    fields: [{ key: 'org_id', label: 'Org ID', type: 'text', placeholder: 'XXXXX', helper: 'Fullstory → Settings → General' }],
+  },
+  { id: 'hotjar', name: 'Hotjar', initials: 'HJ', color: '#f43f5e',
+    fields: [{ key: 'site_id', label: 'Site ID', type: 'text', placeholder: '1234567', helper: 'Hotjar → Settings → Sites & Organizations' }],
   },
 ]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type CrawlData = {
+  screenshot: string
+  elements: { type: string; text: string; position: { x: number; y: number; width: number; height: number } }[]
+  analytics: { detected: Record<string, boolean>; hasAny: boolean }
+}
 
 // ─── Metrics agent result types ───────────────────────────────────────────────
 
@@ -436,12 +460,18 @@ export default function ProductOnboardingFlow() {
   // ── Step 3 ─────────────────────────────────────────────────────────────────
   const [subMetrics, setSubMetrics] = useState<SubMetric[]>([])
 
-  // ── Step 5 ─────────────────────────────────────────────────────────────────
+  // ── Step 3 analytics ───────────────────────────────────────────────────────
   const [analyticsInputs, setAnalyticsInputs] = useState<Record<string, Record<string, string>>>({})
   const [analyticsConnected, setAnalyticsConnected] = useState<Record<string, boolean>>({})
   const [analyticsValidating, setAnalyticsValidating] = useState<Record<string, boolean>>({})
   const [analyticsErrors, setAnalyticsErrors] = useState<Record<string, string>>({})
-  const [selectedTool, setSelectedTool] = useState<string | null>('posthog')
+  const [selectedTool, setSelectedTool] = useState<string | null>(null)
+  // Crawl detection state
+  const [crawlData, setCrawlData] = useState<CrawlData | null>(null)
+  const [crawlRunning, setCrawlRunning] = useState(false)
+  const [crawlFailed, setCrawlFailed] = useState(false)
+  const crawlStartedForUrlRef = useRef<string>('')
+  const crawlAbortRef = useRef<AbortController | null>(null)
 
   // ── Initialize step + projectId from URL params (client-only, avoids SSR mismatch) ──
   useEffect(() => {
@@ -948,19 +978,44 @@ export default function ProductOnboardingFlow() {
     finally { setSaving(false) }
   }, [step2Result, nsMetric, nsCurrent, nsTarget, patch, goToStep])
 
-  // ── Step 3: submit ─────────────────────────────────────────────────────────
-  const handleStep3 = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      await patch({ sub_metrics: subMetrics.filter((m) => m.name.trim()), onboarding_step: 3 })
-      goToStep(4)
-    } catch { setError('Failed to save') }
-    finally { setSaving(false) }
-  }, [subMetrics, patch, goToStep])
+  // ── Step 3: crawl + analytics detection ───────────────────────────────────
+  const startCrawl = useCallback((targetUrl: string) => {
+    if (crawlStartedForUrlRef.current === targetUrl) return
+    crawlStartedForUrlRef.current = targetUrl
+    setCrawlData(null)
+    setCrawlFailed(false)
+    setCrawlRunning(true)
+    crawlAbortRef.current?.abort()
+    const controller = new AbortController()
+    crawlAbortRef.current = controller
+    fetch('/api/crawl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: targetUrl }),
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (controller.signal.aborted) return
+        setCrawlData({
+          screenshot: typeof data.screenshot === 'string' ? data.screenshot : '',
+          elements: Array.isArray(data.elements) ? data.elements : [],
+          analytics: data.analytics ?? { detected: {}, hasAny: false },
+        })
+      })
+      .catch(() => { if (!controller.signal.aborted) setCrawlFailed(true) })
+      .finally(() => { if (!controller.signal.aborted) setCrawlRunning(false) })
+  }, [])
 
-  // ── Step 5: connect analytics ──────────────────────────────────────────────
-  const handleValidateAnalytics = useCallback(async (toolId: string) => {
+  // Auto-crawl when entering step 3
+  useEffect(() => {
+    if (step !== 3) return
+    const url = productUrl.trim()
+    if (!url) return
+    startCrawl(url)
+  }, [step, productUrl, startCrawl])
+
+  const handleConnectTool = useCallback(async (toolId: string) => {
     const creds = analyticsInputs[toolId]
     if (!creds) return
     setAnalyticsValidating((v) => ({ ...v, [toolId]: true }))
@@ -984,15 +1039,29 @@ export default function ProductOnboardingFlow() {
     }
   }, [analyticsInputs])
 
+  const handleStep3 = useCallback(async () => {
+    setSaving(true)
+    try {
+      const analytics_config: Record<string, Record<string, string>> = {}
+      for (const [id, conn] of Object.entries(analyticsConnected)) {
+        if (conn && analyticsInputs[id]) analytics_config[id] = analyticsInputs[id]
+      }
+      await patch({ analytics_config, onboarding_step: 3 })
+      goToStep(4)
+    } catch { setError('Failed to save') }
+    finally { setSaving(false) }
+  }, [analyticsConnected, analyticsInputs, patch, goToStep])
+
+  // ── Step 4: Growth Levers ──────────────────────────────────────────────────
   const handleStep4 = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await patch({ analytics_config: analyticsInputs, onboarding_step: 4 })
+      await patch({ sub_metrics: subMetrics.filter((m) => m.name.trim()), onboarding_step: 4 })
       goToStep(5)
     } catch { setError('Failed to save') }
     finally { setSaving(false) }
-  }, [analyticsInputs, patch, goToStep])
+  }, [subMetrics, patch, goToStep])
 
   // ── Step 6: launch ─────────────────────────────────────────────────────────
   const handleLaunch = useCallback(async () => {
@@ -2305,10 +2374,196 @@ export default function ProductOnboardingFlow() {
           </div>
         )}
 
-        {/* ── Step 3: Growth Levers ─────────────────────────────────────────── */}
-        {step === 3 && (
-          <form onSubmit={handleStep3}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 3 of 5</p>
+        {/* ── Step 3: Data Sources ───────────────────────────────────────────── */}
+        {step === 3 && (() => {
+          const detectedTools = crawlData
+            ? ANALYTICS_TOOLS.filter((t) => crawlData.analytics.detected[t.id])
+            : []
+          const anyConnected = Object.values(analyticsConnected).some(Boolean)
+          const showRecommendationBanner = detectedTools.length > 2
+          const recommendedDetected = detectedTools.filter((t) => t.recommended)
+          // Tools not auto-detected — available for manual connection
+          const manualTools = crawlData
+            ? ANALYTICS_TOOLS.filter((t) => !crawlData.analytics.detected[t.id])
+            : ANALYTICS_TOOLS
+
+          return (
+            <div>
+              <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 3 of 5</p>
+              <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Connect your analytics</h1>
+              <p className="text-sm text-[#666] mb-8">
+                NorthStar scans <span className="text-[#f0f0f0]">{productUrl}</span> to detect which analytics tools are powering your product, then asks for your API credentials so it can pull behavioral data.
+              </p>
+
+              {/* Crawl loading */}
+              {crawlRunning && (
+                <div className="flex items-center gap-3 py-6 px-5 rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] mb-6">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#4f8ef7] shrink-0" />
+                  <div>
+                    <p className="text-sm text-[#f0f0f0] font-medium">Scanning your page for analytics…</p>
+                    <p className="text-xs text-[#555] mt-0.5">This usually takes a few seconds</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Crawl failed */}
+              {!crawlRunning && crawlFailed && (
+                <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-5 py-4 text-sm text-[#666] mb-6">
+                  <p className="font-medium text-[#888] mb-1">Could not scan your page</p>
+                  <p className="text-xs">Connect an analytics tool below, or skip for now.</p>
+                </div>
+              )}
+
+              {/* Detection results */}
+              {!crawlRunning && crawlData && (
+                <div className="mb-6 space-y-4">
+                  {crawlData.analytics.hasAny ? (
+                    <>
+                      <p className="text-sm text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" /> We found analytics on your page
+                      </p>
+
+                      {showRecommendationBanner && (
+                        <div className="rounded-lg border border-[#4f8ef7]/20 bg-[#4f8ef7]/5 px-4 py-3 text-sm text-[#4f8ef7]">
+                          <p className="font-medium mb-0.5">Recommendation</p>
+                          <p className="text-xs text-[#4f8ef7]/70 leading-relaxed">
+                            Connect {recommendedDetected.map((t) => t.name).join(' or ')} — they give NorthStar the richest behavioral signals including session recordings and click heatmaps.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Detected tool cards */}
+                      <div className="space-y-3">
+                        {detectedTools.map((tool) => {
+                          const connected = analyticsConnected[tool.id]
+                          const validating = analyticsValidating[tool.id]
+                          const err = analyticsErrors[tool.id]
+                          const inputs = analyticsInputs[tool.id] ?? {}
+                          const allFilled = tool.fields.every((f) => inputs[f.key]?.trim())
+                          return (
+                            <div key={tool.id} className={`rounded-xl border p-5 transition-colors ${connected ? 'border-emerald-600/40 bg-emerald-950/10' : 'border-[#2a2a2a] bg-[#0d0d0d]'}`}>
+                              <div className="flex items-center gap-3 mb-4">
+                                <span className="flex items-center justify-center h-8 w-8 rounded-lg text-xs font-bold text-white shrink-0" style={{ backgroundColor: tool.color }}>{tool.initials}</span>
+                                <div className="flex items-center gap-2 flex-1">
+                                  <span className="font-semibold text-[#f0f0f0]">{tool.name}</span>
+                                  {tool.recommended && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#4f8ef7]/20 text-[#4f8ef7]">Recommended</span>}
+                                </div>
+                                {connected
+                                  ? <span className="flex items-center gap-1 text-emerald-400 text-xs font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Connected</span>
+                                  : <span className="text-xs text-emerald-500/60 font-medium">Detected ✓</span>
+                                }
+                              </div>
+                              {!connected && (
+                                <div className="space-y-3">
+                                  {tool.fields.map((field) => (
+                                    <div key={field.key}>
+                                      <label className={labelCls}>{field.label}</label>
+                                      <input
+                                        type={field.type}
+                                        placeholder={field.placeholder}
+                                        value={inputs[field.key] ?? ''}
+                                        onChange={(e) => setAnalyticsInputs((p) => ({ ...p, [tool.id]: { ...p[tool.id], [field.key]: e.target.value } }))}
+                                        className={inputCls}
+                                      />
+                                      <p className="text-[11px] text-[#444] mt-1">Found in {field.helper}</p>
+                                    </div>
+                                  ))}
+                                  {err && <p className="text-xs text-red-400">{err}</p>}
+                                  <button type="button" onClick={() => handleConnectTool(tool.id)}
+                                    disabled={validating || !allFilled}
+                                    className="text-xs px-3 py-1.5 rounded-lg bg-[#4f8ef7]/10 border border-[#4f8ef7]/40 text-[#4f8ef7] hover:bg-[#4f8ef7]/20 transition-colors disabled:opacity-50">
+                                    {validating ? 'Connecting…' : 'Connect'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#555]">No analytics detected on your page.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Manual / additional tools */}
+              {(!crawlRunning) && (
+                <div className="mb-6">
+                  <p className="text-xs text-[#444] uppercase tracking-widest font-medium mb-3">
+                    {crawlData?.analytics.hasAny ? 'Connect another tool' : 'Connect your analytics'}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {manualTools.map((tool) => (
+                      <button key={tool.id} type="button"
+                        onClick={() => setSelectedTool(selectedTool === tool.id ? null : tool.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors ${
+                          analyticsConnected[tool.id]
+                            ? 'border-emerald-600/40 bg-emerald-950/10 text-emerald-400'
+                            : selectedTool === tool.id
+                            ? 'border-[#4f8ef7] bg-[#4f8ef7]/10 text-[#4f8ef7]'
+                            : 'border-[#2a2a2a] text-[#555] hover:text-[#888]'
+                        }`}
+                      >
+                        <div className="w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center shrink-0" style={{ background: tool.color, color: '#fff' }}>{tool.initials}</div>
+                        {tool.name}
+                        {tool.recommended && !analyticsConnected[tool.id] && <span className="text-[9px] text-[#f97316] uppercase tracking-wide">rec</span>}
+                        {analyticsConnected[tool.id] && <Check className="w-3 h-3" />}
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedTool && !analyticsConnected[selectedTool] && !detectedTools.find((t) => t.id === selectedTool) && (() => {
+                    const tool = ANALYTICS_TOOLS.find((t) => t.id === selectedTool)
+                    if (!tool) return null
+                    const inputs = analyticsInputs[tool.id] ?? {}
+                    const allFilled = tool.fields.every((f) => inputs[f.key]?.trim())
+                    return (
+                      <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+                        {tool.fields.map((f) => (
+                          <div key={f.key} className="mb-3">
+                            <label className={labelCls}>{f.label}</label>
+                            <input
+                              type={f.type}
+                              value={inputs[f.key] ?? ''}
+                              onChange={(e) => setAnalyticsInputs((prev) => ({ ...prev, [tool.id]: { ...(prev[tool.id] ?? {}), [f.key]: e.target.value } }))}
+                              placeholder={f.placeholder}
+                              className={inputCls}
+                            />
+                            <p className="text-[11px] text-[#444] mt-1">Found in {f.helper}</p>
+                          </div>
+                        ))}
+                        {analyticsErrors[tool.id] && <p className="text-xs text-red-400 mb-3">{analyticsErrors[tool.id]}</p>}
+                        <button type="button" onClick={() => handleConnectTool(tool.id)}
+                          disabled={analyticsValidating[tool.id] || !allFilled}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-[#4f8ef7]/10 border border-[#4f8ef7]/40 text-[#4f8ef7] hover:bg-[#4f8ef7]/20 transition-colors disabled:opacity-50">
+                          {analyticsValidating[tool.id] ? 'Connecting…' : 'Connect'}
+                        </button>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+
+              <button type="button" onClick={handleStep3} disabled={saving}
+                className="w-full py-3 rounded-xl text-sm font-medium transition-colors bg-[#4f8ef7] text-white hover:bg-[#3a7de8] disabled:opacity-50">
+                {saving ? 'Saving…' : anyConnected ? 'Continue →' : 'Continue →'}
+              </button>
+              {!anyConnected && (
+                <button type="button" onClick={handleStep3}
+                  className="w-full mt-2 py-2.5 text-sm text-[#444] hover:text-[#666] transition-colors">
+                  Skip for now
+                </button>
+              )}
+              <BackBtn onClick={() => goToStep(2)} />
+            </div>
+          )
+        })()}
+
+        {/* ── Step 4: Growth Levers ─────────────────────────────────────────── */}
+        {step === 4 && (
+          <form onSubmit={handleStep4}>
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 4 of 5</p>
             <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">What moves your NorthStar?</h1>
             <p className="text-sm text-[#666] mb-2">
               Sub-metrics that ladder up to <span className="text-[#f0f0f0] font-medium">{nsMetric || 'your NorthStar'}</span>.
@@ -2346,79 +2601,6 @@ export default function ProductOnboardingFlow() {
             </div>
 
             <ContinueBtn loading={saving} />
-            <BackBtn onClick={() => goToStep(2)} />
-          </form>
-        )}
-
-        {/* ── Step 4: Connect Analytics ─────────────────────────────────────── */}
-        {step === 4 && (
-          <form onSubmit={handleStep4}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 4 of 5</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Connect your behavioral data</h1>
-            <p className="text-sm text-[#666] mb-8">
-              NorthStar reads your analytics to surface activation patterns, drop-off points, and retention signals.
-              You can skip this and connect later.
-            </p>
-
-            {/* Tool selector */}
-            <div className="flex gap-2 mb-5">
-              {ANALYTICS_TOOLS.map((tool) => (
-                <button key={tool.id} type="button"
-                  onClick={() => setSelectedTool(selectedTool === tool.id ? null : tool.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors ${
-                    analyticsConnected[tool.id]
-                      ? 'border-[#22c55e] bg-[#22c55e]/10 text-[#22c55e]'
-                      : selectedTool === tool.id
-                      ? 'border-[#4f8ef7] bg-[#4f8ef7]/10 text-[#4f8ef7]'
-                      : 'border-[#2a2a2a] text-[#555] hover:text-[#888]'
-                  }`}
-                >
-                  <div className="w-5 h-5 rounded text-[9px] font-bold flex items-center justify-center" style={{ background: tool.color, color: '#fff' }}>{tool.initials}</div>
-                  {tool.name}
-                  {tool.recommended && !analyticsConnected[tool.id] && <span className="text-[9px] text-[#f97316] uppercase tracking-wide">rec</span>}
-                  {analyticsConnected[tool.id] && <Check className="w-3 h-3" />}
-                </button>
-              ))}
-            </div>
-
-            {/* Credential fields for selected tool */}
-            {selectedTool && !analyticsConnected[selectedTool] && (() => {
-              const tool = ANALYTICS_TOOLS.find((t) => t.id === selectedTool)
-              if (!tool) return null
-              return (
-                <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4 mb-4">
-                  {tool.fields.map((f) => (
-                    <div key={f.key} className="mb-3">
-                      <label className={labelCls}>{f.label}</label>
-                      <input
-                        type={f.type}
-                        value={analyticsInputs[tool.id]?.[f.key] ?? ''}
-                        onChange={(e) => setAnalyticsInputs((prev) => ({ ...prev, [tool.id]: { ...(prev[tool.id] ?? {}), [f.key]: e.target.value } }))}
-                        placeholder={f.placeholder}
-                        className={inputCls}
-                      />
-                    </div>
-                  ))}
-                  {analyticsErrors[tool.id] && (
-                    <p className="text-xs text-red-400 mb-3">{analyticsErrors[tool.id]}</p>
-                  )}
-                  <button type="button" onClick={() => handleValidateAnalytics(tool.id)}
-                    disabled={analyticsValidating[tool.id]}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-[#4f8ef7]/10 border border-[#4f8ef7]/40 text-[#4f8ef7] hover:bg-[#4f8ef7]/20 transition-colors disabled:opacity-50">
-                    {analyticsValidating[tool.id] ? 'Connecting...' : 'Connect'}
-                  </button>
-                </div>
-              )
-            })()}
-
-            <div className="mt-2">
-              <ContinueBtn label="Continue →" loading={saving} />
-            </div>
-
-            <button type="button" onClick={() => goToStep(5)}
-              className="w-full mt-2 py-2.5 text-sm text-[#444] hover:text-[#666] transition-colors">
-              Skip for now
-            </button>
             <BackBtn onClick={() => goToStep(3)} />
           </form>
         )}
@@ -2439,12 +2621,12 @@ export default function ProductOnboardingFlow() {
                   <p className="text-xs text-[#555] mt-0.5">{nsCurrent} → {nsTarget}</p>
                 )}
               </ReviewRow>
-              <ReviewRow label="Growth levers" value={subMetrics.filter((m) => m.name).length > 0 ? `${subMetrics.filter((m) => m.name).length} metrics defined` : '—'} onEdit={() => goToStep(3)}>
+              <ReviewRow label="Analytics" value={Object.keys(analyticsConnected).filter((k) => analyticsConnected[k]).map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(', ') || 'Not connected'} onEdit={() => goToStep(3)} />
+              <ReviewRow label="Growth levers" value={subMetrics.filter((m) => m.name).length > 0 ? `${subMetrics.filter((m) => m.name).length} metrics defined` : '—'} onEdit={() => goToStep(4)}>
                 {subMetrics.filter((m) => m.name).slice(0, 3).map((m) => (
                   <span key={m.name} className="inline-block text-xs bg-[#1f1f1f] rounded px-1.5 py-0.5 text-[#666] mr-1 mt-1">{m.name}</span>
                 ))}
               </ReviewRow>
-              <ReviewRow label="Analytics" value={Object.keys(analyticsConnected).filter((k) => analyticsConnected[k]).map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(', ') || 'Not connected'} onEdit={() => goToStep(4)} />
             </div>
 
             <div className="rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/5 p-5 mb-6">
