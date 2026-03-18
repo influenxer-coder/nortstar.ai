@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   CheckCircle2, XCircle, MessageSquare, GitBranch, BarChart2,
   FileText, Upload, Trash2, Loader2, RefreshCw, ChevronRight,
-  Sparkles, Copy, Check, Eye, X, Rocket, BookOpen,
+  Sparkles, Copy, Check, Eye, X,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Agent, Hypothesis } from '@/lib/types'
@@ -70,8 +70,16 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   const [instructionsSaved, setInstructionsSaved] = useState(false)
 
   // ── View / collapse state ──────────────────────────────────────────────────
-  const [view, setView] = useState<'none' | 'hypotheses' | 'analytics' | 'simulation' | 'briefing'>('hypotheses')
+  const [view, setView] = useState<'hypotheses' | 'analytics' | 'simulation' | 'briefing' | 'documents' | 'instructions' | 'codebase' | 'slack' | 'none'>('hypotheses')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setView((e as CustomEvent<{ view: string }>).detail.view as typeof view)
+    }
+    window.addEventListener('agent-nav', handler)
+    return () => window.removeEventListener('agent-nav', handler)
+  }, [])
 
   // ── Analysis state ─────────────────────────────────────────────────────────
   const [reanalyzing, setReanalyzing] = useState(false)
@@ -95,7 +103,6 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   const resolvedPhProject = agent.posthog_project_id ?? agent.analytics_config?.posthog?.project_id ?? null
   const [phKey, setPhKey] = useState<string | null>(resolvedPhKey)
   const [phProject, setPhProject] = useState<string | null>(resolvedPhProject)
-  const [phExpanded, setPhExpanded] = useState(false)
   const [phForm, setPhForm] = useState({ api_key: '', project_id: '' })
   const [phSaving, setPhSaving] = useState(false)
   const [phError, setPhError] = useState('')
@@ -116,7 +123,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       body: JSON.stringify({ posthog_api_key: phForm.api_key.trim(), posthog_project_id: phForm.project_id.trim() }),
     })
     setPhKey(phForm.api_key.trim()); setPhProject(phForm.project_id.trim())
-    setPhExpanded(false); setPhSaving(false); setPhForm({ api_key: '', project_id: '' })
+    setPhSaving(false); setPhForm({ api_key: '', project_id: '' })
   }
 
   // ── Load docs on mount ─────────────────────────────────────────────────────
@@ -314,216 +321,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
     <>
     <div className="flex h-screen overflow-hidden bg-[#09090B]">
 
-      {/* ── Left sources panel ───────────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 border-r border-zinc-800 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-3 space-y-5">
-
-          {/* Growth Opportunities */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5 px-1">
-              <button
-                onClick={() => setView(v => v === 'hypotheses' ? 'none' : 'hypotheses')}
-                className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest hover:text-zinc-400 transition-colors"
-              >
-                Growth Opportunities
-              </button>
-              <button
-                onClick={handleReanalyze}
-                disabled={reanalyzing}
-                className="text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-40 transition-colors"
-              >
-                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
-              </button>
-            </div>
-            {hypotheses.length === 0 ? (
-              <p className="text-[10px] text-zinc-600 italic px-1 py-1">
-                {reanalyzing ? 'Generating…' : 'No hypotheses yet'}
-              </p>
-            ) : (
-              <div className="space-y-0.5">
-                {hypotheses.map(h => {
-                  const dotColor = h.status === 'accepted' ? 'bg-emerald-500' : h.status === 'rejected' ? 'bg-red-500' : h.status === 'shipped' ? 'bg-violet-500' : 'bg-zinc-600'
-                  const isActive = view === 'hypotheses' && expandedRowId === h.id
-                  return (
-                    <button
-                      key={h.id}
-                      onClick={() => { setView('hypotheses'); setExpandedRowId(expandedRowId === h.id ? null : h.id) }}
-                      className={`w-full flex items-start gap-2 py-1.5 px-2 rounded text-left transition-colors ${isActive ? 'bg-violet-500/10' : 'hover:bg-zinc-800/50'}`}
-                    >
-                      <span className={`mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                      <span className={`text-xs leading-snug line-clamp-2 ${isActive ? 'text-violet-300' : 'text-zinc-400'}`}>{h.title}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Analytics */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Analytics</p>
-            <div
-              className={phKey ? 'cursor-pointer' : ''}
-              onClick={phKey ? () => setView(v => v === 'analytics' ? 'hypotheses' : 'analytics') : undefined}
-            >
-              <div className="flex items-center justify-between gap-2 py-1.5 px-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <BarChart2 className={`h-3.5 w-3.5 shrink-0 ${phKey ? 'text-emerald-400' : 'text-zinc-600'}`} />
-                  <span className={`text-xs truncate ${phKey ? 'text-zinc-300' : 'text-zinc-500'}`}>
-                    {phKey ? `PostHog${phProject ? ` · ${phProject}` : ''}` : 'PostHog'}
-                  </span>
-                  {phKey && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                </div>
-                {!phKey && (
-                  <button onClick={() => setPhExpanded(v => !v)} className="text-[10px] text-violet-400 hover:text-violet-300 shrink-0">
-                    Connect
-                  </button>
-                )}
-              </div>
-            </div>
-            {phExpanded && !phKey && (
-              <div className="mt-2 px-1 space-y-2">
-                <p className="text-[10px] text-zinc-500 leading-relaxed">Find your keys in PostHog → Settings → Project.</p>
-                <input
-                  value={phForm.api_key}
-                  onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
-                  placeholder="API Key  (phx_...)"
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-                <input
-                  value={phForm.project_id}
-                  onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
-                  placeholder="Project ID  (e.g. 12345)"
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-                {phError && <p className="text-[10px] text-red-400">{phError}</p>}
-                <div className="flex gap-2">
-                  <button onClick={handlePhConnect} disabled={phSaving}
-                    className="flex-1 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-medium disabled:opacity-50 transition-colors">
-                    {phSaving ? 'Connecting…' : 'Connect'}
-                  </button>
-                  <button onClick={() => { setPhExpanded(false); setPhError(''); setPhForm({ api_key: '', project_id: '' }) }}
-                    className="px-2 py-1 rounded border border-zinc-700 text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Codebase */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Codebase</p>
-            <div className="flex items-center justify-between gap-2 py-1.5 px-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <GitBranch className={`h-3.5 w-3.5 shrink-0 ${agent.github_repo ? 'text-emerald-400' : 'text-zinc-600'}`} />
-                <span className={`text-xs truncate ${agent.github_repo ? 'text-zinc-300' : 'text-zinc-500'}`}>
-                  {agent.github_repo ?? 'GitHub'}
-                </span>
-                {agent.github_repo && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-              </div>
-              {!agent.github_repo && (
-                <a href="/dashboard/agents/new" className="text-[10px] text-violet-400 hover:text-violet-300 shrink-0">Connect</a>
-              )}
-            </div>
-          </div>
-
-          {/* Slack */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Slack</p>
-            <div className="flex items-center justify-between gap-2 py-1.5 px-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${agent.slack_channel_id ? 'text-emerald-400' : 'text-zinc-600'}`} />
-                <span className={`text-xs truncate ${agent.slack_channel_id ? 'text-zinc-300' : 'text-zinc-500'}`}>
-                  {agent.slack_channel_id ? 'Workspace connected' : 'Not connected'}
-                </span>
-                {agent.slack_channel_id && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-              </div>
-              <a href={`/api/auth/slack?agent_id=${agent.id}`} className="text-[10px] text-violet-400 hover:text-violet-300 shrink-0">
-                {agent.slack_channel_id ? 'Reconnect' : 'Connect'}
-              </a>
-            </div>
-          </div>
-
-          {/* Onboarding */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Onboarding</p>
-            {/* ICP Simulation */}
-            <div
-              className="cursor-pointer"
-              onClick={() => setView(v => v === 'simulation' ? 'hypotheses' : 'simulation')}
-            >
-              <div className="flex items-center justify-between gap-2 py-1.5 px-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Rocket className={`h-3.5 w-3.5 shrink-0 ${view === 'simulation' ? 'text-violet-400' : 'text-zinc-500'}`} />
-                  <span className={`text-xs truncate ${view === 'simulation' ? 'text-zinc-200' : 'text-zinc-500'}`}>ICP Simulation</span>
-                </div>
-              </div>
-            </div>
-            {/* Agent Briefing */}
-            <div
-              className="cursor-pointer"
-              onClick={() => setView(v => v === 'briefing' ? 'hypotheses' : 'briefing')}
-            >
-              <div className="flex items-center justify-between gap-2 py-1.5 px-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <BookOpen className={`h-3.5 w-3.5 shrink-0 ${view === 'briefing' ? 'text-violet-400' : 'text-zinc-500'}`} />
-                  <span className={`text-xs truncate ${view === 'briefing' ? 'text-zinc-200' : 'text-zinc-500'}`}>Agent Briefing</span>
-                  {agent.context_summary && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Documents */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Documents</p>
-            {docsLoading ? (
-              <div className="flex items-center gap-1.5 text-zinc-600 text-xs px-1 py-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {(docs ?? []).map(doc => (
-                  <div key={doc.file_name} className="flex items-center gap-2 group py-1 px-1 rounded hover:bg-zinc-800/40">
-                    <FileText className="h-3 w-3 text-zinc-600 shrink-0" />
-                    <span className="text-xs text-zinc-400 truncate flex-1">{doc.file_name}</span>
-                    <button onClick={() => handleDeleteDoc(doc.file_name)}
-                      className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 shrink-0 transition-opacity">
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" id="ws-doc-upload" />
-                <label htmlFor="ws-doc-upload"
-                  className={`flex items-center gap-1.5 text-xs px-1 py-1.5 rounded cursor-pointer transition-colors ${uploading ? 'text-zinc-600' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'}`}>
-                  {uploading ? <><Loader2 className="h-3 w-3 animate-spin" /> Uploading…</> : <><Upload className="h-3 w-3" /> Upload file</>}
-                </label>
-                {uploadError && <p className="text-[10px] text-red-400 px-1">{uploadError}</p>}
-              </div>
-            )}
-          </div>
-
-          {/* Instructions */}
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Instructions</p>
-            <textarea
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              placeholder="e.g. Focus on sign-up rate. Be concise. Always suggest A/B ideas."
-              rows={3}
-              className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-2 py-1.5 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
-            />
-            <button onClick={saveInstructions} disabled={instructionsSaving}
-              className="mt-1.5 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50">
-              {instructionsSaving ? 'Saving…' : instructionsSaved ? '✓ Saved' : 'Save instructions'}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ── Main content ─────────────────────────────────────────────────────── */}
+      {/* ── Main content (full width) ─────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
@@ -596,30 +394,112 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             </div>
           )}
 
-          {/* ── Hypothesis summary bar ──────────────────────────────────────── */}
-          <button
-            onClick={() => setView(v => v === 'hypotheses' ? 'none' : 'hypotheses')}
-            className={`w-full flex items-center justify-between px-6 py-3 border-b border-zinc-800/60 transition-colors text-left ${
-              view === 'hypotheses' ? 'bg-violet-500/5' : 'hover:bg-zinc-900/40'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className={`h-3.5 w-3.5 ${view === 'hypotheses' ? 'text-violet-400' : 'text-zinc-600'}`} />
-              {hasHypotheses ? (
-                <span className={`text-xs font-medium ${view === 'hypotheses' ? 'text-violet-300' : 'text-zinc-400'}`}>
-                  {hypotheses.length} hypothesis{hypotheses.length !== 1 ? 'es' : ''}
-                  <span className="text-zinc-600 font-normal ml-1.5">
-                    · Generated {formatRelativeDate(hypotheses.reduce((latest, h) =>
-                      h.created_at > latest ? h.created_at : latest, hypotheses[0].created_at
-                    ))}
-                  </span>
-                </span>
+          {/* ── Analytics ────────────────────────────────────────────────────── */}
+          {view === 'analytics' && (
+            <div className="p-6 border-b border-zinc-800/60">
+              {!phKey ? (
+                <div className="max-w-sm space-y-3">
+                  <p className="text-sm font-medium text-zinc-300">Connect PostHog</p>
+                  <p className="text-xs text-zinc-500">Find your keys in PostHog → Settings → Project.</p>
+                  <input value={phForm.api_key} onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
+                    placeholder="API Key (phx_...)"
+                    className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                  <input value={phForm.project_id} onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
+                    placeholder="Project ID (e.g. 12345)"
+                    className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                  {phError && <p className="text-xs text-red-400">{phError}</p>}
+                  <button onClick={handlePhConnect} disabled={phSaving}
+                    className="px-4 py-2 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium disabled:opacity-50 transition-colors">
+                    {phSaving ? 'Connecting…' : 'Connect PostHog'}
+                  </button>
+                </div>
               ) : (
-                <span className="text-xs text-zinc-600">No hypotheses yet</span>
+                <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
               )}
             </div>
-            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${view === 'hypotheses' ? 'rotate-90 text-violet-400' : 'text-zinc-700'}`} />
-          </button>
+          )}
+
+          {/* ── Codebase ─────────────────────────────────────────────────────── */}
+          {view === 'codebase' && (
+            <div className="p-6 border-b border-zinc-800/60">
+              <p className="text-sm font-medium text-zinc-300 mb-2">Codebase</p>
+              {agent.github_repo ? (
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {agent.github_repo}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-zinc-500">No GitHub repo connected.</p>
+                  <a href="/dashboard/agents/new" className="text-xs text-violet-400 hover:text-violet-300">Connect a repo →</a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Slack ────────────────────────────────────────────────────────── */}
+          {view === 'slack' && (
+            <div className="p-6 border-b border-zinc-800/60">
+              <p className="text-sm font-medium text-zinc-300 mb-2">Slack</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  {agent.slack_channel_id && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                  {agent.slack_channel_id ? 'Workspace connected' : 'Not connected'}
+                </div>
+                <a href={`/api/auth/slack?agent_id=${agent.id}`} className="text-xs text-violet-400 hover:text-violet-300">
+                  {agent.slack_channel_id ? 'Reconnect' : 'Connect Slack'}
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* ── Documents ────────────────────────────────────────────────────── */}
+          {view === 'documents' && (
+            <div className="p-6 border-b border-zinc-800/60">
+              <p className="text-sm font-medium text-zinc-300 mb-3">Documents</p>
+              {docsLoading ? (
+                <div className="flex items-center gap-2 text-zinc-500 text-xs"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
+              ) : (
+                <div className="space-y-1 max-w-sm">
+                  {(docs ?? []).map(doc => (
+                    <div key={doc.file_name} className="flex items-center gap-2 group py-1.5 px-2 rounded hover:bg-zinc-800/40">
+                      <FileText className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
+                      <span className="text-xs text-zinc-400 truncate flex-1">{doc.file_name}</span>
+                      <button onClick={() => handleDeleteDoc(doc.file_name)} className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 shrink-0">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" id="ws-doc-upload" />
+                  <label htmlFor="ws-doc-upload"
+                    className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded cursor-pointer transition-colors ${uploading ? 'text-zinc-600' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'}`}>
+                    {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</> : <><Upload className="h-3.5 w-3.5" /> Upload file</>}
+                  </label>
+                  {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Instructions ─────────────────────────────────────────────────── */}
+          {view === 'instructions' && (
+            <div className="p-6 border-b border-zinc-800/60">
+              <p className="text-sm font-medium text-zinc-300 mb-3">Instructions</p>
+              <div className="max-w-lg space-y-2">
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder="e.g. Focus on sign-up rate. Be concise. Always suggest A/B ideas."
+                  rows={6}
+                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm px-3 py-2 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+                />
+                <button onClick={saveInstructions} disabled={instructionsSaving}
+                  className="px-4 py-2 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium disabled:opacity-50 transition-colors">
+                  {instructionsSaving ? 'Saving…' : instructionsSaved ? '✓ Saved' : 'Save instructions'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Hypothesis table ─────────────────────────────────────────────── */}
           {view === 'hypotheses' && (
@@ -693,11 +573,6 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                 </>
               )}
             </div>
-          )}
-
-          {/* ── Analytics ────────────────────────────────────────────────────── */}
-          {view === 'analytics' && phKey && (
-            <AnalyticsView agentId={agent.id} kpiText={(agent.target_element as { text?: string } | null)?.text ?? agent.main_kpi ?? ''} />
           )}
 
         </div>

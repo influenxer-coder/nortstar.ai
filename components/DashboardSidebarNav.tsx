@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot } from 'lucide-react'
 import { useState } from 'react'
+import React from 'react'
+import dynamic from 'next/dynamic'
+
+const AgentNavSection = dynamic(() => import('./AgentNavSection'), { ssr: false })
 
 export type AgentStub = { id: string; name: string; status: string | null }
 
@@ -110,7 +114,10 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
           </div>
           <div className="mt-0.5 space-y-0.5">
             {product.agents.map((agent) => (
-              <AgentRow key={agent.id} agent={agent} isActive={pathname.includes(agent.id)} />
+              <React.Fragment key={agent.id}>
+                <AgentRow agent={agent} isActive={pathname.includes(agent.id)} />
+                {pathname.includes(agent.id) && <AgentNavSection agentId={agent.id} />}
+              </React.Fragment>
             ))}
             <Link
               href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`}
@@ -132,7 +139,10 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
           </div>
           <div className="mt-0.5 space-y-0.5">
             {ungroupedAgents.map((agent) => (
-              <AgentRow key={agent.id} agent={agent} isActive={pathname.includes(agent.id)} />
+              <React.Fragment key={agent.id}>
+                <AgentRow agent={agent} isActive={pathname.includes(agent.id)} />
+                {pathname.includes(agent.id) && <AgentNavSection agentId={agent.id} />}
+              </React.Fragment>
             ))}
           </div>
         </div>
