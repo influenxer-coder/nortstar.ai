@@ -19,13 +19,18 @@ type Props = {
   products: ProductWithAgents[]
   ungroupedAgents: UngroupedAgents
   userDisplayName: string
+  dbInProgressProject?: { id: string; name: string | null; onboarding_step: number | null } | null
 }
 
-export default function DashboardHome({ products, ungroupedAgents, userDisplayName }: Props) {
-  const [currentProject, setCurrentProject] = useState<{ id: string; name: string | null; onboarding_step: number | null } | null>(null)
+export default function DashboardHome({ products, ungroupedAgents, userDisplayName, dbInProgressProject = null }: Props) {
+  const [currentProject, setCurrentProject] = useState<{ id: string; name: string | null; onboarding_step: number | null } | null>(dbInProgressProject)
 
-  // Check if there's an in-progress product setup (stored in localStorage)
+  // Use DB project as source of truth; fall back to localStorage only if DB returned nothing
   useEffect(() => {
+    if (dbInProgressProject) {
+      setCurrentProject(dbInProgressProject)
+      return
+    }
     const id = typeof localStorage !== 'undefined' ? localStorage.getItem('northstar_current_project_id') : null
     if (!id) { setCurrentProject(null); return }
     const supabase = createClient()
@@ -36,7 +41,6 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       .single()
       .then(({ data, error }) => {
         if (error || !data || data.onboarding_completed) {
-          // Clear stale reference if completed or not found
           if (!error && data?.onboarding_completed) {
             if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
           }
@@ -45,7 +49,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
         }
         setCurrentProject({ id: data.id, name: data.name, onboarding_step: data.onboarding_step })
       })
-  }, [])
+  }, [dbInProgressProject])
 
   const hasAny = products.length > 0 || ungroupedAgents.length > 0
 
@@ -67,11 +71,11 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Product setup in progress</p>
             <p className="text-[#f0f0f0] font-medium">{currentProject.name || 'New product'}</p>
             {currentProject.onboarding_step && (
-              <p className="text-xs text-[#444] mt-0.5">Step {currentProject.onboarding_step} of 6 complete</p>
+              <p className="text-xs text-[#444] mt-0.5">Step {currentProject.onboarding_step} of 5 complete</p>
             )}
           </div>
           <Link
-            href={`/onboarding/product?projectId=${currentProject.id}&step=${Math.min(6, (currentProject.onboarding_step ?? 1) + 1)}`}
+            href={`/onboarding/product?projectId=${currentProject.id}&step=${currentProject.onboarding_step ?? 1}`}
             className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
           >
             Continue setup

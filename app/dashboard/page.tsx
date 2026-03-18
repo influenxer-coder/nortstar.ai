@@ -16,7 +16,7 @@ export default async function DashboardPage() {
 
   const displayName = profile?.full_name || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'
 
-  const [{ data: products }, { data: agents }] = await Promise.all([
+  const [{ data: products }, { data: agents }, { data: inProgressProjects }] = await Promise.all([
     supabase
       .from('products')
       .select('id, name, created_at')
@@ -28,6 +28,13 @@ export default async function DashboardPage() {
       .eq('user_id', user.id)
       .neq('status', 'draft')
       .order('created_at', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('id, name, onboarding_step, updated_at')
+      .eq('user_id', user.id)
+      .eq('onboarding_completed', false)
+      .order('updated_at', { ascending: false })
+      .limit(1),
   ])
 
   const productList = products ?? []
@@ -59,11 +66,14 @@ export default async function DashboardPage() {
     agents: agentsByProduct.get(p.id) ?? [],
   }))
 
+  const dbInProgressProject = inProgressProjects?.[0] ?? null
+
   return (
     <DashboardHome
       products={productsWithAgents}
       ungroupedAgents={ungrouped}
       userDisplayName={displayName}
+      dbInProgressProject={dbInProgressProject}
     />
   )
 }
