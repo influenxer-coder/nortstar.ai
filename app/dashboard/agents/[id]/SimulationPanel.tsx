@@ -282,7 +282,7 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
       >
         <div className="flex items-center gap-2">
           <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform duration-150 ${open ? 'rotate-90' : ''}`} />
-          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Pre-launch Simulation</p>
+          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">ICP Simulation</p>
           {simulation && !simulating && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-500 font-medium ml-1">
               {convertingCount}/{totalPersonas} convert

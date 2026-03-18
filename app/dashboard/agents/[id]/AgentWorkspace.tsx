@@ -315,8 +315,49 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
     <div className="flex h-screen overflow-hidden bg-[#09090B]">
 
       {/* ── Left sources panel ───────────────────────────────────────────────── */}
-      <div className="w-56 shrink-0 border-r border-zinc-800 flex flex-col overflow-hidden">
+      <div className="w-72 shrink-0 border-r border-zinc-800 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-3 space-y-5">
+
+          {/* Growth Opportunities */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5 px-1">
+              <button
+                onClick={() => setView(v => v === 'hypotheses' ? 'none' : 'hypotheses')}
+                className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest hover:text-zinc-400 transition-colors"
+              >
+                Growth Opportunities
+              </button>
+              <button
+                onClick={handleReanalyze}
+                disabled={reanalyzing}
+                className="text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-40 transition-colors"
+              >
+                {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
+              </button>
+            </div>
+            {hypotheses.length === 0 ? (
+              <p className="text-[10px] text-zinc-600 italic px-1 py-1">
+                {reanalyzing ? 'Generating…' : 'No hypotheses yet'}
+              </p>
+            ) : (
+              <div className="space-y-0.5">
+                {hypotheses.map(h => {
+                  const dotColor = h.status === 'accepted' ? 'bg-emerald-500' : h.status === 'rejected' ? 'bg-red-500' : h.status === 'shipped' ? 'bg-violet-500' : 'bg-zinc-600'
+                  const isActive = view === 'hypotheses' && expandedRowId === h.id
+                  return (
+                    <button
+                      key={h.id}
+                      onClick={() => { setView('hypotheses'); setExpandedRowId(expandedRowId === h.id ? null : h.id) }}
+                      className={`w-full flex items-start gap-2 py-1.5 px-2 rounded text-left transition-colors ${isActive ? 'bg-violet-500/10' : 'hover:bg-zinc-800/50'}`}
+                    >
+                      <span className={`mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                      <span className={`text-xs leading-snug line-clamp-2 ${isActive ? 'text-violet-300' : 'text-zinc-400'}`}>{h.title}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Analytics */}
           <div>
@@ -407,7 +448,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
           {/* Onboarding */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Onboarding</p>
-            {/* Pre-launch Simulation */}
+            {/* ICP Simulation */}
             <div
               className="cursor-pointer"
               onClick={() => setView(v => v === 'simulation' ? 'hypotheses' : 'simulation')}
@@ -415,7 +456,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
               <div className="flex items-center justify-between gap-2 py-1.5 px-1">
                 <div className="flex items-center gap-2 min-w-0">
                   <Rocket className={`h-3.5 w-3.5 shrink-0 ${view === 'simulation' ? 'text-violet-400' : 'text-zinc-500'}`} />
-                  <span className={`text-xs truncate ${view === 'simulation' ? 'text-zinc-200' : 'text-zinc-500'}`}>Pre-launch Simulation</span>
+                  <span className={`text-xs truncate ${view === 'simulation' ? 'text-zinc-200' : 'text-zinc-500'}`}>ICP Simulation</span>
                 </div>
               </div>
             </div>
@@ -516,7 +557,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
         {/* Scrollable content */}
         <div className="flex-1 overflow-auto">
 
-          {/* ── Pre-launch Simulation ───────────────────────────────────────── */}
+          {/* ── ICP Simulation ───────────────────────────────────────── */}
           {view === 'simulation' && (
             <SimulationPanel
               agentId={agent.id}
