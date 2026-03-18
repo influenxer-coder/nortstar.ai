@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   CheckCircle2, XCircle, MessageSquare, GitBranch, BarChart2,
   FileText, Upload, Trash2, Loader2, RefreshCw, ChevronRight,
-  Sparkles, Copy, Check, Eye, X,
+  Sparkles, Copy, Check, Eye, X, Rocket, BookOpen,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Agent, Hypothesis } from '@/lib/types'
@@ -70,8 +70,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   const [instructionsSaved, setInstructionsSaved] = useState(false)
 
   // ── View / collapse state ──────────────────────────────────────────────────
-  const [view, setView] = useState<'none' | 'hypotheses' | 'analytics'>('hypotheses')
-  const [briefingOpen, setBriefingOpen] = useState(!!agent.context_summary)
+  const [view, setView] = useState<'none' | 'hypotheses' | 'analytics' | 'simulation' | 'briefing'>('hypotheses')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
 
   // ── Analysis state ─────────────────────────────────────────────────────────
@@ -405,6 +404,36 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             </div>
           </div>
 
+          {/* Onboarding */}
+          <div>
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Onboarding</p>
+            {/* Pre-launch Simulation */}
+            <div
+              className="cursor-pointer"
+              onClick={() => setView(v => v === 'simulation' ? 'hypotheses' : 'simulation')}
+            >
+              <div className="flex items-center justify-between gap-2 py-1.5 px-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Rocket className={`h-3.5 w-3.5 shrink-0 ${view === 'simulation' ? 'text-violet-400' : 'text-zinc-500'}`} />
+                  <span className={`text-xs truncate ${view === 'simulation' ? 'text-zinc-200' : 'text-zinc-500'}`}>Pre-launch Simulation</span>
+                </div>
+              </div>
+            </div>
+            {/* Agent Briefing */}
+            <div
+              className="cursor-pointer"
+              onClick={() => setView(v => v === 'briefing' ? 'hypotheses' : 'briefing')}
+            >
+              <div className="flex items-center justify-between gap-2 py-1.5 px-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <BookOpen className={`h-3.5 w-3.5 shrink-0 ${view === 'briefing' ? 'text-violet-400' : 'text-zinc-500'}`} />
+                  <span className={`text-xs truncate ${view === 'briefing' ? 'text-zinc-200' : 'text-zinc-500'}`}>Agent Briefing</span>
+                  {agent.context_summary && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Documents */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5 px-1">Documents</p>
@@ -488,63 +517,43 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
         <div className="flex-1 overflow-auto">
 
           {/* ── Pre-launch Simulation ───────────────────────────────────────── */}
-          <SimulationPanel
-            agentId={agent.id}
-            agentUrl={agent.url ?? null}
-            targetText={agent.target_element?.text ?? null}
-          />
+          {view === 'simulation' && (
+            <SimulationPanel
+              agentId={agent.id}
+              agentUrl={agent.url ?? null}
+              targetText={agent.target_element?.text ?? null}
+            />
+          )}
 
-          {/* ── Agent Briefing (collapsible) ────────────────────────────────── */}
-          <div className="border-b border-zinc-800/60">
-            <div
-              className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
-              onClick={() => setBriefingOpen(o => !o)}
-            >
-              <div className="flex items-center gap-2">
-                <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform duration-150 ${briefingOpen ? 'rotate-90' : ''}`} />
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Agent Briefing</p>
-                <div className="flex items-center gap-1 ml-2">
-                  {[
-                    { label: 'GitHub', active: !!agent.github_repo },
-                    { label: 'PostHog', active: !!phKey },
-                    { label: 'Slack', active: !!agent.slack_channel_id },
-                    { label: `${docs?.length ?? 0} docs`, active: (docs?.length ?? 0) > 0 },
-                  ].filter(s => s.active).map(src => (
-                    <span key={src.label} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-500">
-                      {src.label}
-                    </span>
-                  ))}
+          {/* ── Agent Briefing ───────────────────────────────────────────────── */}
+          {view === 'briefing' && (
+            <div className="border-b border-zinc-800/60 px-6 py-5">
+              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Agent Briefing</p>
+              {agent.context_summary ? (
+                <div className="prose prose-xs prose-invert max-w-none mb-3 text-xs text-zinc-400 [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:text-zinc-400 [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-medium [&_h3]:text-zinc-300 [&_h3]:mt-2 [&_h3]:mb-0.5 [&_p]:leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium">
+                  <ReactMarkdown>{agent.context_summary}</ReactMarkdown>
                 </div>
+              ) : (
+                <p className="text-xs text-zinc-600 italic mb-3">
+                  No briefing yet — run analysis to generate insights from your connected sources.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {[
+                  { label: 'GitHub', active: !!agent.github_repo },
+                  { label: 'PostHog', active: !!phKey },
+                  { label: 'Slack', active: !!agent.slack_channel_id },
+                  { label: `${docs?.length ?? 0} doc${docs?.length === 1 ? '' : 's'}`, active: (docs?.length ?? 0) > 0 },
+                  { label: 'Instructions', active: !!agent.system_instructions },
+                ].map(src => (
+                  <span key={src.label} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
+                  }`}>{src.label}</span>
+                ))}
               </div>
+              <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
             </div>
-            {briefingOpen && (
-              <div className="px-6 pb-5">
-                {agent.context_summary ? (
-                  <div className="prose prose-xs prose-invert max-w-none mb-3 text-xs text-zinc-400 [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:text-zinc-400 [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-medium [&_h3]:text-zinc-300 [&_h3]:mt-2 [&_h3]:mb-0.5 [&_p]:leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium">
-                    <ReactMarkdown>{agent.context_summary}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-xs text-zinc-600 italic mb-3">
-                    No briefing yet — run analysis to generate insights from your connected sources.
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {[
-                    { label: 'GitHub', active: !!agent.github_repo },
-                    { label: 'PostHog', active: !!phKey },
-                    { label: 'Slack', active: !!agent.slack_channel_id },
-                    { label: `${docs?.length ?? 0} doc${docs?.length === 1 ? '' : 's'}`, active: (docs?.length ?? 0) > 0 },
-                    { label: 'Instructions', active: !!agent.system_instructions },
-                  ].map(src => (
-                    <span key={src.label} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
-                    }`}>{src.label}</span>
-                  ))}
-                </div>
-                <AgentAnalysisLogs agentId={agent.id} hasGithubRepo={!!agent.github_repo} />
-              </div>
-            )}
-          </div>
+          )}
 
           {/* ── Hypothesis summary bar ──────────────────────────────────────── */}
           <button
