@@ -815,7 +815,12 @@ export default function ProductOnboardingFlow() {
               fetch(`/api/projects/${projectId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ metrics_json: d }),
+                body: JSON.stringify({
+                  metrics_json: d,
+                  north_star_metric: d.north_star_metric?.metric ?? undefined,
+                  north_star_current: d.north_star_metric?.current_value ?? undefined,
+                  north_star_target: d.north_star_metric?.target_value ?? undefined,
+                }),
               }).catch(() => {})
             }
             setStep2Screen('report')
@@ -839,7 +844,12 @@ export default function ProductOnboardingFlow() {
               fetch(`/api/projects/${projectId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ metrics_json: d }),
+                body: JSON.stringify({
+                  metrics_json: d,
+                  north_star_metric: d.north_star_metric?.metric ?? undefined,
+                  north_star_current: d.north_star_metric?.current_value ?? undefined,
+                  north_star_target: d.north_star_metric?.target_value ?? undefined,
+                }),
               }).catch(() => {})
             }
             setStep2Screen('report')
@@ -871,32 +881,51 @@ export default function ProductOnboardingFlow() {
     setError('')
     try {
       const name = step1Result.input_product?.name || domainFromUrl(productUrl.trim()) || 'My Product'
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          url: productUrl.trim() || null,
-          has_doc: !!docFile,
-          description: productDescription.trim() || null,
-          strategy_doc: undefined, // optional: could persist extracted text later
-          strategy_json: step1Result,
-          strategy_markdown: step1ReportMd,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
-      const pid = data.id as string
-      setProjectId(pid)
-      resumedRef.current = true // prevent resume effect from overriding step after navigation
-      if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', pid)
-      goToStep(2, pid)
+      let pid = projectId
+
+      if (pid) {
+        // Project already exists — patch strategy fields only, preserve metrics_json
+        await fetch(`/api/projects/${pid}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            url: productUrl.trim() || null,
+            has_doc: !!docFile,
+            description: productDescription.trim() || null,
+            strategy_json: step1Result,
+            strategy_markdown: step1ReportMd,
+          }),
+        })
+      } else {
+        // First time — create project
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            url: productUrl.trim() || null,
+            has_doc: !!docFile,
+            description: productDescription.trim() || null,
+            strategy_json: step1Result,
+            strategy_markdown: step1ReportMd,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
+        pid = data.id as string
+        setProjectId(pid)
+        if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', pid)
+      }
+
+      resumedRef.current = true
+      goToStep(2, pid!)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)
     }
-  }, [step1Result, productUrl, docFile, goToStep])
+  }, [step1Result, productUrl, docFile, projectId, step1ReportMd, productDescription, goToStep])
 
   // Keep legacy handleStep1 for any non-stream path (e.g. if agent URL missing we already handle in runStep1Stream)
   const handleStep1 = useCallback(
