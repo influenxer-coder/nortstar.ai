@@ -57,13 +57,13 @@ export default function LandingPage() {
             <p className="text-xs tracking-widest uppercase text-[#0e7c7b] font-medium mb-8">
               Private beta
             </p>
-            <h1 className="text-4xl md:text-8xl font-bold text-white leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight tracking-tight">
               Every product deserves to get 1% better.
               <br />
               Every week.
             </h1>
             <p className="mt-6 text-base md:text-lg text-white/60 tracking-tight">
-              Autonomous agent that reads your analytics, forms hypotheses, ships code changes, and closes the loop to revenue — without a meeting.
+              NorthStar is the autonomous agent that finds the drop-offs, ships the fix, and proves the lift — no sprint planning required.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
