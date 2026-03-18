@@ -85,6 +85,15 @@ type CrawlData = {
   analytics: { detected: Record<string, boolean>; hasAny: boolean }
 }
 
+interface AnalyticsFlowStep { path: string; count: number }
+interface AnalyticsFlow { steps: AnalyticsFlowStep[] }
+interface AnalyticsFlowData {
+  flows?: AnalyticsFlow[]
+  loading?: boolean
+  error?: string
+  unsupported?: boolean
+}
+
 // ─── Metrics agent result types ───────────────────────────────────────────────
 
 interface MetricsGoal {
@@ -472,6 +481,7 @@ export default function ProductOnboardingFlow() {
   const [crawlFailed, setCrawlFailed] = useState(false)
   const crawlStartedForUrlRef = useRef<string>('')
   const crawlAbortRef = useRef<AbortController | null>(null)
+  const [flowsData, setFlowsData] = useState<Record<string, AnalyticsFlowData>>({})
 
   // ── Initialize step + projectId from URL params (client-only, avoids SSR mismatch) ──
   useEffect(() => {
@@ -1029,6 +1039,16 @@ export default function ProductOnboardingFlow() {
       const d = await res.json()
       if (d.valid) {
         setAnalyticsConnected((c) => ({ ...c, [toolId]: true }))
+        // Fetch user flows for this tool
+        setFlowsData((prev) => ({ ...prev, [toolId]: { loading: true } }))
+        fetch('/api/analytics/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: toolId, credentials: creds }),
+        })
+          .then((r) => r.json())
+          .then((data) => setFlowsData((prev) => ({ ...prev, [toolId]: data })))
+          .catch(() => setFlowsData((prev) => ({ ...prev, [toolId]: { error: 'Could not load flows' } })))
       } else {
         setAnalyticsErrors((e) => ({ ...e, [toolId]: d.error ?? 'Invalid credentials' }))
       }
@@ -2545,9 +2565,85 @@ export default function ProductOnboardingFlow() {
                 </div>
               )}
 
+              {/* ── User Flow Map ── */}
+              {Object.entries(flowsData).map(([toolId, fd]) => {
+                if (!analyticsConnected[toolId]) return null
+                const tool = ANALYTICS_TOOLS.find((t) => t.id === toolId)
+                return (
+                  <div key={toolId} className="mb-6 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="flex items-center justify-center h-6 w-6 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: tool?.color ?? '#555' }}>
+                        {tool?.initials ?? toolId.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="text-xs font-medium text-[#888] uppercase tracking-widest">User Flows · last 30 days</span>
+                    </div>
+
+                    {fd.loading && (
+                      <div className="flex items-center gap-2 text-[#555] py-4">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span className="text-xs">Mapping user flows…</span>
+                      </div>
+                    )}
+
+                    {fd.error && (
+                      <p className="text-xs text-[#555] py-2">{fd.error}</p>
+                    )}
+
+                    {fd.unsupported && (
+                      <p className="text-xs text-[#444] py-2">Flow mapping available for PostHog. Other tools will be supported soon.</p>
+                    )}
+
+                    {fd.flows && fd.flows.length === 0 && (
+                      <p className="text-xs text-[#444] py-2">No pageview data found in the last 30 days.</p>
+                    )}
+
+                    {fd.flows && fd.flows.length > 0 && (
+                      <div className="space-y-4">
+                        {fd.flows.map((flow, fi) => {
+                          const firstCount = flow.steps[0]?.count ?? 0
+                          return (
+                            <div key={fi} className="space-y-1">
+                              {/* Flow number */}
+                              <p className="text-[10px] text-[#444] uppercase tracking-widest mb-2">Flow {fi + 1}</p>
+                              {/* Step boxes */}
+                              <div className="flex items-start flex-wrap gap-1">
+                                {flow.steps.map((step, si) => {
+                                  const pct = si === 0 ? 100 : firstCount > 0 ? Math.round((step.count / firstCount) * 100) : 0
+                                  const isDropoff = si > 0 && pct < 50
+                                  return (
+                                    <div key={si} className="flex items-start gap-1">
+                                      {si > 0 && <span className="text-[#333] text-xs mt-2">→</span>}
+                                      <div className="flex flex-col items-center">
+                                        <div className={`rounded-lg border px-3 py-1.5 text-center min-w-[80px] max-w-[140px] ${isDropoff ? 'border-red-900/30 bg-red-950/10' : 'border-[#2a2a2a] bg-[#111]'}`}>
+                                          <p className="text-[11px] text-[#f0f0f0] font-mono truncate" title={step.path}>{step.path}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 mt-1">
+                                          <span className={`text-[10px] font-medium ${isDropoff ? 'text-red-400/70' : 'text-[#555]'}`}>
+                                            {step.count.toLocaleString()}
+                                          </span>
+                                          {si > 0 && (
+                                            <span className={`text-[10px] ${isDropoff ? 'text-red-400/70' : 'text-[#3a3a3a]'}`}>
+                                              ({pct}%)
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
               <button type="button" onClick={handleStep3} disabled={saving}
                 className="w-full py-3 rounded-xl text-sm font-medium transition-colors bg-[#4f8ef7] text-white hover:bg-[#3a7de8] disabled:opacity-50">
-                {saving ? 'Saving…' : anyConnected ? 'Continue →' : 'Continue →'}
+                {saving ? 'Saving…' : 'Continue →'}
               </button>
               {!anyConnected && (
                 <button type="button" onClick={handleStep3}
