@@ -427,7 +427,7 @@ export default function ProductOnboardingFlow() {
   const [step2DetailsOpen, setStep2DetailsOpen] = useState(false)
   const step2AbortRef = useRef<AbortController | null>(null)
   const step2ElapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [step2ChatMessages, setStep2ChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [step2ChatMessages, setStep2ChatMessages] = useState<{ role: 'user' | 'assistant'; content: string; updated?: boolean; changeSummary?: string }[]>([])
   const [step2ChatInput, setStep2ChatInput] = useState('')
   const [step2ChatLoading, setStep2ChatLoading] = useState(false)
   const step2ChatBottomRef = useRef<HTMLDivElement>(null)
@@ -1069,22 +1069,44 @@ export default function ProductOnboardingFlow() {
     if (!step2ChatInput.trim() || step2ChatLoading || !step2Result) return
     const message = step2ChatInput.trim()
     setStep2ChatInput('')
+    const history = step2ChatMessages.map(({ role, content }) => ({ role, content }))
     setStep2ChatMessages((prev) => [...prev, { role: 'user', content: message }])
     setStep2ChatLoading(true)
     try {
       const res = await fetch('/api/onboarding/metrics-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, metrics_json: step2Result }),
+        body: JSON.stringify({ message, metrics_json: step2Result, history }),
       })
       const d = await res.json()
-      setStep2ChatMessages((prev) => [...prev, { role: 'assistant', content: d.reply ?? 'No response.' }])
+      const reply = d.reply || (d.updated_metrics ? '' : 'No response.')
+      setStep2ChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: reply, updated: !!d.updated_metrics, changeSummary: d.change_summary ?? undefined },
+      ])
+      // Apply updated metrics if model confirmed a change
+      if (d.updated_metrics) {
+        const updated = d.updated_metrics as MetricsResultData
+        setStep2Result(updated)
+        if (projectId) {
+          fetch(`/api/projects/${projectId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              metrics_json: updated,
+              north_star_metric: updated.north_star_metric?.metric ?? undefined,
+              north_star_current: updated.north_star_metric?.current_value ?? undefined,
+              north_star_target: updated.north_star_metric?.target_value ?? undefined,
+            }),
+          }).catch(() => {})
+        }
+      }
     } catch {
       setStep2ChatMessages((prev) => [...prev, { role: 'assistant', content: 'Something went wrong. Try again.' }])
     } finally {
       setStep2ChatLoading(false)
     }
-  }, [step2ChatInput, step2ChatLoading, step2Result])
+  }, [step2ChatInput, step2ChatLoading, step2Result, step2ChatMessages, projectId])
 
   useEffect(() => {
     step2ChatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -2257,10 +2279,18 @@ export default function ProductOnboardingFlow() {
                     <p className="text-xs text-[#444] text-center mt-4">Ask about a KR, suggest a different metric, or challenge the goal.</p>
                   )}
                   {step2ChatMessages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className={`rounded-xl px-3 py-2 max-w-[90%] ${m.role === 'user' ? 'bg-[#4f8ef7]/20 text-[#c0d4f5] text-sm' : 'bg-[#1a1a1a] text-[#c0c0c0]'}`}>
                         {m.role === 'assistant' ? <MarkdownMessage content={m.content} /> : m.content}
                       </div>
+                      {m.updated && (
+                        <div className="flex items-center gap-1.5 mt-1 px-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
+                          <p className="text-[10px] text-[#22c55e]">
+                            {m.changeSummary ?? 'Goal & metrics updated'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {step2ChatLoading && (
