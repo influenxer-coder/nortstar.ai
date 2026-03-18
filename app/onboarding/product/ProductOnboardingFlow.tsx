@@ -10,9 +10,9 @@ import { buildReportMarkdown, type StrategyResultData } from './strategyReportBu
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 6
+const TOTAL_STEPS = 5
 
-const STEP_LABELS = ['Product', 'NorthStar', 'ICP', 'Growth Levers', 'Data Sources', 'Review']
+const STEP_LABELS = ['Product', 'NorthStar', 'Growth Levers', 'Data Sources', 'Review']
 
 const METRIC_SUGGESTIONS = [
   'ARR', 'MRR', 'MAU', 'WAU', 'DAU',
@@ -434,12 +434,6 @@ export default function ProductOnboardingFlow() {
   const [step2KrExpanded, setStep2KrExpanded] = useState<Record<number, boolean>>({})
 
   // ── Step 3 ─────────────────────────────────────────────────────────────────
-  const [icpRole, setIcpRole] = useState('')
-  const [icpSizes, setIcpSizes] = useState<string[]>([])
-  const [icpIndustry, setIcpIndustry] = useState('')
-  const [icpPain, setIcpPain] = useState(['', '', ''])
-
-  // ── Step 4 ─────────────────────────────────────────────────────────────────
   const [subMetrics, setSubMetrics] = useState<SubMetric[]>([])
 
   // ── Step 5 ─────────────────────────────────────────────────────────────────
@@ -517,10 +511,6 @@ export default function ProductOnboardingFlow() {
         if (d.north_star_metric) setNsMetric(d.north_star_metric)
         if (d.north_star_current) setNsCurrent(d.north_star_current)
         if (d.north_star_target) setNsTarget(d.north_star_target)
-        if (d.icp?.role) setIcpRole(d.icp.role)
-        if (d.icp?.sizes) setIcpSizes(d.icp.sizes)
-        if (d.icp?.industry) setIcpIndustry(d.icp.industry)
-        if (d.icp?.pain_points) setIcpPain(d.icp.pain_points)
         if (Array.isArray(d.sub_metrics) && d.sub_metrics.length > 0) setSubMetrics(d.sub_metrics)
         if (d.strategy_json) {
           setStep1Result(d.strategy_json as StrategyResultData)
@@ -961,25 +951,10 @@ export default function ProductOnboardingFlow() {
   // ── Step 3: submit ─────────────────────────────────────────────────────────
   const handleStep3 = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!icpRole.trim()) return
     setSaving(true)
     try {
-      await patch({
-        icp: { role: icpRole.trim(), sizes: icpSizes, industry: icpIndustry, pain_points: icpPain.filter(Boolean) },
-        onboarding_step: 3,
-      })
+      await patch({ sub_metrics: subMetrics.filter((m) => m.name.trim()), onboarding_step: 3 })
       goToStep(4)
-    } catch { setError('Failed to save') }
-    finally { setSaving(false) }
-  }, [icpRole, icpSizes, icpIndustry, icpPain, patch, goToStep])
-
-  // ── Step 4: submit ─────────────────────────────────────────────────────────
-  const handleStep4 = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      await patch({ sub_metrics: subMetrics.filter((m) => m.name.trim()), onboarding_step: 4 })
-      goToStep(5)
     } catch { setError('Failed to save') }
     finally { setSaving(false) }
   }, [subMetrics, patch, goToStep])
@@ -1009,12 +984,12 @@ export default function ProductOnboardingFlow() {
     }
   }, [analyticsInputs])
 
-  const handleStep5 = useCallback(async (e: React.FormEvent) => {
+  const handleStep4 = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await patch({ analytics_config: analyticsInputs, onboarding_step: 5 })
-      goToStep(6)
+      await patch({ analytics_config: analyticsInputs, onboarding_step: 4 })
+      goToStep(5)
     } catch { setError('Failed to save') }
     finally { setSaving(false) }
   }, [analyticsInputs, patch, goToStep])
@@ -1023,7 +998,7 @@ export default function ProductOnboardingFlow() {
   const handleLaunch = useCallback(async () => {
     setSaving(true)
     try {
-      await patch({ onboarding_completed: true, onboarding_step: 6 })
+      await patch({ onboarding_completed: true, onboarding_step: 5 })
       if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
       router.push('/dashboard')
     } catch { setError('Failed to launch') }
@@ -1121,8 +1096,7 @@ export default function ProductOnboardingFlow() {
   // ── Can-continue guards ────────────────────────────────────────────────────
   const can1 = productUrl.trim() !== ''
   const can2 = true
-  const can3 = !!icpRole.trim()
-  // steps 4, 5 are always continuable (sub-metrics and analytics are optional)
+  // steps 3, 4 are always continuable (sub-metrics and analytics are optional)
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -2331,69 +2305,10 @@ export default function ProductOnboardingFlow() {
           </div>
         )}
 
-        {/* ── Step 3: ICP ───────────────────────────────────────────────────── */}
+        {/* ── Step 3: Growth Levers ─────────────────────────────────────────── */}
         {step === 3 && (
           <form onSubmit={handleStep3}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 3 of 6</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Who are you building for?</h1>
-            <p className="text-sm text-[#666] mb-8">
-              Your ICP shapes how NorthStar interprets behavioral signals and scores hypotheses.
-            </p>
-
-            <div className="mb-5">
-              <label className={labelCls}>Primary buyer role</label>
-              <input type="text" value={icpRole} onChange={(e) => setIcpRole(e.target.value)}
-                placeholder="e.g. VP of Product, Founder, PM" className={inputCls} autoFocus disabled={saving} />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {ROLE_SUGGESTIONS.map((s) => (
-                  <button key={s} type="button" onClick={() => setIcpRole(s)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                      icpRole === s ? 'border-[#4f8ef7] bg-[#4f8ef7]/10 text-[#4f8ef7]' : 'border-[#2a2a2a] text-[#555] hover:text-[#888] hover:border-[#3a3a3a]'
-                    }`}>{s}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-5">
-              <label className={labelCls}>Company size</label>
-              <div className="flex flex-wrap gap-2">
-                {COMPANY_SIZES.map((s) => (
-                  <button key={s} type="button"
-                    onClick={() => setIcpSizes((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s])}
-                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                      icpSizes.includes(s) ? 'border-[#4f8ef7] bg-[#4f8ef7]/10 text-[#4f8ef7]' : 'border-[#2a2a2a] text-[#555] hover:text-[#888]'
-                    }`}
-                  >{s} employees</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-5">
-              <label htmlFor="icp-industry" className={labelCls}>Industry</label>
-              <select id="icp-industry" value={icpIndustry} onChange={(e) => setIcpIndustry(e.target.value)}
-                className={inputCls + ' appearance-none'} disabled={saving}>
-                <option value="">Select industry...</option>
-                {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-              </select>
-            </div>
-
-            <div className="mb-5">
-              <label className={labelCls}>Top pain points <span className="text-[#444] normal-case">(optional)</span></label>
-              {icpPain.map((p, i) => (
-                <input key={i} type="text" value={p} onChange={(e) => setIcpPain((prev) => prev.map((x, j) => j === i ? e.target.value : x))}
-                  placeholder={`Pain point ${i + 1}`} className={inputCls + ' mb-2'} disabled={saving} />
-              ))}
-            </div>
-
-            <ContinueBtn disabled={!can3} loading={saving} />
-            <BackBtn onClick={() => goToStep(2)} />
-          </form>
-        )}
-
-        {/* ── Step 4: Growth Levers ─────────────────────────────────────────── */}
-        {step === 4 && (
-          <form onSubmit={handleStep4}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 4 of 6</p>
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 3 of 5</p>
             <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">What moves your NorthStar?</h1>
             <p className="text-sm text-[#666] mb-2">
               Sub-metrics that ladder up to <span className="text-[#f0f0f0] font-medium">{nsMetric || 'your NorthStar'}</span>.
@@ -2431,14 +2346,14 @@ export default function ProductOnboardingFlow() {
             </div>
 
             <ContinueBtn loading={saving} />
-            <BackBtn onClick={() => goToStep(3)} />
+            <BackBtn onClick={() => goToStep(2)} />
           </form>
         )}
 
-        {/* ── Step 5: Data Sources ──────────────────────────────────────────── */}
-        {step === 5 && (
-          <form onSubmit={handleStep5}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 5 of 6</p>
+        {/* ── Step 4: Connect Analytics ─────────────────────────────────────── */}
+        {step === 4 && (
+          <form onSubmit={handleStep4}>
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 4 of 5</p>
             <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Connect your behavioral data</h1>
             <p className="text-sm text-[#666] mb-8">
               NorthStar reads your analytics to surface activation patterns, drop-off points, and retention signals.
@@ -2500,18 +2415,18 @@ export default function ProductOnboardingFlow() {
               <ContinueBtn label="Continue →" loading={saving} />
             </div>
 
-            <button type="button" onClick={() => goToStep(6)}
+            <button type="button" onClick={() => goToStep(5)}
               className="w-full mt-2 py-2.5 text-sm text-[#444] hover:text-[#666] transition-colors">
               Skip for now
             </button>
-            <BackBtn onClick={() => goToStep(4)} />
+            <BackBtn onClick={() => goToStep(3)} />
           </form>
         )}
 
-        {/* ── Step 6: Review & Launch ───────────────────────────────────────── */}
-        {step === 6 && (
+        {/* ── Step 5: Review & Launch ───────────────────────────────────────── */}
+        {step === 5 && (
           <div>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 6 of 6</p>
+            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 5 of 5</p>
             <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">You&apos;re ready to launch</h1>
             <p className="text-sm text-[#666] mb-8">
               Here&apos;s what NorthStar knows about your product. Your intelligence layer is now active.
@@ -2524,19 +2439,12 @@ export default function ProductOnboardingFlow() {
                   <p className="text-xs text-[#555] mt-0.5">{nsCurrent} → {nsTarget}</p>
                 )}
               </ReviewRow>
-              <ReviewRow label="ICP" value={icpRole || '—'} onEdit={() => goToStep(3)}>
-                {(icpSizes.length > 0 || icpIndustry) && (
-                  <p className="text-xs text-[#555] mt-0.5">
-                    {[icpIndustry, icpSizes.join(', ')].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-              </ReviewRow>
-              <ReviewRow label="Growth levers" value={subMetrics.filter((m) => m.name).length > 0 ? `${subMetrics.filter((m) => m.name).length} metrics defined` : '—'} onEdit={() => goToStep(4)}>
+              <ReviewRow label="Growth levers" value={subMetrics.filter((m) => m.name).length > 0 ? `${subMetrics.filter((m) => m.name).length} metrics defined` : '—'} onEdit={() => goToStep(3)}>
                 {subMetrics.filter((m) => m.name).slice(0, 3).map((m) => (
                   <span key={m.name} className="inline-block text-xs bg-[#1f1f1f] rounded px-1.5 py-0.5 text-[#666] mr-1 mt-1">{m.name}</span>
                 ))}
               </ReviewRow>
-              <ReviewRow label="Analytics" value={Object.keys(analyticsConnected).filter((k) => analyticsConnected[k]).map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(', ') || 'Not connected'} onEdit={() => goToStep(5)} />
+              <ReviewRow label="Analytics" value={Object.keys(analyticsConnected).filter((k) => analyticsConnected[k]).map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(', ') || 'Not connected'} onEdit={() => goToStep(4)} />
             </div>
 
             <div className="rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/5 p-5 mb-6">
@@ -2560,7 +2468,7 @@ export default function ProductOnboardingFlow() {
               {saving ? 'Launching...' : 'Enter my product dashboard'}
               {!saving && <ChevronRight className="w-4 h-4" />}
             </button>
-            <BackBtn onClick={() => goToStep(5)} />
+            <BackBtn onClick={() => goToStep(4)} />
           </div>
         )}
       </div>
