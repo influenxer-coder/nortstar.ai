@@ -832,9 +832,16 @@ export default function ProductOnboardingFlow() {
                 if (msg.startsWith('[Browser')) setBrowserFlowCurrentStatus(msg)
               },
               onResult: (flowData) => {
+                const fd = flowData as Record<string, unknown>
+                if (fd?.error) {
+                  setBrowserFlowRunning(false)
+                  setBrowserFlowCurrentStatus('')
+                  setBrowserFlowError(fd.error as string)
+                  return
+                }
                 setBrowserFlowRunning(false)
                 setBrowserFlowCurrentStatus('Flow mapped')
-                setBrowserFlowResult(flowData as Record<string, unknown>)
+                setBrowserFlowResult(fd)
                 if (projectId) {
                   fetch(`/api/projects/${projectId}`, {
                     method: 'PATCH',
@@ -920,9 +927,16 @@ export default function ProductOnboardingFlow() {
         if (msg.startsWith('[Browser')) setBrowserFlowCurrentStatus(msg)
       },
       onResult: (flowData) => {
+        const fd = flowData as Record<string, unknown>
+        if (fd?.error) {
+          setBrowserFlowRunning(false)
+          setBrowserFlowCurrentStatus('')
+          setBrowserFlowError(fd.error as string)
+          return
+        }
         setBrowserFlowRunning(false)
         setBrowserFlowCurrentStatus('Flow mapped')
-        setBrowserFlowResult(flowData as Record<string, unknown>)
+        setBrowserFlowResult(fd)
       },
       onError: (err) => {
         setBrowserFlowRunning(false)
