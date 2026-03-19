@@ -1676,32 +1676,59 @@ export default function ProductOnboardingFlow() {
 
                     {/* Error */}
                     {browserFlowError && !browserFlowResult && (
-                      <div className="rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-2.5 text-xs text-red-400">
-                        Couldn&apos;t access your product — check your demo credentials and try again.
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!demoEmail.trim() || !demoPassword.trim()) return
-                            setBrowserFlowRunning(true)
-                            setBrowserLogs([])
-                            setBrowserFlowResult(null)
-                            setBrowserFlowError('')
-                            runBrowserFlowStream({
-                              product_url: productUrl.trim(),
-                              email: demoEmail.trim(),
-                              password: demoPassword.trim(),
-                              north_star_metric: null,
-                              goal_and_metrics: null,
-                              onLog: (msg) => setBrowserLogs((prev) => [...prev, msg]),
-                              onResult: (flowData) => {
-                                setBrowserFlowRunning(false)
-                                setBrowserFlowResult(flowData as Record<string, unknown>)
-                              },
-                              onError: (err) => { setBrowserFlowRunning(false); setBrowserFlowError(err) },
-                            }).catch(() => setBrowserFlowRunning(false))
-                          }}
-                          className="ml-2 underline hover:no-underline"
-                        >Retry</button>
+                      <div className="rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-3 space-y-3">
+                        <p className="text-xs text-red-400">Couldn&apos;t access your product — update your credentials and try again.</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            value={demoEmail}
+                            onChange={(e) => setDemoEmail(e.target.value)}
+                            placeholder="demo@yourproduct.com"
+                            className="flex-1 bg-[#0d0d0d] border border-red-900/40 rounded-lg px-3 py-2 text-[13px] text-[#f0f0f0] placeholder:text-zinc-600 focus:outline-none focus:border-red-500 transition-[border-color]"
+                          />
+                          <div className="relative flex-1">
+                            <input
+                              type={showDemoPassword ? 'text' : 'password'}
+                              value={demoPassword}
+                              onChange={(e) => setDemoPassword(e.target.value)}
+                              placeholder="••••••••"
+                              className="w-full bg-[#0d0d0d] border border-red-900/40 rounded-lg px-3 py-2 pr-9 text-[13px] text-[#f0f0f0] placeholder:text-zinc-600 focus:outline-none focus:border-red-500 transition-[border-color]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowDemoPassword((v) => !v)}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors"
+                            >
+                              {showDemoPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!demoEmail.trim() || !demoPassword.trim()}
+                            onClick={() => {
+                              setBrowserFlowRunning(true)
+                              setBrowserLogs([])
+                              setBrowserFlowResult(null)
+                              setBrowserFlowError('')
+                              runBrowserFlowStream({
+                                product_url: productUrl.trim(),
+                                email: demoEmail.trim(),
+                                password: demoPassword.trim(),
+                                north_star_metric: null,
+                                goal_and_metrics: null,
+                                onLog: (msg) => setBrowserLogs((prev) => [...prev, msg]),
+                                onResult: (flowData) => {
+                                  setBrowserFlowRunning(false)
+                                  setBrowserFlowResult(flowData as Record<string, unknown>)
+                                },
+                                onError: (err) => { setBrowserFlowRunning(false); setBrowserFlowError(err) },
+                              }).catch(() => setBrowserFlowRunning(false))
+                            }}
+                            className="px-4 py-2 rounded-lg text-xs font-medium bg-red-900/40 text-red-300 hover:bg-red-900/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                          >
+                            Retry
+                          </button>
+                        </div>
                       </div>
                     )}
 
