@@ -38,12 +38,11 @@ export async function POST(
     try {
       const pageRes = await fetch(agent.url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NorthStarBot/1.0)' },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(3000),
       })
       if (pageRes.ok) {
         const raw = await pageRes.text()
-        // Truncate to ~40KB to stay within context limits, keep head + body start
-        pageHtml = raw.length > 40000 ? raw.slice(0, 40000) + '\n<!-- truncated -->' : raw
+        pageHtml = raw.length > 20000 ? raw.slice(0, 20000) + '\n<!-- truncated -->' : raw
       }
     } catch {
       // Page unreachable — fall back to reconstructed mockup
@@ -93,8 +92,8 @@ ${pageHtml}
 
   try {
     const resp = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 6000,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     })
 
