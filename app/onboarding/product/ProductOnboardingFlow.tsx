@@ -490,6 +490,7 @@ export default function ProductOnboardingFlow() {
   const [browserFlowRunning, setBrowserFlowRunning] = useState(false)
   const [browserFlowResult, setBrowserFlowResult] = useState<Record<string, unknown> | null>(null)
   const [browserFlowError, setBrowserFlowError] = useState('')
+  const [browserFlowCurrentStatus, setBrowserFlowCurrentStatus] = useState('')
   const browserLogsEndRef = useRef<HTMLDivElement>(null)
   // Step 1 sub-states: form → streaming → report (no navigation)
   type Step1Screen = 'form' | 'streaming' | 'report'
@@ -800,6 +801,7 @@ export default function ProductOnboardingFlow() {
             setBrowserLogs([])
             setBrowserFlowResult(null)
             setBrowserFlowError('')
+            setBrowserFlowCurrentStatus('Connecting to browser agent…')
             runBrowserFlowStream({
               product_url: url,
               email: demoEmail.trim(),
@@ -809,9 +811,11 @@ export default function ProductOnboardingFlow() {
               signal: controller.signal,
               onLog: (msg) => {
                 setBrowserLogs((prev) => [...prev, msg])
+                if (msg.startsWith('[Browser')) setBrowserFlowCurrentStatus(msg)
               },
               onResult: (flowData) => {
                 setBrowserFlowRunning(false)
+                setBrowserFlowCurrentStatus('Flow mapped')
                 setBrowserFlowResult(flowData as Record<string, unknown>)
                 if (projectId) {
                   fetch(`/api/projects/${projectId}`, {
@@ -826,9 +830,10 @@ export default function ProductOnboardingFlow() {
               },
               onError: (err) => {
                 setBrowserFlowRunning(false)
+                setBrowserFlowCurrentStatus('')
                 setBrowserFlowError(err)
               },
-            }).catch((e: unknown) => { setBrowserFlowRunning(false); setBrowserFlowError((e as Error)?.message || 'Connection failed — try again') })
+            }).catch((e: unknown) => { setBrowserFlowRunning(false); setBrowserFlowCurrentStatus(''); setBrowserFlowError((e as Error)?.message || 'Connection failed — try again') })
           }
         },
         onError: (msg) => {
@@ -880,26 +885,30 @@ export default function ProductOnboardingFlow() {
     setBrowserLogs([])
     setBrowserFlowResult(null)
     setBrowserFlowError('')
+    setBrowserFlowCurrentStatus('Connecting to browser agent…')
     runBrowserFlowStream({
       product_url: url,
       email,
       password,
       north_star_metric: null,
       goal_and_metrics: null,
-      onLog: (msg) => { console.log('[browserFlow log]', msg); setBrowserLogs((prev) => [...prev, msg]) },
+      onLog: (msg) => {
+        setBrowserLogs((prev) => [...prev, msg])
+        if (msg.startsWith('[Browser')) setBrowserFlowCurrentStatus(msg)
+      },
       onResult: (flowData) => {
-        console.log('[browserFlow result]', flowData)
         setBrowserFlowRunning(false)
+        setBrowserFlowCurrentStatus('Flow mapped')
         setBrowserFlowResult(flowData as Record<string, unknown>)
       },
       onError: (err) => {
-        console.error('[browserFlow error]', err)
         setBrowserFlowRunning(false)
+        setBrowserFlowCurrentStatus('')
         setBrowserFlowError(err)
       },
     }).catch((e: unknown) => {
-      console.error('[browserFlow catch]', e)
       setBrowserFlowRunning(false)
+      setBrowserFlowCurrentStatus('')
       setBrowserFlowError((e as Error)?.message || 'Connection failed — try again')
     })
   }, [productUrl, demoEmail, demoPassword])
@@ -1697,7 +1706,7 @@ export default function ProductOnboardingFlow() {
                 {/* Browser flow section */}
                 {(demoEmail && demoPassword) ? (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
                       {browserFlowRunning ? (
                         <Loader2 className="w-3.5 h-3.5 text-[#4f8ef7] animate-spin shrink-0" />
                       ) : browserFlowResult ? (
@@ -1707,17 +1716,27 @@ export default function ProductOnboardingFlow() {
                       ) : null}
                       <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Mapping your product flows</p>
                     </div>
-                    <p className="text-xs text-[#444] mb-3">Logging in with your demo account to trace how users navigate your product.</p>
+
+                    {/* Current status line */}
+                    {(browserFlowRunning || browserFlowCurrentStatus) && !browserFlowError && (
+                      <p className="text-sm text-[#a0a0a0] mb-3 min-h-[1.25rem] truncate">
+                        {browserFlowCurrentStatus || 'Connecting to browser agent…'}
+                      </p>
+                    )}
 
                     {/* Log stream — always show while running or if logs exist */}
                     {(browserFlowRunning || browserLogs.length > 0) && (
-                      <div className="max-h-40 overflow-y-auto rounded-lg border border-[#1a1a1a] bg-[#070707] p-3 font-mono text-[11px] leading-relaxed space-y-0.5 mb-3">
+                      <div className="max-h-56 overflow-y-auto rounded-lg border border-[#1a1a1a] bg-[#070707] p-3 font-mono text-[11px] leading-relaxed space-y-0.5 mb-3">
                         {browserLogs.length === 0 && browserFlowRunning && (
                           <div className="text-[#444]">Connecting to browser agent…</div>
                         )}
-                        {browserLogs.map((line, i) => (
-                          <div key={i} className={line.startsWith('[Browser]') ? 'text-[#888]' : 'text-[#555]'}>{line}</div>
-                        ))}
+                        {browserLogs.map((line, i) => {
+                          const isSection = line.startsWith('[Browser')
+                          const isSuccess = line.includes('✓') || line.includes('→')
+                          const isFailure = line.includes('✗')
+                          const color = isSection ? 'text-[#a0a0a0]' : isFailure ? 'text-red-500/70' : isSuccess ? 'text-[#666]' : 'text-[#444]'
+                          return <div key={i} className={color}>{line}</div>
+                        })}
                         <div ref={browserLogsEndRef} />
                       </div>
                     )}
