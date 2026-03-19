@@ -1709,8 +1709,8 @@ export default function ProductOnboardingFlow() {
                     </div>
                     <p className="text-xs text-[#444] mb-3">Logging in with your demo account to trace how users navigate your product.</p>
 
-                    {/* Log stream */}
-                    {(browserFlowRunning || browserFlowError) && !browserFlowResult && (
+                    {/* Log stream — always show while running or if logs exist */}
+                    {(browserFlowRunning || browserLogs.length > 0) && (
                       <div className="max-h-40 overflow-y-auto rounded-lg border border-[#1a1a1a] bg-[#070707] p-3 font-mono text-[11px] leading-relaxed space-y-0.5 mb-3">
                         {browserLogs.length === 0 && browserFlowRunning && (
                           <div className="text-[#444]">Connecting to browser agent…</div>
@@ -1764,9 +1764,12 @@ export default function ProductOnboardingFlow() {
 
                     {/* Result summary */}
                     {browserFlowResult && (() => {
-                      const fm = (browserFlowResult.flow_map ?? {}) as Record<string, unknown>
-                      const cta = ((browserFlowResult.cta_suggestion ?? {}) as Record<string, unknown>)
-                      const primary = (cta.primary_conversion_cta ?? {}) as Record<string, unknown>
+                      // Normalise — Modal may return different top-level shapes
+                      const raw = browserFlowResult
+                      const fm = (raw.flow_map ?? raw.flowMap ?? raw) as Record<string, unknown>
+                      const ctaRoot = (raw.cta_suggestion ?? raw.ctaSuggestion ?? raw) as Record<string, unknown>
+                      const cta = ctaRoot
+                      const primary = (cta.primary_conversion_cta ?? cta.primaryConversionCta ?? {}) as Record<string, unknown>
                       const pagesExplored = fm.pages_explored as number | undefined
                       const totalCtas = fm.total_ctas_found as number | undefined
                       const trackingCoverage = fm.tracking_coverage as string | undefined
@@ -1793,6 +1796,13 @@ export default function ProductOnboardingFlow() {
                               {!!primary.page && <p className="text-[10px] text-[#555] mb-1">{primary.page as string}</p>}
                               {!!primary.why_this_cta && <p className="text-xs text-[#444] italic">{primary.why_this_cta as string}</p>}
                             </div>
+                          )}
+                          {/* Fallback: show raw result if no structured data parsed */}
+                          {pagesExplored == null && totalCtas == null && !primary.cta_text && (
+                            <details className="mt-2">
+                              <summary className="text-[10px] text-[#444] cursor-pointer hover:text-[#888]">Raw agent output</summary>
+                              <pre className="mt-1 text-[10px] text-[#555] bg-[#070707] rounded p-2 overflow-auto max-h-32 whitespace-pre-wrap">{JSON.stringify(browserFlowResult, null, 2)}</pre>
+                            </details>
                           )}
                         </div>
                       )
