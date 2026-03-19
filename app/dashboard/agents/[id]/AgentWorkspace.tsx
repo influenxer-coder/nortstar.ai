@@ -458,16 +458,9 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             </div>
           )}
 
-          {/* ── Hypothesis table ─────────────────────────────────────────────── */}
+          {/* ── Hypothesis cards ─────────────────────────────────────────────── */}
           {view === 'hypotheses' && (
-            <div className="border-b border-zinc-800/60">
-              <div className={`flex items-center gap-3 px-5 py-2.5 border-b border-zinc-800 ${hasHypotheses ? 'sticky top-0 z-10' : ''} bg-zinc-950`}>
-                <div className="w-4 shrink-0" />
-                <div className="flex-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Improvement</div>
-                <div className="w-28 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Source</div>
-                <div className="w-16 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Impact</div>
-                <div className="w-20 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Status</div>
-              </div>
+            <div className="p-6">
               {!hasHypotheses ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <Sparkles className="h-6 w-6 text-zinc-700" />
@@ -483,54 +476,51 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                   )}
                 </div>
               ) : (
-                <>
-                  <div className="divide-y divide-zinc-800/50">
-                    {hypotheses.map(h => (
-                      <HypothesisRow
-                        key={h.id}
-                        hypothesis={h}
-                        agentKpi={agent.main_kpi ?? ''}
-                        isExpanded={expandedRowId === h.id}
-                        onToggleExpand={() => setExpandedRowId(expandedRowId === h.id ? null : h.id)}
-                        isAsking={askHypId === h.id}
-                        chatMsgs={chatHistory[h.id] ?? []}
-                        chatInputVal={chatInput[h.id] ?? ''}
-                        chatIsLoading={chatLoading[h.id] ?? false}
-                        copied={copied}
-                        onToggleAsk={async () => {
-                          const next = askHypId === h.id ? null : h.id
-                          setAskHypId(next)
-                          if (next && !chatHistory[next]) {
-                            // Load persisted history from DB on first open
-                            try {
-                              const res = await fetch(`/api/agents/${agent.id}/hypotheses/${next}/chat`)
-                              const data = await res.json()
-                              if (data.messages?.length) {
-                                setChatHistory(prev => ({ ...prev, [next]: data.messages }))
-                              }
-                            } catch { /* silent — just start fresh */ }
-                          }
-                        }}
-                        onAccept={() => updateStatus(h.id, 'accepted')}
-                        onReject={() => updateStatus(h.id, 'rejected')}
-                        onChatInputChange={(val: string) => setChatInput(prev => ({ ...prev, [h.id]: val }))}
-                        onAsk={() => handleAsk(h.id)}
-                        onCopy={(text: string) => handleCopy(text, h.id)}
-                        onPreview={() => handlePreview(h.id, h.title)}
-                        previewLoading={previewLoading === h.id}
-                        previewHtml={previewHypId === h.id ? previewHtml : null}
-                        previewRegenerating={previewHypId === h.id ? previewRegenerating : false}
-                        onRegeneratePreview={previewHypId === h.id ? handleRegeneratePreview : undefined}
-                      />
-                    ))}
-                  </div>
+                <div className="space-y-4">
+                  {hypotheses.map(h => (
+                    <HypothesisCard
+                      key={h.id}
+                      hypothesis={h}
+                      agentKpi={agent.main_kpi ?? ''}
+                      isExpanded={expandedRowId === h.id}
+                      onToggleExpand={() => setExpandedRowId(expandedRowId === h.id ? null : h.id)}
+                      isAsking={askHypId === h.id}
+                      chatMsgs={chatHistory[h.id] ?? []}
+                      chatInputVal={chatInput[h.id] ?? ''}
+                      chatIsLoading={chatLoading[h.id] ?? false}
+                      copied={copied}
+                      onToggleAsk={async () => {
+                        const next = askHypId === h.id ? null : h.id
+                        setAskHypId(next)
+                        if (next && !chatHistory[next]) {
+                          try {
+                            const res = await fetch(`/api/agents/${agent.id}/hypotheses/${next}/chat`)
+                            const data = await res.json()
+                            if (data.messages?.length) {
+                              setChatHistory(prev => ({ ...prev, [next]: data.messages }))
+                            }
+                          } catch { /* silent */ }
+                        }
+                      }}
+                      onAccept={() => updateStatus(h.id, 'accepted')}
+                      onReject={() => updateStatus(h.id, 'rejected')}
+                      onChatInputChange={(val: string) => setChatInput(prev => ({ ...prev, [h.id]: val }))}
+                      onAsk={() => handleAsk(h.id)}
+                      onCopy={(text: string) => handleCopy(text, h.id)}
+                      onPreview={() => handlePreview(h.id, h.title)}
+                      previewLoading={previewLoading === h.id}
+                      previewHtml={previewHypId === h.id ? previewHtml : null}
+                      previewRegenerating={previewHypId === h.id ? previewRegenerating : false}
+                      onRegeneratePreview={previewHypId === h.id ? handleRegeneratePreview : undefined}
+                    />
+                  ))}
                   {reanalyzing && (
-                    <div className="flex items-center gap-2 px-5 py-4 text-zinc-500 text-xs border-t border-zinc-800">
+                    <div className="flex items-center gap-2 py-4 text-zinc-500 text-xs">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
                       Generating fresh hypotheses…
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           )}
@@ -687,9 +677,81 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
   )
 }
 
-// ─── Hypothesis row ───────────────────────────────────────────────────────────
+// ─── Hypothesis card ──────────────────────────────────────────────────────────
 
-function HypothesisRow({
+// Mobile preview panel: fixed 180×320 phone proportions, scale = 180/390
+const PREVIEW_W = 180
+const PREVIEW_H = 320
+const PHONE_W = 390
+const PHONE_H = 700
+const PREVIEW_SCALE = PREVIEW_W / PHONE_W
+
+function MobilePreviewPanel({
+  previewHtml, previewLoading, previewRegenerating, onPreview, onRegeneratePreview,
+}: {
+  previewHtml: string | null; previewLoading: boolean; previewRegenerating: boolean
+  onPreview: () => void; onRegeneratePreview?: () => void
+}) {
+  return (
+    <div
+      style={{ width: PREVIEW_W, minHeight: PREVIEW_H, flexShrink: 0 }}
+      className="relative rounded-l-xl overflow-hidden bg-zinc-950 border-r border-zinc-800 flex items-center justify-center"
+    >
+      {/* Phone notch bar */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 28, background: '#0a0a0a', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 48, height: 5, borderRadius: 99, background: '#2a2a2a' }} />
+      </div>
+
+      {/* Scaled iframe */}
+      {previewHtml && (
+        <div style={{ position: 'absolute', top: 28, left: 0, width: PHONE_W, height: PHONE_H, transformOrigin: 'top left', transform: `scale(${PREVIEW_SCALE})`, pointerEvents: 'none' }}>
+          <iframe
+            srcDoc={previewHtml}
+            style={{ width: '100%', height: '100%', border: 'none', opacity: previewRegenerating ? 0.4 : 1 }}
+            sandbox="allow-scripts"
+            title="Preview"
+          />
+        </div>
+      )}
+
+      {/* Overlay: loading / empty */}
+      {(previewLoading || previewRegenerating) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10" style={{ top: 28 }}>
+          <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
+          <span className="text-[10px] text-zinc-500">{previewRegenerating ? 'Refreshing…' : 'Generating…'}</span>
+        </div>
+      )}
+
+      {!previewHtml && !previewLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10" style={{ top: 28 }}>
+          <Eye className="h-5 w-5 text-zinc-700" />
+          <button
+            onClick={e => { e.stopPropagation(); onPreview() }}
+            className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+          >
+            Generate preview
+          </button>
+        </div>
+      )}
+
+      {/* Regenerate icon */}
+      {previewHtml && !previewLoading && !previewRegenerating && onRegeneratePreview && (
+        <button
+          onClick={e => { e.stopPropagation(); onRegeneratePreview() }}
+          title="Regenerate preview"
+          className="absolute bottom-2 right-2 z-10 p-1.5 rounded bg-zinc-900/80 text-zinc-600 hover:text-zinc-300 transition-colors"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </button>
+      )}
+
+      {/* PREVIEW label bottom */}
+      <span style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#444', letterSpacing: '0.1em', fontWeight: 500, zIndex: 3 }}>PREVIEW</span>
+    </div>
+  )
+}
+
+function HypothesisCard({
   hypothesis: h, agentKpi, isExpanded, onToggleExpand,
   isAsking, chatMsgs, chatInputVal, chatIsLoading, copied,
   onToggleAsk, onAccept, onReject, onChatInputChange, onAsk, onCopy, onPreview, previewLoading,
@@ -703,107 +765,52 @@ function HypothesisRow({
   previewHtml: string | null; previewRegenerating: boolean; onRegeneratePreview?: () => void
 }) {
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const previewContainerRef = useRef<HTMLDivElement>(null)
-  const [previewScale, setPreviewScale] = useState(1)
-
   useEffect(() => { if (isAsking) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMsgs, isAsking])
-
-  // Measure container width to compute scale whenever preview is shown
-  useEffect(() => {
-    if (!isExpanded) return
-    const el = previewContainerRef.current
-    if (!el) return
-    const measure = () => setPreviewScale(el.offsetWidth / 390)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [isExpanded, previewHtml])
 
   const isRejected = h.status === 'rejected'
   const isAccepted = h.status === 'accepted' || h.status === 'shipped'
   const impact = impactInfo(h.impact_score, agentKpi)
 
   return (
-    <div className={isRejected ? 'opacity-40' : ''}>
-      <div onClick={onToggleExpand}
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${isExpanded ? 'bg-zinc-900/50' : 'hover:bg-zinc-900/30'}`}>
-        <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 shrink-0 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
-        <p className={`flex-1 text-sm font-medium leading-snug ${isRejected ? 'line-through text-zinc-500' : 'text-zinc-100'}`}>{h.title}</p>
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 whitespace-nowrap w-28 text-center truncate shrink-0">{h.source}</span>
-        <div className="w-16 shrink-0"><ImpactDots score={h.impact_score} /></div>
-        <div className="w-20 shrink-0"><StatusBadge status={h.status} /></div>
-      </div>
+    <div className={`rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/20 transition-opacity ${isRejected ? 'opacity-40' : ''}`}>
 
-      {isExpanded && (
-        <div className="border-t border-zinc-800/60 bg-zinc-900/20 px-9 py-5 space-y-5">
+      {/* ── Card body: preview left + content right ─────────────────────── */}
+      <div className="flex">
 
-          {/* ── Mobile preview ─────────────────────────────────────────────── */}
-          <div ref={previewContainerRef}>
-            {(previewLoading || previewHtml !== null) && (
-              <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: 220,
-                  overflow: 'hidden',
-                  borderRadius: '8px 8px 0 0',
-                  background: '#111',
-                }}
-              >
-                {/* PREVIEW label */}
-                <span style={{
-                  position: 'absolute', top: 8, right: 10, zIndex: 1,
-                  fontSize: 10, color: '#555', letterSpacing: '0.08em', fontWeight: 500,
-                }}>PREVIEW</span>
+        {/* Left: mobile preview */}
+        <MobilePreviewPanel
+          previewHtml={previewHtml}
+          previewLoading={previewLoading}
+          previewRegenerating={previewRegenerating}
+          onPreview={onPreview}
+          onRegeneratePreview={onRegeneratePreview}
+        />
 
-                {previewLoading && !previewHtml ? (
-                  <div className="flex items-center justify-center h-full gap-2 text-zinc-500 text-xs">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" /> Generating preview…
-                  </div>
-                ) : previewRegenerating ? (
-                  <div style={{ width: 390, height: 600, transformOrigin: 'top left', transform: `scale(${previewScale})`, position: 'absolute', top: 0, left: 0 }}>
-                    <iframe srcDoc={previewHtml ?? ''} style={{ width: '100%', height: '100%', border: 'none', opacity: 0.4, pointerEvents: 'none' }} sandbox="allow-scripts" title="Preview" />
-                    <div className="absolute inset-0 flex items-center justify-center gap-2 text-zinc-500 text-xs">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" /> Regenerating…
-                    </div>
-                  </div>
-                ) : previewHtml ? (
-                  <div style={{ width: 390, height: 600, transformOrigin: 'top left', transform: `scale(${previewScale})`, position: 'absolute', top: 0, left: 0 }}>
-                    <iframe srcDoc={previewHtml} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }} sandbox="allow-scripts" title="Preview" />
-                  </div>
-                ) : null}
-              </div>
-            )}
-            {/* Regenerate button below preview */}
-            {previewHtml && onRegeneratePreview && (
-              <div className="flex justify-end pt-1">
-                <button
-                  onClick={e => { e.stopPropagation(); onRegeneratePreview() }}
-                  disabled={previewRegenerating}
-                  className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors disabled:opacity-40"
-                >
-                  <RefreshCw className="h-2.5 w-2.5" /> Regenerate preview
-                </button>
-              </div>
-            )}
-          </div>
+        {/* Right: content */}
+        <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
 
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">What we&apos;re improving</p>
-            <p className="text-sm font-medium text-zinc-200">{h.title}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Why we&apos;re proposing this</p>
-            <div className="text-xs text-zinc-400 leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium [&_ul]:mt-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed">
-              <ReactMarkdown>{h.hypothesis}</ReactMarkdown>
+          {/* Title row */}
+          <div className="flex items-start gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">What we&apos;re improving</p>
+              <p className={`text-sm font-semibold leading-snug ${isRejected ? 'line-through text-zinc-500' : 'text-zinc-100'}`}>{h.title}</p>
             </div>
+            <StatusBadge status={h.status} />
           </div>
+
+          {/* Meta: source + impact */}
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 whitespace-nowrap truncate max-w-[120px]">{h.source}</span>
+            <ImpactDots score={h.impact_score} />
+            <span className={`text-[10px] font-semibold ${impact.color}`}>{impact.level} impact</span>
+          </div>
+
+          {/* Suggested change */}
           {h.suggested_change && (
-            <div>
+            <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Suggested change</p>
-                <button onClick={() => onCopy(h.suggested_change!)}
+                <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change!) }}
                   className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors">
                   {copied === h.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                   {copied === h.id ? 'Copied' : 'Copy'}
@@ -812,6 +819,55 @@ function HypothesisRow({
               <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800 rounded-md px-3 py-2.5">{h.suggested_change}</p>
             </div>
           )}
+
+          {/* CTAs */}
+          <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t border-zinc-800/60">
+            <button onClick={e => { e.stopPropagation(); onToggleAsk() }}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-zinc-700 text-zinc-400 hover:border-violet-600 hover:text-violet-400'}`}>
+              <Sparkles className="h-3 w-3" /> Update
+            </button>
+            <button onClick={e => { e.stopPropagation(); onPreview() }} disabled={previewLoading}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
+              {previewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+              {previewLoading ? 'Generating…' : previewHtml ? 'Refresh' : 'Preview'}
+            </button>
+            {h.status === 'proposed' && (
+              <button onClick={e => { e.stopPropagation(); onAccept() }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 transition-colors">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Accept
+              </button>
+            )}
+            {h.status !== 'rejected' && (
+              <button onClick={e => { e.stopPropagation(); onReject() }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-500 hover:border-red-700 hover:text-red-400 transition-colors">
+                <XCircle className="h-3.5 w-3.5" /> Reject
+              </button>
+            )}
+            {isAccepted && (
+              <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change ?? '') }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors">
+                <GitBranch className="h-3 w-3" /> Create PR
+              </button>
+            )}
+            {/* Expand: why we're proposing */}
+            <button onClick={e => { e.stopPropagation(); onToggleExpand() }}
+              className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors ml-auto">
+              <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
+              Why we&apos;re proposing this
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Expand: reasoning + chat ────────────────────────────────────── */}
+      {isExpanded && (
+        <div className="border-t border-zinc-800/60 bg-zinc-950/40 px-5 py-4 space-y-4">
+          <div>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Why we&apos;re proposing this</p>
+            <div className="text-xs text-zinc-400 leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium [&_ul]:mt-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed">
+              <ReactMarkdown>{h.hypothesis}</ReactMarkdown>
+            </div>
+          </div>
           <div>
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">
               Expected impact{agentKpi ? ` on ${agentKpi}` : ''}
@@ -824,37 +880,8 @@ function HypothesisRow({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/60">
-            <button onClick={e => { e.stopPropagation(); onToggleAsk() }}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-zinc-700 text-zinc-400 hover:border-violet-600 hover:text-violet-400'}`}>
-              <Sparkles className="h-3 w-3" /> Update hypothesis
-            </button>
-            <button onClick={e => { e.stopPropagation(); onPreview() }} disabled={previewLoading}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
-              {previewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
-              {previewLoading ? 'Generating…' : previewHtml ? 'Regenerate preview' : 'Preview'}
-            </button>
-            {isAccepted && (
-              <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change ?? '') }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors">
-                <GitBranch className="h-3 w-3" /> Create PR
-              </button>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              {h.status === 'proposed' && (
-                <button onClick={e => { e.stopPropagation(); onAccept() }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 transition-colors">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Accept
-                </button>
-              )}
-              {h.status !== 'rejected' && (
-                <button onClick={e => { e.stopPropagation(); onReject() }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-500 hover:border-red-700 hover:text-red-400 transition-colors">
-                  <XCircle className="h-3.5 w-3.5" /> Reject
-                </button>
-              )}
-            </div>
-          </div>
+
+          {/* Inline chat (Ask / Update) */}
           {isAsking && (
             <div className="border border-zinc-800 rounded-lg bg-zinc-950/60 p-4">
               <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-3">Ask about this hypothesis</p>
