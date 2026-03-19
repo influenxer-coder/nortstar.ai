@@ -1818,44 +1818,128 @@ export default function ProductOnboardingFlow() {
                       </div>
                     )}
 
-                    {/* Result summary */}
+                    {/* Flow map visualization */}
                     {browserFlowResult && (() => {
-                      // Normalise — Modal may return different top-level shapes
-                      const raw = browserFlowResult
-                      const fm = (raw.flow_map ?? raw.flowMap ?? raw) as Record<string, unknown>
-                      const ctaRoot = (raw.cta_suggestion ?? raw.ctaSuggestion ?? raw) as Record<string, unknown>
-                      const cta = ctaRoot
-                      const primary = (cta.primary_conversion_cta ?? cta.primaryConversionCta ?? {}) as Record<string, unknown>
+                      const fm = (browserFlowResult.flow_map ?? {}) as Record<string, unknown>
+                      const ctaSuggestion = (browserFlowResult.cta_suggestion ?? {}) as Record<string, unknown>
+                      const primary = (ctaSuggestion.primary_conversion_cta ?? {}) as Record<string, unknown>
+                      const allCtas = (fm.all_ctas ?? []) as Array<Record<string, unknown>>
+                      const pageGraph = (fm.page_graph ?? []) as Array<Record<string, unknown>>
                       const pagesExplored = fm.pages_explored as number | undefined
                       const totalCtas = fm.total_ctas_found as number | undefined
                       const trackingCoverage = fm.tracking_coverage as string | undefined
-                      const eventFired = primary.event_fired as boolean | undefined
+                      const primaryCtaText = primary.cta_text as string | undefined
+                      const primaryPage = primary.page as string | undefined
+                      const criticalGaps = (ctaSuggestion.critical_tracking_gaps ?? []) as Array<Record<string, unknown>>
+                      const suggestedEvent = (primary.suggested_event_name ?? criticalGaps[0]?.suggested_event_name ?? 'cta_clicked') as string
+
+                      const getPath = (url: string): string => {
+                        if (!url) return url
+                        try { return new URL(url).pathname } catch { return url }
+                      }
+
+                      const AUTH_NOISE = ['/auth/signin', '/auth/login', '/auth/forgot-password']
+                      const filtered = pageGraph.filter((e) => {
+                        const fp = getPath(e.from as string)
+                        return fp === '/' || !AUTH_NOISE.includes(fp)
+                      })
+
+                      // Group edges by "from" pathname
+                      type EdgeRow = { via_cta: string; to_path: string; event_fired: boolean | null }
+                      const grouped = new Map<string, EdgeRow[]>()
+                      for (const edge of filtered) {
+                        const fp = getPath(edge.from as string)
+                        const tp = getPath(edge.to as string)
+                        const viaCta = (edge.via_cta ?? '') as string
+                        const ctaMatch = allCtas.find(
+                          (c) => c.cta_text === viaCta && getPath((c.page as string) ?? '').includes(fp)
+                        )
+                        const ef = ctaMatch != null ? (ctaMatch.event_fired as boolean | null) : null
+                        if (!grouped.has(fp)) grouped.set(fp, [])
+                        grouped.get(fp)!.push({ via_cta: viaCta, to_path: tp, event_fired: ef })
+                      }
+
+                      const primaryPath = primaryPage ? getPath(primaryPage) : ''
+
+                      const hasData = grouped.size > 0 || !!primaryCtaText
+
                       return (
-                        <div className="space-y-3">
-                          {(pagesExplored != null || totalCtas != null || trackingCoverage != null) && (
-                            <p className="text-xs text-[#666]">
+                        <div className="space-y-4">
+                          {/* Header */}
+                          <div>
+                            <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-1">Product flow map</p>
+                            <p className="text-xs text-[#444]">
                               {[
-                                pagesExplored != null && `${pagesExplored} pages mapped`,
-                                totalCtas != null && `${totalCtas} CTAs found`,
-                                trackingCoverage != null && `${trackingCoverage} tracked`,
+                                pagesExplored != null && `${pagesExplored} pages`,
+                                totalCtas != null && `${totalCtas} CTAs`,
+                                trackingCoverage && `${trackingCoverage} tracked`,
                               ].filter(Boolean).join(' · ')}
                             </p>
-                          )}
-                          {!!primary.cta_text && (
-                            <div className="rounded-lg border border-[#1a1a1a] bg-[#070707] p-3">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <p className="text-sm font-medium text-[#f0f0f0]">{primary.cta_text as string}</p>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${eventFired ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-red-500/10 text-red-400'}`}>
-                                  {eventFired ? 'Event firing' : 'No event detected'}
-                                </span>
-                              </div>
-                              {!!primary.page && <p className="text-[10px] text-[#555] mb-1">{primary.page as string}</p>}
-                              {!!primary.why_this_cta && <p className="text-xs text-[#444] italic">{primary.why_this_cta as string}</p>}
+                          </div>
+
+                          {/* Flow rows */}
+                          {grouped.size > 0 && (
+                            <div className="space-y-2">
+                              {Array.from(grouped.entries()).map(([fromPath, edges]) => {
+                                const isPrimary = !!primaryCtaText && edges.some(
+                                  (e) => e.via_cta === primaryCtaText && primaryPath.includes(fromPath)
+                                )
+                                return (
+                                  <div
+                                    key={fromPath}
+                                    className={`rounded-lg bg-[#070707] p-3 ${isPrimary ? 'border border-[#4f8ef7]/40 border-l-[3px]' : 'border border-[#1a1a1a]'}`}
+                                    style={isPrimary ? { borderLeftColor: '#4f8ef7' } : undefined}
+                                  >
+                                    {isPrimary && (
+                                      <p className="text-[10px] text-[#4f8ef7] mb-2 font-medium">★ Recommended</p>
+                                    )}
+                                    <div className="space-y-2">
+                                      {edges.map((edge, i) => {
+                                        const ef = edge.event_fired
+                                        const badgeClass = ef === true
+                                          ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20'
+                                          : ef === false
+                                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                          : 'bg-[#1a1a1a] text-[#555] border border-[#2a2a2a]'
+                                        const label = edge.via_cta.length > 24 ? edge.via_cta.slice(0, 24) + '…' : edge.via_cta
+                                        return (
+                                          <div key={i} className="flex items-center gap-2 flex-wrap">
+                                            <div className="rounded px-2 py-0.5 bg-[#111] border border-[#2a2a2a]">
+                                              <span className="text-[11px] text-[#888] font-mono">{fromPath}</span>
+                                            </div>
+                                            <span className="text-[#333] text-xs">→</span>
+                                            <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${badgeClass}`}>{label}</span>
+                                            <span className="text-[#333] text-xs">→</span>
+                                            <div className="rounded px-2 py-0.5 bg-[#111] border border-[#2a2a2a]">
+                                              <span className="text-[11px] text-[#888] font-mono">{edge.to_path}</span>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
-                          {/* Fallback: show raw result if no structured data parsed */}
-                          {pagesExplored == null && totalCtas == null && !primary.cta_text && (
-                            <details className="mt-2">
+
+                          {/* Activation CTA card */}
+                          {primaryCtaText && (
+                            <div className="rounded-lg border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-4">
+                              <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Activation CTA</p>
+                              <p className="text-base font-semibold text-[#f0f0f0] mb-1">{primaryCtaText}</p>
+                              {primaryPage && <p className="text-xs text-[#555] mb-3">{getPath(primaryPage)}</p>}
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                                <p className="text-xs text-red-400">Not tracked — add this event:</p>
+                              </div>
+                              <pre className="text-[11px] text-[#22c55e] bg-[#070707] rounded p-3 font-mono overflow-x-auto">{`posthog.capture('${suggestedEvent}')`}</pre>
+                            </div>
+                          )}
+
+                          {/* Fallback */}
+                          {!hasData && (
+                            <details>
                               <summary className="text-[10px] text-[#444] cursor-pointer hover:text-[#888]">Raw agent output</summary>
                               <pre className="mt-1 text-[10px] text-[#555] bg-[#070707] rounded p-2 overflow-auto max-h-32 whitespace-pre-wrap">{JSON.stringify(browserFlowResult, null, 2)}</pre>
                             </details>
