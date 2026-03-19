@@ -33,8 +33,7 @@ export default async function DashboardPage() {
       .select('id, name, onboarding_step, updated_at')
       .eq('user_id', user.id)
       .eq('onboarding_completed', false)
-      .order('updated_at', { ascending: false })
-      .limit(1),
+      .order('updated_at', { ascending: false }),
   ])
 
   const productList = products ?? []
@@ -66,14 +65,12 @@ export default async function DashboardPage() {
     agents: agentsByProduct.get(p.id) ?? [],
   }))
 
-  const dbInProgressProject = inProgressProjects?.[0] ?? null
-
   return (
     <DashboardHome
       products={productsWithAgents}
       ungroupedAgents={ungrouped}
       userDisplayName={displayName}
-      dbInProgressProject={dbInProgressProject}
+      dbInProgressProjects={inProgressProjects ?? []}
     />
   )
 }
