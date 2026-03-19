@@ -316,6 +316,13 @@ async function runBrowserFlowStream({
   const agentUrl = process.env.NEXT_PUBLIC_BROWSER_AGENT_URL
   if (!agentUrl) { onError('Browser agent URL not configured (NEXT_PUBLIC_BROWSER_AGENT_URL).'); return }
 
+  console.log('[BROWSER FLOW] sending credentials:', {
+    email: email,
+    passwordLength: password?.length,
+    passwordEmpty: !password,
+    url: product_url
+  })
+
   const res = await fetch(agentUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -798,6 +805,11 @@ export default function ProductOnboardingFlow() {
           }
           setStep1Screen('report')
           // Auto-start browser flow if demo credentials provided
+          console.log('[BROWSER FLOW AUTO-START]', {
+            demoEmail,
+            demoPasswordLength: demoPassword?.length,
+            demoPasswordEmpty: !demoPassword
+          })
           if (demoEmail.trim() && demoPassword.trim()) {
             setBrowserFlowRunning(true)
             setBrowserLogs([])
