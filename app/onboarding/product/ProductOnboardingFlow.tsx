@@ -312,6 +312,7 @@ async function runBrowserFlowStream({
   onResult: (data: unknown) => void
   onError: (msg: string) => void
 }): Promise<void> {
+  console.log('[BROWSER FLOW] called with url:', product_url, 'email:', email ? 'provided' : 'empty')
   const agentUrl = process.env.NEXT_PUBLIC_BROWSER_AGENT_URL
   if (!agentUrl) { onError('Browser agent URL not configured (NEXT_PUBLIC_BROWSER_AGENT_URL).'); return }
 
@@ -492,6 +493,7 @@ export default function ProductOnboardingFlow() {
   const [browserFlowError, setBrowserFlowError] = useState('')
   const [browserFlowCurrentStatus, setBrowserFlowCurrentStatus] = useState('')
   const browserLogsEndRef = useRef<HTMLDivElement>(null)
+  const browserFlowControllerRef = useRef<AbortController | null>(null)
   // Step 1 sub-states: form → streaming → report (no navigation)
   type Step1Screen = 'form' | 'streaming' | 'report'
   const [step1Screen, setStep1Screen] = useState<Step1Screen>('form')
@@ -808,7 +810,11 @@ export default function ProductOnboardingFlow() {
               password: demoPassword.trim(),
               north_star_metric: null,
               goal_and_metrics: null,
-              signal: controller.signal,
+              signal: (() => {
+                const bc = new AbortController()
+                browserFlowControllerRef.current = bc
+                return bc.signal
+              })(),
               onLog: (msg) => {
                 setBrowserLogs((prev) => [...prev, msg])
                 if (msg.startsWith('[Browser')) setBrowserFlowCurrentStatus(msg)
@@ -892,6 +898,11 @@ export default function ProductOnboardingFlow() {
       password,
       north_star_metric: null,
       goal_and_metrics: null,
+      signal: (() => {
+        const bc = new AbortController()
+        browserFlowControllerRef.current = bc
+        return bc.signal
+      })(),
       onLog: (msg) => {
         setBrowserLogs((prev) => [...prev, msg])
         if (msg.startsWith('[Browser')) setBrowserFlowCurrentStatus(msg)
