@@ -618,7 +618,14 @@ export default function ProductOnboardingFlow() {
     fetch(`/api/projects/${projectIdParam}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.error) return
+        if (d.error) {
+          // Project no longer exists (deleted) — clear stale state and start fresh
+          if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
+          setProjectId(null)
+          setStep(1)
+          router.replace('/onboarding/product', { scroll: false })
+          return
+        }
         if (d.url) setProductUrl(d.url)
         if (typeof d.description === 'string') setProductDescription(d.description)
         if (d.doc_url) setDocUrl(d.doc_url)
@@ -1549,14 +1556,22 @@ export default function ProductOnboardingFlow() {
                       await fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
                     } catch { /* best effort */ }
                     if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
+                    // Full state reset so nothing stale lingers
                     setProjectId(null)
+                    setStep(1)
                     setStep1Result(null)
                     setStep1ReportMd('')
                     setStep1Screen('form')
                     setProductUrl('')
                     setProductDescription('')
+                    setDemoEmail('')
+                    setDemoPassword('')
                     setDocFile(null)
-                    router.replace('/onboarding/product', { scroll: false })
+                    setBrowserLogs([])
+                    setBrowserFlowResult(null)
+                    setBrowserFlowError('')
+                    resumedRef.current = false
+                    router.push('/dashboard')
                   }}
                   className="py-2 px-4 rounded-lg text-sm border border-red-900/50 text-red-500 hover:border-red-700 hover:text-red-400 transition-colors"
                 >

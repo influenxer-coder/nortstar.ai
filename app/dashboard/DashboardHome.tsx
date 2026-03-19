@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight } from 'lucide-react'
+import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2 } from 'lucide-react'
 
 export type ProductWithAgents = {
   id: string
@@ -24,6 +24,7 @@ type Props = {
 
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName, dbInProgressProject = null }: Props) {
   const [currentProject, setCurrentProject] = useState<{ id: string; name: string | null; onboarding_step: number | null } | null>(dbInProgressProject)
+  const [deletingProject, setDeletingProject] = useState(false)
 
   // Use DB project as source of truth; fall back to localStorage only if DB returned nothing
   useEffect(() => {
@@ -64,23 +65,45 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       {/* In-progress product setup banner */}
       {currentProject && (
         <div
-          className="mb-6 rounded-xl border border-[#2a2a2a] p-4 flex items-center justify-between gap-4"
+          className="mb-6 rounded-xl border border-[#2a2a2a] p-4"
           style={{ background: '#141414' }}
         >
-          <div>
-            <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Product setup in progress</p>
-            <p className="text-[#f0f0f0] font-medium">{currentProject.name || 'New product'}</p>
-            {currentProject.onboarding_step && (
-              <p className="text-xs text-[#444] mt-0.5">Step {currentProject.onboarding_step} of 5 complete</p>
-            )}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Product setup in progress</p>
+              <p className="text-[#f0f0f0] font-medium">{currentProject.name || 'New product'}</p>
+              {currentProject.onboarding_step && (
+                <p className="text-xs text-[#444] mt-0.5">Step {currentProject.onboarding_step} of 5 complete</p>
+              )}
+            </div>
+            <Link
+              href={`/onboarding/product?projectId=${currentProject.id}&step=${currentProject.onboarding_step ?? 1}`}
+              className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
+            >
+              Continue setup
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <Link
-            href={`/onboarding/product?projectId=${currentProject.id}&step=${currentProject.onboarding_step ?? 1}`}
-            className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
-          >
-            Continue setup
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-3 pt-3 border-t border-[#1f1f1f]">
+            <button
+              type="button"
+              disabled={deletingProject}
+              onClick={async () => {
+                if (!window.confirm('Delete this product and all its data? This cannot be undone.')) return
+                setDeletingProject(true)
+                try {
+                  await fetch(`/api/projects/${currentProject.id}`, { method: 'DELETE' })
+                } catch { /* best effort */ }
+                if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
+                setCurrentProject(null)
+                setDeletingProject(false)
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-[#444] hover:text-red-400 transition-colors disabled:opacity-40"
+            >
+              <Trash2 className="h-3 w-3" />
+              {deletingProject ? 'Deleting…' : 'Delete product'}
+            </button>
+          </div>
         </div>
       )}
 
