@@ -828,7 +828,7 @@ export default function ProductOnboardingFlow() {
                 setBrowserFlowRunning(false)
                 setBrowserFlowError(err)
               },
-            }).catch(() => { setBrowserFlowRunning(false) })
+            }).catch((e: unknown) => { setBrowserFlowRunning(false); setBrowserFlowError((e as Error)?.message || 'Connection failed — try again') })
           }
         },
         onError: (msg) => {
@@ -1737,7 +1737,7 @@ export default function ProductOnboardingFlow() {
                                   setBrowserFlowResult(flowData as Record<string, unknown>)
                                 },
                                 onError: (err) => { setBrowserFlowRunning(false); setBrowserFlowError(err) },
-                              }).catch(() => setBrowserFlowRunning(false))
+                              }).catch((e: unknown) => { setBrowserFlowRunning(false); setBrowserFlowError((e as Error)?.message || 'Connection failed — try again') })
                             }}
                             className="px-4 py-2 rounded-lg text-xs font-medium bg-red-900/40 text-red-300 hover:bg-red-900/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                           >
