@@ -744,10 +744,10 @@ function HypothesisRow({
               <div
                 style={{
                   position: 'relative',
+                  width: '100%',
+                  height: 220,
                   overflow: 'hidden',
                   borderRadius: '8px 8px 0 0',
-                  pointerEvents: 'none',
-                  height: previewHtml ? 600 * previewScale : 120,
                   background: '#111',
                 }}
               >
@@ -762,15 +762,15 @@ function HypothesisRow({
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" /> Generating preview…
                   </div>
                 ) : previewRegenerating ? (
-                  <div style={{ position: 'relative', width: 390, height: 600, transformOrigin: 'top left', transform: `scale(${previewScale})` }}>
-                    <iframe srcDoc={previewHtml ?? ''} style={{ width: '100%', height: '100%', border: 'none', opacity: 0.4 }} sandbox="allow-scripts" title="Preview" />
+                  <div style={{ width: 390, height: 600, transformOrigin: 'top left', transform: `scale(${previewScale})`, position: 'absolute', top: 0, left: 0 }}>
+                    <iframe srcDoc={previewHtml ?? ''} style={{ width: '100%', height: '100%', border: 'none', opacity: 0.4, pointerEvents: 'none' }} sandbox="allow-scripts" title="Preview" />
                     <div className="absolute inset-0 flex items-center justify-center gap-2 text-zinc-500 text-xs">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" /> Regenerating…
                     </div>
                   </div>
                 ) : previewHtml ? (
-                  <div style={{ width: 390, height: 600, transformOrigin: 'top left', transform: `scale(${previewScale})` }}>
-                    <iframe srcDoc={previewHtml} style={{ width: '100%', height: '100%', border: 'none' }} sandbox="allow-scripts" title="Preview" />
+                  <div style={{ width: 390, height: 600, transformOrigin: 'top left', transform: `scale(${previewScale})`, position: 'absolute', top: 0, left: 0 }}>
+                    <iframe srcDoc={previewHtml} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }} sandbox="allow-scripts" title="Preview" />
                   </div>
                 ) : null}
               </div>
