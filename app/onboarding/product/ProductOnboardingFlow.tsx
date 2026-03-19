@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Check, ChevronRight, Plus, Trash2, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
+import { Check, ChevronRight, Plus, Trash2, ArrowLeft, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { buildReportMarkdown, type StrategyResultData } from './strategyReportBuilder'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -289,6 +289,70 @@ async function runAgentStream({
   }
 }
 
+// ─── Browser flow agent stream ────────────────────────────────────────────────
+
+async function runBrowserFlowStream({
+  product_url,
+  email,
+  password,
+  north_star_metric,
+  goal_and_metrics,
+  signal,
+  onLog,
+  onResult,
+  onError,
+}: {
+  product_url: string
+  email: string
+  password: string
+  north_star_metric?: string | null
+  goal_and_metrics?: string | null
+  signal?: AbortSignal
+  onLog: (msg: string) => void
+  onResult: (data: unknown) => void
+  onError: (msg: string) => void
+}): Promise<void> {
+  const agentUrl = process.env.NEXT_PUBLIC_BROWSER_AGENT_URL
+  if (!agentUrl) { onError('Browser agent URL not configured (NEXT_PUBLIC_BROWSER_AGENT_URL).'); return }
+
+  const res = await fetch(agentUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+    body: JSON.stringify({ product_url, email, password, north_star_metric: north_star_metric ?? null, goal_and_metrics: goal_and_metrics ?? null }),
+  })
+  if (!res.ok || !res.body) { onError(`Browser agent request failed (${res.status})`); return }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        const raw = line.startsWith('data: ') ? line.slice(6) : line
+        const event = JSON.parse(raw) as AgentEvent
+        if (event.type === 'log') { const msg = event.message ?? event.content ?? ''; if (msg) onLog(msg) }
+        if (event.type === 'result') onResult(event.data)
+        if (event.type === 'error') onError(event.message ?? 'Unknown error')
+      } catch { continue }
+    }
+  }
+  if (buffer.trim()) {
+    try {
+      const event = JSON.parse(buffer.trim()) as AgentEvent
+      if (event.type === 'log') { const msg = event.message ?? event.content ?? ''; if (msg) onLog(msg) }
+      if (event.type === 'result') onResult(event.data)
+      if (event.type === 'error') onError(event.message ?? 'Unknown error')
+    } catch { /* ignore */ }
+  }
+}
+
 // ─── Claude-style markdown renderer ──────────────────────────────────────────
 
 const MD_COMPONENTS: import('react-markdown').Components = {
@@ -417,6 +481,16 @@ export default function ProductOnboardingFlow() {
   const [docUrl, setDocUrl] = useState('')
   const [docFile, setDocFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Demo credentials
+  const [demoEmail, setDemoEmail] = useState('')
+  const [demoPassword, setDemoPassword] = useState('')
+  const [showDemoPassword, setShowDemoPassword] = useState(false)
+  // Browser flow state
+  const [browserLogs, setBrowserLogs] = useState<string[]>([])
+  const [browserFlowRunning, setBrowserFlowRunning] = useState(false)
+  const [browserFlowResult, setBrowserFlowResult] = useState<Record<string, unknown> | null>(null)
+  const [browserFlowError, setBrowserFlowError] = useState('')
+  const browserLogsEndRef = useRef<HTMLDivElement>(null)
   // Step 1 sub-states: form → streaming → report (no navigation)
   type Step1Screen = 'form' | 'streaming' | 'report'
   const [step1Screen, setStep1Screen] = useState<Step1Screen>('form')
@@ -701,15 +775,54 @@ export default function ProductOnboardingFlow() {
           const d = data as StrategyResultData
           setStep1Result(d)
           setStep1ReportMd(buildReportMarkdown(d))
-          // If a project already exists, persist strategy JSON/markdown for future context.
           if (projectId) {
             fetch(`/api/projects/${projectId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ strategy_json: d, strategy_markdown: buildReportMarkdown(d) }),
+              body: JSON.stringify({
+                strategy_json: d,
+                strategy_markdown: buildReportMarkdown(d),
+                demo_email: demoEmail || undefined,
+              }),
             }).catch(() => {})
           }
           setStep1Screen('report')
+          // Auto-start browser flow if demo credentials provided
+          if (demoEmail.trim() && demoPassword.trim()) {
+            setBrowserFlowRunning(true)
+            setBrowserLogs([])
+            setBrowserFlowResult(null)
+            setBrowserFlowError('')
+            runBrowserFlowStream({
+              product_url: url,
+              email: demoEmail.trim(),
+              password: demoPassword.trim(),
+              north_star_metric: null,
+              goal_and_metrics: null,
+              signal: controller.signal,
+              onLog: (msg) => {
+                setBrowserLogs((prev) => [...prev, msg])
+              },
+              onResult: (flowData) => {
+                setBrowserFlowRunning(false)
+                setBrowserFlowResult(flowData as Record<string, unknown>)
+                if (projectId) {
+                  fetch(`/api/projects/${projectId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      browser_flow_json: flowData,
+                      primary_conversion_cta: (flowData as Record<string, unknown>)?.cta_suggestion ?? null,
+                    }),
+                  }).catch(() => {})
+                }
+              },
+              onError: (err) => {
+                setBrowserFlowRunning(false)
+                setBrowserFlowError(err)
+              },
+            }).catch(() => { setBrowserFlowRunning(false) })
+          }
         },
         onError: (msg) => {
           if (msg.includes('Could not parse model output as JSON') && msg.includes('Raw output')) {
@@ -743,7 +856,7 @@ export default function ProductOnboardingFlow() {
         setStep1Screen('form')
       }
     }
-  }, [productUrl, productDescription, docFile])
+  }, [productUrl, productDescription, docFile, demoEmail, demoPassword, projectId])
 
   const cancelStep1Stream = useCallback(() => {
     step1AbortRef.current?.abort()
@@ -913,6 +1026,10 @@ export default function ProductOnboardingFlow() {
       const name = step1Result.input_product?.name || domainFromUrl(productUrl.trim()) || 'My Product'
       let pid = projectId
 
+      const bfFields = browserFlowResult
+        ? { browser_flow_json: browserFlowResult, primary_conversion_cta: browserFlowResult.cta_suggestion ?? null }
+        : {}
+
       if (pid) {
         // Project already exists — patch strategy fields only, preserve metrics_json
         await fetch(`/api/projects/${pid}`, {
@@ -925,6 +1042,8 @@ export default function ProductOnboardingFlow() {
             description: productDescription.trim() || null,
             strategy_json: step1Result,
             strategy_markdown: step1ReportMd,
+            demo_email: demoEmail || undefined,
+            ...bfFields,
           }),
         })
       } else {
@@ -939,6 +1058,8 @@ export default function ProductOnboardingFlow() {
             description: productDescription.trim() || null,
             strategy_json: step1Result,
             strategy_markdown: step1ReportMd,
+            demo_email: demoEmail || undefined,
+            ...bfFields,
           }),
         })
         const data = await res.json()
@@ -1128,6 +1249,10 @@ export default function ProductOnboardingFlow() {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
+  useEffect(() => {
+    browserLogsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [browserLogs])
+
   // ── Step 2 chat ──────────────────────────────────────────────────────────────
   const handleStep2Chat = useCallback(async () => {
     if (!step2ChatInput.trim() || step2ChatLoading || !step2Result) return
@@ -1292,6 +1417,48 @@ export default function ProductOnboardingFlow() {
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) setDocFile(f) }} />
             </div>
 
+            {/* Demo credentials */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 h-px bg-[#1f1f1f]" />
+                <span className="text-[11px] text-[#555] uppercase tracking-widest font-medium shrink-0">Demo account (optional but recommended)</span>
+                <div className="flex-1 h-px bg-[#1f1f1f]" />
+              </div>
+              <p className="text-[11px] text-[#444] mb-3">We&apos;ll use this to map how users navigate your product.</p>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className={labelCls}>Demo email</label>
+                  <input
+                    type="email"
+                    value={demoEmail}
+                    onChange={(e) => setDemoEmail(e.target.value)}
+                    placeholder="demo@yourproduct.com"
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className={labelCls}>Demo password</label>
+                  <div className="relative">
+                    <input
+                      type={showDemoPassword ? 'text' : 'password'}
+                      value={demoPassword}
+                      onChange={(e) => setDemoPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={inputCls + ' pr-10'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDemoPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors"
+                    >
+                      {showDemoPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-[#333] mt-2">Used once to map your product. Never stored in plain text.</p>
+            </div>
+
             <button
               type="submit"
               disabled={!can1}
@@ -1422,12 +1589,12 @@ export default function ProductOnboardingFlow() {
               </div>
             </div>
 
-            {/* Two-column: cards left, chat right */}
+            {/* Two-column: summary + browser flow left, chat right */}
             <div className="flex gap-6" style={{ height: 'calc(100vh - 180px)' }}>
-              {/* Left: strategy cards — one per element */}
+              {/* Left: condensed 3-card summary + browser flow */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
 
-                {/* 1. Product */}
+                {/* Card 1 — Product */}
                 <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
                   <div className="flex items-start justify-between mb-3">
                     <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Product</p>
@@ -1436,445 +1603,154 @@ export default function ProductOnboardingFlow() {
                     )}
                   </div>
                   <p className="text-base font-semibold text-[#f0f0f0] mb-0.5">{step1Result.input_product?.name}</p>
-                  {step1Result.input_product?.category && <p className="text-xs text-[#555] mb-3">{step1Result.input_product.category}</p>}
+                  {step1Result.input_product?.category && (
+                    <p className="text-xs text-[#555] mb-3">{step1Result.input_product.category}</p>
+                  )}
                   {step1Result.input_product?.core_value_prop && (
-                    <p className="text-sm text-[#a0a0a0] mb-3">{step1Result.input_product.core_value_prop}</p>
-                  )}
-                  {(step1Result.input_product?.key_differentiators?.length ?? 0) > 0 && (
-                    <div className="mb-3">
-                      <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Key differentiators</p>
-                      <ul className="space-y-0.5">
-                        {step1Result.input_product!.key_differentiators!.map((d, i) => (
-                          <li key={i} className="text-xs text-[#666] flex gap-2"><span className="text-[#4f8ef7]/40 shrink-0">·</span>{d}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {step1Result.input_product?.job_it_replaces && (
-                    <div className="pt-3 border-t border-[#1a1a1a]">
-                      <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Job it replaces</p>
-                      <p className="text-xs text-[#666]">{step1Result.input_product.job_it_replaces}</p>
-                    </div>
-                  )}
-                  {step1Result.framework_applied && (
-                    <div className="mt-2 pt-3 border-t border-[#1a1a1a]">
-                      <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Framework</p>
-                      <p className="text-xs text-[#666]">{step1Result.framework_applied}</p>
-                      {step1Result.framework_selection_reasoning && (
-                        <p className="text-xs text-[#444] mt-1 italic">{step1Result.framework_selection_reasoning}</p>
-                      )}
-                    </div>
+                    <p className="text-sm text-[#a0a0a0]">{step1Result.input_product.core_value_prop}</p>
                   )}
                 </div>
 
-                {/* 2. ICP */}
-                {(step1Result.input_product?.target_customer || step1Result.icp_inference_reasoning) && (
+                {/* Card 2 — ICP */}
+                {step1Result.input_product?.target_customer && (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Ideal Customer Profile</p>
-                    {step1Result.input_product?.target_customer && (
-                      <p className="text-sm text-[#e0e0e0] mb-2">{step1Result.input_product.target_customer}</p>
-                    )}
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">ICP</p>
+                      {step1Result.icp_inferred_from_competitors && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1a1a1a] text-[#555]">Inferred</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-[#e0e0e0]">{step1Result.input_product.target_customer}</p>
                     {step1Result.icp_inference_reasoning && (
-                      <p className="text-xs text-[#555] italic">{step1Result.icp_inference_reasoning}</p>
+                      <p className="text-xs text-[#555] italic mt-2">{step1Result.icp_inference_reasoning}</p>
                     )}
                   </div>
                 )}
 
-                {/* 3. Market Space */}
-                {(() => {
-                  const sq = step1Result.competitive_map?.status_quo ?? step1Result.status_quo
-                  return (sq?.description || step1Result.recommended_wedge) ? (
+                {/* Card 3 — Top opportunity */}
+                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (() => {
+                  const opp = step1Result.ranked_opportunities![0]
+                  return (
                     <div className="rounded-xl border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-5">
-                      <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium mb-3">Market Space</p>
-                      {sq?.description && <p className="text-sm text-[#e0e0e0] mb-3">{sq.description}</p>}
-                      {(sq?.frustrations?.length ?? 0) > 0 && (
-                        <div className="mb-3">
-                          <p className="text-[10px] text-[#4f8ef7]/60 uppercase tracking-widest mb-1.5">Current frustrations</p>
-                          <ul className="space-y-1">
-                            {sq!.frustrations!.map((f, i) => (
-                              <li key={i} className="text-xs text-[#a0a0a0] flex gap-2"><span className="text-[#4f8ef7]/40 shrink-0">—</span>{f}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {step1Result.recommended_wedge && (
-                        <div className="pt-3 border-t border-[#4f8ef7]/10">
-                          <p className="text-[10px] text-[#4f8ef7]/60 uppercase tracking-widest mb-1.5">Recommended wedge</p>
-                          <p className="text-xs text-[#a0a0a0]">{step1Result.recommended_wedge}</p>
-                        </div>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium">Top opportunity</p>
+                        {opp.composite_score != null && (
+                          <span className="text-sm font-semibold text-[#4f8ef7] font-mono">{opp.composite_score}<span className="text-[10px] text-[#4f8ef7]/40">/10</span></span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-[#f0f0f0] mb-2">{opp.opportunity}</p>
+                      {opp.recommended_action && (
+                        <p className="text-xs text-[#555] italic">{opp.recommended_action}</p>
                       )}
                     </div>
-                  ) : null
+                  )
                 })()}
 
-                {/* 4. Market Sizing */}
-                {step1Result.market_sizing && (
+                {/* Browser flow section */}
+                {(demoEmail && demoPassword) ? (
                   <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Market Sizing</p>
-                    <div className="grid grid-cols-3 gap-3 mb-3">
-                      {step1Result.market_sizing.tam_estimate && (
-                        <div className="bg-[#111] rounded-lg p-3">
-                          <p className="text-[10px] text-[#444] mb-1">TAM</p>
-                          <p className="text-sm font-semibold text-[#f0f0f0]">{step1Result.market_sizing.tam_estimate}</p>
-                          {step1Result.market_sizing.tam && <p className="text-[10px] text-[#444] mt-0.5">{step1Result.market_sizing.tam}</p>}
-                        </div>
-                      )}
-                      {step1Result.market_sizing.sam_estimate && (
-                        <div className="bg-[#111] rounded-lg p-3">
-                          <p className="text-[10px] text-[#444] mb-1">SAM</p>
-                          <p className="text-sm font-semibold text-[#f0f0f0]">{step1Result.market_sizing.sam_estimate}</p>
-                          {step1Result.market_sizing.sam && <p className="text-[10px] text-[#444] mt-0.5">{step1Result.market_sizing.sam}</p>}
-                        </div>
-                      )}
-                      {step1Result.market_sizing.som_estimate && (
-                        <div className="bg-[#111] rounded-lg p-3">
-                          <p className="text-[10px] text-[#444] mb-1">SOM</p>
-                          <p className="text-sm font-semibold text-[#4f8ef7]">{step1Result.market_sizing.som_estimate}</p>
-                          {step1Result.market_sizing.som && <p className="text-[10px] text-[#444] mt-0.5">{step1Result.market_sizing.som}</p>}
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2 mb-3">
+                      {browserFlowRunning ? (
+                        <Loader2 className="w-3.5 h-3.5 text-[#4f8ef7] animate-spin shrink-0" />
+                      ) : browserFlowResult ? (
+                        <div className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
+                      ) : browserFlowError ? (
+                        <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                      ) : null}
+                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Mapping your product flows</p>
                     </div>
-                    {step1Result.market_sizing.sizing_reasoning && (
-                      <p className="text-xs text-[#555] italic">{step1Result.market_sizing.sizing_reasoning}</p>
-                    )}
-                    {step1Result.market_sizing.sizing_confidence && (
-                      <p className="text-[10px] text-[#444] mt-1">Confidence: {step1Result.market_sizing.sizing_confidence}</p>
-                    )}
-                  </div>
-                )}
+                    <p className="text-xs text-[#444] mb-3">Logging in with your demo account to trace how users navigate your product.</p>
 
-                {/* 5. GTM Motion */}
-                {step1Result.gtm_motion && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">GTM Motion</p>
-                    {step1Result.gtm_motion.recommended_motion && (
-                      <p className="text-sm font-semibold text-[#f0f0f0] mb-2">{step1Result.gtm_motion.recommended_motion}</p>
-                    )}
-                    {step1Result.gtm_motion.reasoning && (
-                      <p className="text-xs text-[#666] mb-3">{step1Result.gtm_motion.reasoning}</p>
-                    )}
-                    <div className="space-y-2">
-                      {step1Result.gtm_motion.first_channel && (
-                        <div className="flex gap-2">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-24 mt-0.5">First channel</p>
-                          <p className="text-xs text-[#a0a0a0]">{step1Result.gtm_motion.first_channel}</p>
-                        </div>
-                      )}
-                      {step1Result.gtm_motion.beachhead_customer && (
-                        <div className="flex gap-2">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-24 mt-0.5">Beachhead</p>
-                          <p className="text-xs text-[#a0a0a0]">{step1Result.gtm_motion.beachhead_customer}</p>
-                        </div>
-                      )}
-                    </div>
-                    {step1Result.gtm_motion.gtm_evidence && (
-                      <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Evidence</p>
-                        <p className="text-xs text-[#555]">{step1Result.gtm_motion.gtm_evidence}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 6. Pricing Model */}
-                {step1Result.pricing_model && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Pricing Model</p>
-                    {step1Result.pricing_model.recommended_model && (
-                      <p className="text-sm font-semibold text-[#f0f0f0] mb-2">{step1Result.pricing_model.recommended_model}</p>
-                    )}
-                    {step1Result.pricing_model.reasoning && (
-                      <p className="text-xs text-[#666] mb-3">{step1Result.pricing_model.reasoning}</p>
-                    )}
-                    <div className="space-y-2">
-                      {step1Result.pricing_model.entry_price_signal && (
-                        <div className="flex gap-2">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-24 mt-0.5">Entry price</p>
-                          <p className="text-xs text-[#a0a0a0]">{step1Result.pricing_model.entry_price_signal}</p>
-                        </div>
-                      )}
-                      {step1Result.pricing_model.expansion_mechanic && (
-                        <div className="flex gap-2">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-24 mt-0.5">Expansion</p>
-                          <p className="text-xs text-[#a0a0a0]">{step1Result.pricing_model.expansion_mechanic}</p>
-                        </div>
-                      )}
-                      {step1Result.pricing_model.competitors_pricing && (
-                        <div className="flex gap-2">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-24 mt-0.5">vs. competitors</p>
-                          <p className="text-xs text-[#a0a0a0]">{step1Result.pricing_model.competitors_pricing}</p>
-                        </div>
-                      )}
-                    </div>
-                    {step1Result.input_product?.pricing_signal && (
-                      <p className="text-xs text-[#444] mt-3 pt-3 border-t border-[#1a1a1a] italic">{step1Result.input_product.pricing_signal}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* 7. Direct Competitors */}
-                {(() => {
-                  const direct = step1Result.competitive_map?.direct ?? step1Result.direct_competitors ?? []
-                  return direct.length > 0 ? (
-                    <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Direct Competitors</p>
-                      <div className="space-y-4">
-                        {direct.map((c, i) => (
-                          <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
-                            <p className="text-sm font-medium text-[#f0f0f0] mb-1">{c.name}</p>
-                            {c.what_they_do && <p className="text-xs text-[#666] mb-2">{c.what_they_do}</p>}
-                            {(c.complaints?.length ?? 0) > 0 && (
-                              <div>
-                                <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Top complaints</p>
-                                <ul className="space-y-0.5">
-                                  {c.complaints!.slice(0, 3).map((q, j) => (
-                                    <li key={j} className="text-xs text-[#555] flex gap-2"><span className="shrink-0 text-red-500/40">✗</span>{q}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
+                    {/* Log stream */}
+                    {(browserFlowRunning || browserFlowError) && !browserFlowResult && (
+                      <div className="max-h-40 overflow-y-auto rounded-lg border border-[#1a1a1a] bg-[#070707] p-3 font-mono text-[11px] leading-relaxed space-y-0.5 mb-3">
+                        {browserLogs.length === 0 && browserFlowRunning && (
+                          <div className="text-[#444]">Connecting to browser agent…</div>
+                        )}
+                        {browserLogs.map((line, i) => (
+                          <div key={i} className={line.startsWith('[Browser]') ? 'text-[#888]' : 'text-[#555]'}>{line}</div>
                         ))}
-                      </div>
-                    </div>
-                  ) : null
-                })()}
-
-                {/* 8. Indirect Alternatives */}
-                {(() => {
-                  const indirect = step1Result.competitive_map?.indirect ?? step1Result.indirect_competitors ?? []
-                  return indirect.length > 0 ? (
-                    <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Indirect Alternatives</p>
-                      <div className="space-y-4">
-                        {indirect.map((c, i) => (
-                          <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
-                            <p className="text-sm font-medium text-[#f0f0f0] mb-1">{c.name}</p>
-                            {c.what_they_do && <p className="text-xs text-[#666] mb-2">{c.what_they_do}</p>}
-                            {(c.complaints?.length ?? 0) > 0 && (
-                              <ul className="space-y-0.5">
-                                {c.complaints!.slice(0, 2).map((q, j) => (
-                                  <li key={j} className="text-xs text-[#555] flex gap-2"><span className="shrink-0 text-[#444]">—</span>{q}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null
-                })()}
-
-                {/* 9. PLG Research */}
-                {step1Result.plg_research && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">PLG Research</p>
-                    {step1Result.plg_research.recommended_plg_motion && (
-                      <div className="mb-3 p-3 rounded-lg bg-[#111] border border-[#1a1a1a]">
-                        <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest mb-1">Recommended motion</p>
-                        <p className="text-sm text-[#e0e0e0]">{step1Result.plg_research.recommended_plg_motion}</p>
+                        <div ref={browserLogsEndRef} />
                       </div>
                     )}
-                    {(step1Result.plg_research.plg_motions_that_work?.length ?? 0) > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-2">Motions that work</p>
-                        <div className="space-y-2">
-                          {step1Result.plg_research.plg_motions_that_work!.map((m, i) => (
-                            <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
-                              {m.motion && <p className="text-xs font-medium text-[#c0c0c0] mb-1">{m.motion}</p>}
-                              {m.example_company && <p className="text-[10px] text-[#4f8ef7] mb-0.5">Example: {m.example_company}</p>}
-                              {m.how_they_did_it && <p className="text-[10px] text-[#555] mb-0.5">{m.how_they_did_it}</p>}
-                              {m.applicability_to_input_product && <p className="text-[10px] text-[#666] italic">{m.applicability_to_input_product}</p>}
-                            </div>
-                          ))}
-                        </div>
+
+                    {/* Error */}
+                    {browserFlowError && !browserFlowResult && (
+                      <div className="rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-2.5 text-xs text-red-400">
+                        Couldn&apos;t access your product — check your demo credentials and try again.
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!demoEmail.trim() || !demoPassword.trim()) return
+                            setBrowserFlowRunning(true)
+                            setBrowserLogs([])
+                            setBrowserFlowResult(null)
+                            setBrowserFlowError('')
+                            runBrowserFlowStream({
+                              product_url: productUrl.trim(),
+                              email: demoEmail.trim(),
+                              password: demoPassword.trim(),
+                              north_star_metric: null,
+                              goal_and_metrics: null,
+                              onLog: (msg) => setBrowserLogs((prev) => [...prev, msg]),
+                              onResult: (flowData) => {
+                                setBrowserFlowRunning(false)
+                                setBrowserFlowResult(flowData as Record<string, unknown>)
+                              },
+                              onError: (err) => { setBrowserFlowRunning(false); setBrowserFlowError(err) },
+                            }).catch(() => setBrowserFlowRunning(false))
+                          }}
+                          className="ml-2 underline hover:no-underline"
+                        >Retry</button>
                       </div>
                     )}
-                    {(step1Result.plg_research.activation_moment_patterns?.length ?? 0) > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Activation patterns</p>
-                        <div className="space-y-1.5">
-                          {step1Result.plg_research.activation_moment_patterns!.map((m, i) => (
-                            <div key={i} className="flex gap-2">
-                              <span className="text-[#22c55e]/40 shrink-0 mt-0.5">·</span>
-                              <div>
-                                {m.pattern && <p className="text-xs text-[#666]">{m.pattern}</p>}
-                                {m.example && <p className="text-[10px] text-[#444] italic">e.g. {m.example}</p>}
-                                {m.relevant_because && <p className="text-[10px] text-[#3a3a3a]">{m.relevant_because}</p>}
+
+                    {/* Result summary */}
+                    {browserFlowResult && (() => {
+                      const fm = (browserFlowResult.flow_map ?? {}) as Record<string, unknown>
+                      const cta = ((browserFlowResult.cta_suggestion ?? {}) as Record<string, unknown>)
+                      const primary = (cta.primary_conversion_cta ?? {}) as Record<string, unknown>
+                      const pagesExplored = fm.pages_explored as number | undefined
+                      const totalCtas = fm.total_ctas_found as number | undefined
+                      const trackingCoverage = fm.tracking_coverage as string | undefined
+                      const eventFired = primary.event_fired as boolean | undefined
+                      return (
+                        <div className="space-y-3">
+                          {(pagesExplored != null || totalCtas != null || trackingCoverage != null) && (
+                            <p className="text-xs text-[#666]">
+                              {[
+                                pagesExplored != null && `${pagesExplored} pages mapped`,
+                                totalCtas != null && `${totalCtas} CTAs found`,
+                                trackingCoverage != null && `${trackingCoverage} tracked`,
+                              ].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                          {!!primary.cta_text && (
+                            <div className="rounded-lg border border-[#1a1a1a] bg-[#070707] p-3">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <p className="text-sm font-medium text-[#f0f0f0]">{primary.cta_text as string}</p>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${eventFired ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-red-500/10 text-red-400'}`}>
+                                  {eventFired ? 'Event firing' : 'No event detected'}
+                                </span>
                               </div>
+                              {!!primary.page && <p className="text-[10px] text-[#555] mb-1">{primary.page as string}</p>}
+                              {!!primary.why_this_cta && <p className="text-xs text-[#444] italic">{primary.why_this_cta as string}</p>}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </div>
-                    )}
-                    {(step1Result.plg_research.viral_mechanic_patterns?.length ?? 0) > 0 && (
-                      <div>
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Viral mechanics</p>
-                        <div className="space-y-1.5">
-                          {step1Result.plg_research.viral_mechanic_patterns!.map((m, i) => (
-                            <div key={i} className="flex gap-2">
-                              <span className="text-[#a855f7]/40 shrink-0 mt-0.5">·</span>
-                              <div>
-                                {m.mechanic && <p className="text-xs text-[#666]">{m.mechanic}</p>}
-                                {m.example && <p className="text-[10px] text-[#444] italic">e.g. {m.example}</p>}
-                                {m.relevant_because && <p className="text-[10px] text-[#3a3a3a]">{m.relevant_because}</p>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )
+                    })()}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#1a1a1a] bg-[#070707] px-5 py-4 flex items-center justify-between gap-3">
+                    <p className="text-xs text-[#444]">No demo account provided — add one to enable flow mapping</p>
+                    <button
+                      type="button"
+                      onClick={() => { setStep1Screen('form') }}
+                      className="text-xs text-[#4f8ef7] hover:text-[#7fb3ff] transition-colors shrink-0"
+                    >Add credentials</button>
                   </div>
                 )}
-
-                {/* 10. Ranked Opportunities */}
-                {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Ranked Opportunities</p>
-                    <div className="space-y-5">
-                      {step1Result.ranked_opportunities!.slice(0, 3).map((opp, i) => (
-                        <div key={i} className="pb-5 border-b border-[#1a1a1a] last:pb-0 last:border-0">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="flex items-start gap-2">
-                              <span className="text-xs text-[#4f8ef7] font-mono shrink-0 mt-0.5">#{opp.rank ?? i + 1}</span>
-                              <p className="text-sm font-medium text-[#f0f0f0]">{opp.opportunity}</p>
-                            </div>
-                            {opp.composite_score != null && (
-                              <span className="text-sm font-semibold text-[#4f8ef7] font-mono shrink-0">{opp.composite_score}<span className="text-[10px] text-[#444]">/10</span></span>
-                            )}
-                          </div>
-                          {opp.target_segment && <p className="text-xs text-[#555] mb-2 ml-4">{opp.target_segment}</p>}
-                          <div className="ml-4 grid grid-cols-3 gap-2 mb-2">
-                            {opp.segment_size_score != null && (
-                              <div className="bg-[#111] rounded-lg p-2">
-                                <p className="text-[10px] text-[#444] mb-1">Segment size</p>
-                                <p className="text-sm font-semibold text-[#a0a0a0]">{opp.segment_size_score}<span className="text-[10px] text-[#444]">/10</span></p>
-                              </div>
-                            )}
-                            {opp.pain_urgency_score != null && (
-                              <div className="bg-[#111] rounded-lg p-2">
-                                <p className="text-[10px] text-[#444] mb-1">Pain urgency</p>
-                                <p className="text-sm font-semibold text-[#a0a0a0]">{opp.pain_urgency_score}<span className="text-[10px] text-[#444]">/10</span></p>
-                              </div>
-                            )}
-                            {opp.strategic_fit_score != null && (
-                              <div className="bg-[#111] rounded-lg p-2">
-                                <p className="text-[10px] text-[#444] mb-1">Strategic fit</p>
-                                <p className="text-sm font-semibold text-[#a0a0a0]">{opp.strategic_fit_score}<span className="text-[10px] text-[#444]">/10</span></p>
-                              </div>
-                            )}
-                          </div>
-                          {opp.recommended_action && <p className="text-xs text-[#555] ml-4 italic">{opp.recommended_action}</p>}
-                          {opp.pm_comment && <p className="text-xs text-[#4f8ef7]/60 ml-4 mt-1">PM note: {opp.pm_comment}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 11. Unmet Needs */}
-                {(step1Result.unmet_needs?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Unmet Needs</p>
-                    <div className="space-y-4">
-                      {step1Result.unmet_needs!.map((n, i) => (
-                        <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="text-sm font-medium text-[#f0f0f0]">{n.need}</p>
-                            {n.how_widespread && <span className="text-[10px] text-[#555] shrink-0 mt-0.5">{n.how_widespread}</span>}
-                          </div>
-                          {n.evidence && <p className="text-xs text-[#666] mb-1">{n.evidence}</p>}
-                          {n.trend_connection && <p className="text-xs text-[#444] italic">Why now: {n.trend_connection}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 12. Emerging Trends */}
-                {(() => {
-                  const trends = step1Result.market_trends?.emerging_trends ?? step1Result.emerging_trends ?? []
-                  return trends.length > 0 ? (
-                    <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Emerging Trends</p>
-                      <div className="space-y-4">
-                        {trends.map((t, i) => (
-                          <div key={i} className="pb-4 border-b border-[#1a1a1a] last:pb-0 last:border-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="text-sm font-medium text-[#f0f0f0]">{t.trend}</p>
-                              {t.momentum && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1a1a1a] text-[#666]">{t.momentum}</span>}
-                            </div>
-                            {t.time_horizon && <p className="text-xs text-[#555] mb-1">{t.time_horizon}</p>}
-                            {t.evidence && <p className="text-xs text-[#444] italic">{t.evidence}</p>}
-                          </div>
-                        ))}
-                      </div>
-                      {(step1Result.market_trends?.customer_behavior_shifts?.length ?? 0) > 0 && (
-                        <div className="mt-4 pt-4 border-t border-[#1a1a1a]">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest mb-2">Customer behavior shifts</p>
-                          <ul className="space-y-1">
-                            {step1Result.market_trends!.customer_behavior_shifts!.map((s, i) => {
-                              const shift = typeof s === 'string' ? s : (s as { shift?: string; evidence?: string }).shift ?? ''
-                              const evidence = typeof s === 'string' ? undefined : (s as { shift?: string; evidence?: string }).evidence
-                              return (
-                                <li key={i} className="flex gap-2">
-                                  <span className="shrink-0 text-[#444] mt-0.5">→</span>
-                                  <div>
-                                    <p className="text-xs text-[#555]">{shift}</p>
-                                    {evidence && <p className="text-[10px] text-[#444] italic">{evidence}</p>}
-                                  </div>
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ) : null
-                })()}
-
-                {/* 13. Momentum Advantages */}
-                {(step1Result.momentum_advantages?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#22c55e]/20 bg-[#22c55e]/5 p-5">
-                    <p className="text-[10px] text-[#22c55e]/70 uppercase tracking-widest font-medium mb-3">Momentum Advantages</p>
-                    <div className="space-y-4">
-                      {step1Result.momentum_advantages!.map((m, i) => (
-                        <div key={i} className="pb-4 border-b border-[#22c55e]/10 last:pb-0 last:border-0">
-                          <p className="text-sm font-medium text-[#f0f0f0] mb-1">{m.advantage}</p>
-                          {m.trend_backing && <p className="text-xs text-[#666] mb-1">Backed by: {m.trend_backing}</p>}
-                          {m.recommendation && <p className="text-xs text-[#22c55e]/60 italic">{m.recommendation}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 14. Threats */}
-                {(() => {
-                  const threats = [
-                    ...(step1Result.threats ?? []),
-                    ...(step1Result.market_trends?.new_threats ?? []),
-                    ...(step1Result.new_threats ?? []),
-                    ...(step1Result.threats_to_monitor ?? []),
-                  ]
-                  return threats.length > 0 ? (
-                    <div className="rounded-xl border border-red-900/30 bg-red-950/10 p-5">
-                      <p className="text-[10px] text-red-500/60 uppercase tracking-widest font-medium mb-3">Threats</p>
-                      <div className="space-y-3">
-                        {threats.map((t, i) => (
-                          <div key={i} className="pb-3 border-b border-red-900/10 last:pb-0 last:border-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <p className="text-sm font-medium text-[#f0f0f0]">{t.threat}</p>
-                              {t.urgency && <span className="text-[10px] text-red-500/60 shrink-0 mt-0.5">{t.urgency}</span>}
-                            </div>
-                            {t.who_is_driving_it && <p className="text-xs text-[#555]">Driven by: {t.who_is_driving_it}</p>}
-                            {t.recommended_response && <p className="text-xs text-[#444] italic mt-1">{t.recommended_response}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null
-                })()}
 
               </div>
 
