@@ -871,6 +871,39 @@ export default function ProductOnboardingFlow() {
     setStep1Screen('form')
   }, [])
 
+  const retryBrowserFlow = useCallback(() => {
+    const url = productUrl.trim()
+    const email = demoEmail.trim()
+    const password = demoPassword.trim()
+    console.log('[retryBrowserFlow] url=%s email=%s passwordLen=%d', url, email, password.length)
+    setBrowserFlowRunning(true)
+    setBrowserLogs([])
+    setBrowserFlowResult(null)
+    setBrowserFlowError('')
+    runBrowserFlowStream({
+      product_url: url,
+      email,
+      password,
+      north_star_metric: null,
+      goal_and_metrics: null,
+      onLog: (msg) => { console.log('[browserFlow log]', msg); setBrowserLogs((prev) => [...prev, msg]) },
+      onResult: (flowData) => {
+        console.log('[browserFlow result]', flowData)
+        setBrowserFlowRunning(false)
+        setBrowserFlowResult(flowData as Record<string, unknown>)
+      },
+      onError: (err) => {
+        console.error('[browserFlow error]', err)
+        setBrowserFlowRunning(false)
+        setBrowserFlowError(err)
+      },
+    }).catch((e: unknown) => {
+      console.error('[browserFlow catch]', e)
+      setBrowserFlowRunning(false)
+      setBrowserFlowError((e as Error)?.message || 'Connection failed — try again')
+    })
+  }, [productUrl, demoEmail, demoPassword])
+
   // ── Step 2: stream metrics agent ───────────────────────────────────────────
   const runStep2Stream = useCallback(async () => {
     const strategyMd = step1ReportMd || buildReportMarkdown(step1Result ?? {})
@@ -1719,29 +1752,11 @@ export default function ProductOnboardingFlow() {
                           </div>
                           <button
                             type="button"
-                            disabled={!demoEmail.trim() || !demoPassword.trim()}
-                            onClick={() => {
-                              setBrowserFlowRunning(true)
-                              setBrowserLogs([])
-                              setBrowserFlowResult(null)
-                              setBrowserFlowError('')
-                              runBrowserFlowStream({
-                                product_url: productUrl.trim(),
-                                email: demoEmail.trim(),
-                                password: demoPassword.trim(),
-                                north_star_metric: null,
-                                goal_and_metrics: null,
-                                onLog: (msg) => setBrowserLogs((prev) => [...prev, msg]),
-                                onResult: (flowData) => {
-                                  setBrowserFlowRunning(false)
-                                  setBrowserFlowResult(flowData as Record<string, unknown>)
-                                },
-                                onError: (err) => { setBrowserFlowRunning(false); setBrowserFlowError(err) },
-                              }).catch((e: unknown) => { setBrowserFlowRunning(false); setBrowserFlowError((e as Error)?.message || 'Connection failed — try again') })
-                            }}
+                            disabled={browserFlowRunning || !demoEmail.trim() || !demoPassword.trim()}
+                            onClick={retryBrowserFlow}
                             className="px-4 py-2 rounded-lg text-xs font-medium bg-red-900/40 text-red-300 hover:bg-red-900/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                           >
-                            Retry
+                            {browserFlowRunning ? 'Retrying…' : 'Retry'}
                           </button>
                         </div>
                       </div>
