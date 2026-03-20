@@ -124,3 +124,27 @@
   50% { opacity: 0.5; }
 }
 .severity-critical { animation: pulse-critical 2s ease-in-out infinite; }
+
+/* Landing page loop step hover */
+.loop-step { transition: background 200ms ease; }
+.loop-step:hover { background: #0F1114; }
+
+/* Landing page animations */
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 40s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
+}

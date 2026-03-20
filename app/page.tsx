@@ -1,266 +1,990 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Agent NorthStar',
-  description: 'Software that gives a damn about your users.',
+  title: 'Agent NorthStar — The Fastest Experimenter in Your Space',
+  description:
+    'NorthStar watches your market 24/7, maps competitor flows, finds the gaps in your product, and turns them into tested experiments. Shipped.',
 }
+
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg: '#07080A',
+  surface: '#0F1114',
+  surface2: '#161A1F',
+  amber: '#E8A030',
+  text: '#F2EDE6',
+  muted: 'rgba(242,237,230,0.45)',
+  dim: 'rgba(242,237,230,0.22)',
+  border: 'rgba(255,255,255,0.07)',
+} as const
+
+// ── Ticker items ──────────────────────────────────────────────────────────────
+const TICKER = [
+  { label: 'MARKET', text: 'New AI inbox feature detected in Intercom' },
+  { label: 'THREAT', text: 'Notion launched AI DB builder — 3 onboarding steps removed' },
+  { label: 'GAP', text: 'Your sequence builder step 2 losing 41% vs competitor default' },
+  { label: 'SPEC', text: 'Variant generated → cursor ready → PR open in 22 mins' },
+  { label: 'RESULT', text: '+8.4% activation · $340K ARR attributed · next hypothesis queued' },
+  { label: 'MARKET', text: 'Linear shipped AI issue triage — avg resolution 60% faster' },
+  { label: 'THREAT', text: 'Loom added async approval flows — enterprise ACV up 22%' },
+  { label: 'GAP', text: 'Onboarding step 3 median 8.2 min vs competitor 2.1 min' },
+  { label: 'SPEC', text: 'Template pre-fill hypothesis → spec written in 4 mins → approved' },
+  { label: 'RESULT', text: '+12% trial-to-paid · experiment closed in 9 days' },
+]
+
+// ── Loop steps ────────────────────────────────────────────────────────────────
+const LOOP = [
+  {
+    num: '01',
+    label: 'MARKET',
+    title: "What's trending in your space",
+    body: 'NorthStar maps what new players in your vertical are shipping. What customers are gravitating toward. What the new standard is becoming.',
+  },
+  {
+    num: '02',
+    label: 'THREAT',
+    title: 'How they deliver value',
+    body: "We map each competitor's sign-up to aha moment. Exactly how they deliver the value your customers want — step by step.",
+  },
+  {
+    num: '03',
+    label: 'GAP',
+    title: "Where you're falling behind",
+    body: 'We overlay your existing flow against the new standard. Ranked gaps. Specific drop-offs. Tied to your OKRs — not vanity metrics.',
+  },
+  {
+    num: '04',
+    label: 'TEST',
+    title: 'Smallest change. Fastest learning.',
+    body: 'NorthStar generates a coding-agent-ready MD spec. Your PM approves, coding agent opens a PR, engineer reviews and merges. Test live. Results feed the next hypothesis.',
+  },
+]
+
+// ── Quotes ────────────────────────────────────────────────────────────────────
+const QUOTES = [
+  {
+    text: 'It had already formed three hypotheses by the time I opened Slack. One was something we\'d debated for months.',
+    role: 'Head of Product, Series C SaaS',
+  },
+  {
+    text: "We shipped 8 experiments in a sprint where we'd normally ship 2. The engineer reviewed PRs, not rewrote specs.",
+    role: 'VP Product, Series B PLG',
+  },
+  {
+    text: 'NorthStar caught a competitor move we completely missed. Had a test running on our equivalent flow within 3 days.',
+    role: 'Growth PM, Series D SaaS',
+  },
+]
+
+// ── ICP checklist ─────────────────────────────────────────────────────────────
+const ICP = [
+  'You have 50K+ MAU and a clear conversion metric',
+  'Your improvement cycle is 4–12 weeks today',
+  'Your team uses GitHub + a coding agent (Cursor, Claude Code)',
+  'You track analytics (PostHog, Amplitude, Mixpanel)',
+  "You're measured on revenue impact, not tickets closed",
+  "You have Q2 OKRs and not enough experiments to hit them",
+]
 
 export default function LandingPage() {
   return (
-    <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: "document.documentElement.style.scrollBehavior='smooth'",
-        }}
-      />
-      <div
-        className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden"
+    <div
+      style={{
+        background: C.bg,
+        color: C.text,
+        fontFamily: "var(--font-sans-dm, 'DM Sans', sans-serif)",
+        fontWeight: 400,
+        overflowX: 'hidden',
+      }}
+    >
+      {/* ── NAV ──────────────────────────────────────────────────────────────── */}
+      <nav
         style={{
-          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          height: 60,
+          borderBottom: `1px solid ${C.border}`,
+          background: 'rgba(7,8,10,0.88)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
         }}
       >
-        {/* ── NAV ─────────────────────────────────────────── */}
-        <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-white/[0.08] bg-[#0a0a0a]/90 backdrop-blur-sm">
-          <div className="max-w-5xl mx-auto px-6 h-full flex items-center justify-between">
-            <span className="font-medium text-sm text-white tracking-tight">Agent NorthStar</span>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/auth/signin"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/auth/login"
-                className="bg-white text-[#0a0a0a] text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#0e7c7b] hover:text-white transition-colors"
-              >
-                Request access →
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        {/* ── HERO ─────────────────────────────────────────── */}
-        <section
-          className="min-h-screen flex items-center justify-center relative pt-14"
+        <div
           style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '60px 60px',
-            maskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
+            maxWidth: 1200,
+            margin: '0 auto',
+            padding: '0 24px',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          <div className="relative z-10 text-center max-w-3xl mx-auto px-6 w-full">
-            <p className="text-xs tracking-widest uppercase text-[#0e7c7b] font-medium mb-8">
-              Private beta
-            </p>
-            <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight tracking-tight">
-              Every product deserves to get 1% better.
-              <br />
-              Every week.
-            </h1>
-            <p className="mt-6 text-base md:text-lg text-white/60 tracking-tight">
-              NorthStar is the autonomous agent that finds the drop-offs, ships the fix, and proves the lift — no sprint planning required.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/auth/login"
-                className="inline-block bg-[#0e7c7b] text-white font-medium text-base px-8 py-4 rounded-xl hover:bg-[#0a6b6a] transition-colors"
-              >
-                Run NorthStar on my product →
-              </Link>
-              <a
-                href="#how-it-works"
-                className="inline-block text-sm text-white/70 hover:text-white transition-colors underline-offset-4 hover:underline"
-              >
-                See how it works ↓
-              </a>
-            </div>
-            <p className="mt-3 text-xs text-white/40">
-              We&apos;ll reach out within 24 hours with a hypothesis already formed on your highest-traffic surface.
-            </p>
-            <div className="mt-10 space-y-3">
-              <p className="text-xs text-white/40 text-center">
-                Tested by PMs at Meta · Snap · Google · Apple
-              </p>
-              <p className="text-sm text-white/50 text-center italic">
-                &quot;It had already formed three hypotheses by the time I opened Slack.&quot;
-              </p>
-              <p className="text-xs text-white/30 text-center">— Head of Product, Series C SaaS</p>
-            </div>
+          {/* Logo */}
+          <span
+            style={{
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 13,
+              letterSpacing: '0.08em',
+              color: C.text,
+            }}
+          >
+            AGENT<span style={{ color: C.amber }}>.</span>NORTHSTAR
+          </span>
 
-            {/* Product visual — hidden on mobile, visible sm+ */}
-            <div className="hidden sm:block max-w-2xl mx-auto mt-20 mb-0 bg-[#111111] rounded-2xl border border-white/[0.08] overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-                  <span className="w-3 h-3 rounded-full bg-[#febc2e]" />
-                  <span className="w-3 h-3 rounded-full bg-[#28c840]" />
-                </div>
-                <span className="text-xs text-white/20 font-mono">agent-northstar · running</span>
-              </div>
-              <div className="px-6 py-4 space-y-0">
-                <div className="flex items-center justify-between py-3 border-b border-white/5">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-[#0e7c7b] animate-pulse" />
-                    <span className="text-sm font-mono text-white/60">posthog.funnels</span>
-                  </div>
-                  <span className="text-xs text-[#0e7c7b] bg-[#0e7c7b]/10 px-2 py-1 rounded">
-                    67% drop-off detected
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-white/5">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-[#0e7c7b] animate-pulse" />
-                    <span className="text-sm font-mono text-white/60">hypothesis.ranked</span>
-                  </div>
-                  <span className="text-xs text-white/40">#1 confidence: 0.84</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-white/5">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                    <span className="text-sm font-mono text-white/60">spec.generated</span>
-                  </div>
-                  <span className="text-xs text-white/40">→ cursor ready</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-white/5">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-[#0e7c7b]" />
-                    <span className="text-sm font-mono text-white/60">pr.merged</span>
-                  </div>
-                  <span className="text-xs text-white/40">10% rollout active</span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-[#0e7c7b]" />
-                    <span className="text-sm font-mono text-white/60">ledger.closed</span>
-                  </div>
-                  <span className="text-sm font-semibold text-white">$340K ARR attributed</span>
-                </div>
-              </div>
-              <div className="px-6 py-4 bg-white/[0.02] font-mono text-xs text-white/20">
-                loop closed in 14 days · next hypothesis queued
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── THREE STATS ─────────────────────────────────── */}
-        <section id="how-it-works" className="py-24 border-t border-white/5">
-          <div className="max-w-3xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            <div>
-              <p className="text-4xl font-bold text-white">48h</p>
-              <p className="text-sm text-white/40 mt-2">first spec to merged PR</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-white">0</p>
-              <p className="text-sm text-white/40 mt-2">meetings required</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-[#0e7c7b]">$30K</p>
-              <p className="text-sm text-white/40 mt-2">vs $180K to hire the PM</p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── REVENUE ATTRIBUTION ─────────────────────────── */}
-        <section className="py-24 border-t border-white/5">
-          <div className="max-w-3xl mx-auto px-6">
-            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-6">
-              Every change ships with a revenue number.
-            </h2>
-            <p className="text-sm md:text-base text-white/60 leading-relaxed mb-4">
-              Amplitude shows you the drop-off. Productboard helps you prioritize it. NorthStar fixes it, ships it, and tells you what it was worth — before your next standup.
-            </p>
-            <p className="text-sm md:text-base text-white/60 leading-relaxed mb-8">
-              Most teams can&apos;t answer &quot;what did that feature change deliver?&quot; NorthStar closes that loop automatically. Every hypothesis that ships comes back with attribution attached.
-            </p>
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 inline-flex items-center justify-between gap-4 text-sm text-white">
-              <span className="font-medium">Loop closed in 14 days · $340K ARR attributed</span>
-            </div>
-          </div>
-        </section>
-
-        {/* ── ICP / WHO IT'S FOR ──────────────────────────── */}
-        <section className="py-24 border-t border-white/5">
-          <div className="max-w-2xl mx-auto px-6">
-            <h2 className="text-xl md:text-2xl font-semibold text-white mb-6">
-              Built for VP/Head of Product at Series B–D SaaS companies who are being asked to ship more without adding headcount.
-            </h2>
-            <ul className="space-y-3 text-sm text-white/60">
-              <li>• You have a surface with real traffic and a clear conversion metric</li>
-              <li>• Your current improvement cycle takes 6–12 weeks</li>
-              <li>• You&apos;re measured on revenue impact, not tickets closed</li>
-              <li>• You&apos;re about to hire a PM — or just did</li>
-            </ul>
-          </div>
-        </section>
-
-        {/* ── ZERO MEETINGS CALLOUT ───────────────────────── */}
-        <section className="py-16 border-t border-white/5">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-6 text-center">
-              <p className="text-sm md:text-base text-white/70 leading-relaxed">
-                No roadmap meetings. No prioritization debates. No spec reviews.
-                <br />
-                NorthStar reads the data, makes the call, and ships — while you focus on what only humans can do.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── CTA BLOCK ─────────────────────────────────────── */}
-        <section className="py-32 border-t border-white/5 text-center">
-          <div className="max-w-xl mx-auto px-6">
-            <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
-              Software that gives a damn about your users.
-            </h2>
-            <p className="text-lg text-white/40 mb-10">When everyone else is in a meeting.</p>
-            <form
-              action="/auth/login"
-              method="get"
-              className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+          {/* Links + CTA */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+            <a
+              href="#how-it-works"
+              style={{ fontSize: 13, color: C.muted, textDecoration: 'none', fontWeight: 400 }}
             >
-              <input
-                type="text"
-                name="metric"
-                placeholder="What's broken that nobody has had time to fix?"
-                className="bg-white/5 border border-white/10 text-white placeholder:text-white/20 px-5 py-4 rounded-xl text-sm focus:outline-none focus:border-[#0e7c7b] flex-1"
-              />
-              <button
-                type="submit"
-                className="bg-[#0e7c7b] text-white text-sm font-medium px-6 py-4 rounded-xl hover:bg-[#0a6b6a] transition-colors whitespace-nowrap"
-              >
-                Run NorthStar on my product →
-              </button>
-            </form>
-            <p className="mt-4 text-xs text-white/20 text-center">No pitch. No credit card.</p>
+              How it works
+            </a>
+            <a
+              href="#for-who"
+              style={{ fontSize: 13, color: C.muted, textDecoration: 'none', fontWeight: 400 }}
+            >
+              For who
+            </a>
+            <Link
+              href="/auth/login"
+              style={{
+                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                fontSize: 12,
+                background: C.amber,
+                color: '#000',
+                padding: '8px 16px',
+                textDecoration: 'none',
+                fontWeight: 500,
+                letterSpacing: '0.02em',
+              }}
+            >
+              Request access →
+            </Link>
           </div>
-        </section>
+        </div>
+      </nav>
 
-        {/* ── FOOTER ────────────────────────────────────────── */}
-        <footer className="py-8 border-t border-white/5">
-          <div className="max-w-5xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
-            <span className="text-sm font-medium text-white/30">
-              NorthStar · Autonomous product improvement · Built in San Francisco
-            </span>
-            <div className="flex gap-6">
-              <a href="#" className="text-sm text-white/20 hover:text-white/40 transition-colors">
-                Privacy
-              </a>
-              <a href="#" className="text-sm text-white/20 hover:text-white/40 transition-colors">
-                Terms
-              </a>
-              <a href="#" className="text-sm text-white/20 hover:text-white/40 transition-colors">
-                Security
-              </a>
+      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: 60,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Ambient amber glow */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: '30%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 800,
+            height: 600,
+            background: `radial-gradient(ellipse at center, rgba(232,160,48,0.05) 0%, transparent 70%)`,
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            maxWidth: 760,
+            margin: '0 auto',
+            padding: '0 24px',
+            textAlign: 'center',
+          }}
+        >
+          {/* Eyebrow */}
+          <div
+            style={{
+              display: 'inline-block',
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 11,
+              letterSpacing: '0.12em',
+              color: C.amber,
+              border: `1px solid rgba(232,160,48,0.3)`,
+              padding: '5px 12px',
+              marginBottom: 32,
+            }}
+          >
+            AUTONOMOUS GROWTH INTELLIGENCE
+          </div>
+
+          {/* Headline */}
+          <h1
+            style={{
+              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+              fontSize: 'clamp(52px, 7vw, 88px)',
+              fontWeight: 400,
+              lineHeight: 1.02,
+              letterSpacing: '-0.01em',
+              color: C.text,
+              margin: '0 0 28px',
+            }}
+          >
+            The fastest companies{' '}
+            <em style={{ color: C.amber, fontStyle: 'italic' }}>win.</em>
+          </h1>
+
+          {/* Sub */}
+          <p
+            style={{
+              fontSize: 17,
+              lineHeight: 1.65,
+              color: C.muted,
+              maxWidth: 560,
+              margin: '0 auto 40px',
+              fontWeight: 300,
+            }}
+          >
+            Your competitors are shipping. Your customers are already trying their new features.
+            NorthStar makes sure you&apos;re never the last to learn what&apos;s working.
+          </p>
+
+          {/* CTAs */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
+              flexWrap: 'wrap',
+              marginBottom: 32,
+            }}
+          >
+            <Link
+              href="/auth/login"
+              style={{
+                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                fontSize: 13,
+                background: C.amber,
+                color: '#000',
+                padding: '13px 24px',
+                textDecoration: 'none',
+                fontWeight: 500,
+                letterSpacing: '0.02em',
+              }}
+            >
+              Run NorthStar on my product →
+            </Link>
+            <a
+              href="#how-it-works"
+              style={{
+                fontSize: 13,
+                color: C.muted,
+                textDecoration: 'none',
+                border: `1px solid ${C.border}`,
+                padding: '12px 20px',
+                fontWeight: 400,
+              }}
+            >
+              See how it works
+            </a>
+          </div>
+
+          {/* Trust line */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 11,
+              color: C.dim,
+              letterSpacing: '0.06em',
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#22c55e',
+                display: 'inline-block',
+                flexShrink: 0,
+              }}
+            />
+            LIVE · TESTED BY PMS AT META · SNAP · GOOGLE · APPLE
+          </div>
+        </div>
+      </section>
+
+      {/* ── TICKER ───────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          borderTop: `1px solid ${C.border}`,
+          borderBottom: `1px solid ${C.border}`,
+          background: C.surface,
+          overflow: 'hidden',
+          padding: '14px 0',
+        }}
+      >
+        <div
+          className="ticker-track"
+          style={{ display: 'flex', gap: 0, width: 'max-content' }}
+        >
+          {[...TICKER, ...TICKER].map((item, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                paddingRight: 48,
+                flexShrink: 0,
+                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                fontSize: 12,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ color: C.amber, letterSpacing: '0.08em' }}>{item.label}</span>
+              <span style={{ color: C.dim }}>·</span>
+              <span style={{ color: C.muted }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── PROBLEM ──────────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          padding: '120px 24px',
+        }}
+      >
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div
+            style={{
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 11,
+              color: C.amber,
+              letterSpacing: '0.1em',
+              marginBottom: 24,
+            }}
+          >
+            THE PROBLEM
+          </div>
+          <h2
+            style={{
+              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+              fontSize: 'clamp(36px, 5vw, 60px)',
+              fontWeight: 400,
+              lineHeight: 1.1,
+              color: C.text,
+              maxWidth: 700,
+              margin: '0 0 28px',
+            }}
+          >
+            Your worst mistake isn&apos;t shipping too slow. It&apos;s not learning fast enough.
+          </h2>
+          <p
+            style={{
+              fontSize: 16,
+              lineHeight: 1.7,
+              color: C.muted,
+              maxWidth: 600,
+              fontWeight: 300,
+            }}
+          >
+            New incumbents don&apos;t outbuild you. They out-experiment you. They ship smaller
+            bets, learn faster, and compound those learnings week over week. By the time you
+            notice them, they&apos;ve already reshaped what your customers expect.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 4-STEP LOOP ──────────────────────────────────────────────────────── */}
+      <section
+        id="how-it-works"
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          padding: '120px 24px',
+        }}
+      >
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div
+            style={{
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 11,
+              color: C.amber,
+              letterSpacing: '0.1em',
+              marginBottom: 16,
+            }}
+          >
+            THE LOOP
+          </div>
+          <h2
+            style={{
+              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+              fontSize: 'clamp(32px, 4vw, 52px)',
+              fontWeight: 400,
+              lineHeight: 1.1,
+              color: C.text,
+              margin: '0 0 64px',
+            }}
+          >
+            From market signal to live experiment
+          </h2>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              borderTop: `1px solid ${C.border}`,
+              borderLeft: `1px solid ${C.border}`,
+            }}
+          >
+            {LOOP.map((step) => (
+              <div
+                key={step.num}
+                className="loop-step"
+                style={{
+                  padding: '40px 32px',
+                  borderRight: `1px solid ${C.border}`,
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                    fontSize: 11,
+                    color: C.dim,
+                    letterSpacing: '0.08em',
+                    marginBottom: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <span>{step.num}</span>
+                  <span style={{ color: C.amber }}>— {step.label}</span>
+                </div>
+                <h3
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: C.text,
+                    margin: '0 0 14px',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {step.title}
+                </h3>
+                <p
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    color: C.muted,
+                    margin: 0,
+                    fontWeight: 300,
+                  }}
+                >
+                  {step.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TERMINAL + COPY ───────────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          padding: '120px 24px',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 80,
+            alignItems: 'center',
+          }}
+        >
+          {/* Left: copy */}
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                fontSize: 11,
+                color: C.amber,
+                letterSpacing: '0.1em',
+                marginBottom: 20,
+              }}
+            >
+              UNDER THE HOOD
+            </div>
+            <h2
+              style={{
+                fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+                fontSize: 'clamp(32px, 3.5vw, 48px)',
+                fontWeight: 400,
+                lineHeight: 1.12,
+                color: C.text,
+                margin: '0 0 24px',
+              }}
+            >
+              A 24/7 growth teammate who never stops watching
+            </h2>
+            <p
+              style={{
+                fontSize: 15,
+                lineHeight: 1.75,
+                color: C.muted,
+                fontWeight: 300,
+                margin: '0 0 20px',
+              }}
+            >
+              NorthStar reads your analytics, watches your competitors, and generates ranked
+              hypotheses with coding-agent-ready MD specs.
+            </p>
+            <p
+              style={{
+                fontSize: 15,
+                lineHeight: 1.75,
+                color: C.muted,
+                fontWeight: 300,
+                margin: 0,
+              }}
+            >
+              Your PM approves. Your coding agent opens a PR. You ship. No sprint tickets. No
+              spec meetings. No translation loss between PM and engineer.
+            </p>
+          </div>
+
+          {/* Right: terminal */}
+          <div
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 12,
+              overflow: 'hidden',
+            }}
+          >
+            {/* Terminal chrome */}
+            <div
+              style={{
+                padding: '12px 16px',
+                borderBottom: `1px solid ${C.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#febc2e', display: 'inline-block' }} />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: C.dim, letterSpacing: '0.06em' }}>
+                agent-northstar · apollo.io
+              </span>
+            </div>
+
+            {/* Terminal body */}
+            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                {
+                  key: 'competitor.detected',
+                  val: 'outreach.io',
+                  note: 'inline template suggestions · +22% activation',
+                },
+                {
+                  key: 'gap.identified',
+                  val: 'apollo step 2 blank editor',
+                  note: '41% abandonment',
+                  accent: true,
+                },
+                {
+                  key: 'hypothesis.ranked',
+                  val: '#1 confidence 0.87',
+                  note: '"default to template, opt-out to blank" → Q2 KR trial-to-paid 34%→45%',
+                },
+                {
+                  key: 'spec.generated',
+                  val: '→ cursor / claude code ready',
+                  note: undefined,
+                },
+                {
+                  key: 'pr.open',
+                  val: '22 mins after approval',
+                  note: undefined,
+                },
+              ].map((line, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ color: line.accent ? C.amber : C.dim }}>{line.key}</span>
+                    <span style={{ color: C.text }}>{line.val}</span>
+                  </div>
+                  {line.note && (
+                    <span style={{ color: C.dim, paddingLeft: 16, fontSize: 11 }}>
+                      {line.note}
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              {/* Blinking cursor */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                <span style={{ color: C.dim }}>›</span>
+                <span
+                  className="cursor-blink"
+                  style={{
+                    display: 'inline-block',
+                    width: 8,
+                    height: 14,
+                    background: C.amber,
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </footer>
-      </div>
-    </>
+        </div>
+      </section>
+
+      {/* ── STATS BAR ────────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          background: C.surface,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+          }}
+        >
+          {[
+            { num: '10×', label: 'more experiments shipped per sprint vs baseline' },
+            { num: '48h', label: 'from market signal to live PR — no sprint required' },
+            { num: '0', label: 'meetings required to go from hypothesis to merged code' },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              style={{
+                padding: '56px 48px',
+                borderRight: i < 2 ? `1px solid ${C.border}` : undefined,
+                textAlign: 'center',
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+                  fontSize: 56,
+                  fontWeight: 400,
+                  color: C.amber,
+                  lineHeight: 1,
+                  marginBottom: 12,
+                }}
+              >
+                {stat.num}
+              </div>
+              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, fontWeight: 300 }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── SOCIAL PROOF ─────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          padding: '120px 24px',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 1,
+            background: C.border,
+            border: `1px solid ${C.border}`,
+          }}
+        >
+          {QUOTES.map((q, i) => (
+            <div
+              key={i}
+              style={{
+                background: C.bg,
+                padding: '40px 36px',
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+                  fontSize: 17,
+                  lineHeight: 1.6,
+                  color: C.text,
+                  margin: '0 0 24px',
+                  fontStyle: 'italic',
+                }}
+              >
+                &ldquo;{q.text}&rdquo;
+              </p>
+              <p
+                style={{
+                  fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                  fontSize: 10,
+                  color: C.dim,
+                  letterSpacing: '0.08em',
+                  margin: 0,
+                }}
+              >
+                — {q.role.toUpperCase()}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── ICP ──────────────────────────────────────────────────────────────── */}
+      <section
+        id="for-who"
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          padding: '120px 24px',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 80,
+            alignItems: 'start',
+          }}
+        >
+          {/* Left */}
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                fontSize: 11,
+                color: C.amber,
+                letterSpacing: '0.1em',
+                marginBottom: 20,
+              }}
+            >
+              BUILT FOR
+            </div>
+            <h2
+              style={{
+                fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+                fontSize: 'clamp(32px, 3.5vw, 48px)',
+                fontWeight: 400,
+                lineHeight: 1.12,
+                color: C.text,
+                margin: '0 0 24px',
+              }}
+            >
+              VP / Head of Product at Series B–D SaaS
+            </h2>
+            <p
+              style={{
+                fontSize: 15,
+                lineHeight: 1.75,
+                color: C.muted,
+                fontWeight: 300,
+                margin: 0,
+              }}
+            >
+              You have OKRs, traffic, and a team that moves fast when unblocked. NorthStar
+              removes the bottleneck between &quot;we should test that&quot; and &quot;it&apos;s
+              live.&quot;
+            </p>
+          </div>
+
+          {/* Right: checklist */}
+          <div
+            style={{
+              border: `1px solid ${C.border}`,
+              background: C.surface,
+              padding: '36px 40px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 20,
+            }}
+          >
+            {ICP.map((item, i) => (
+              <div
+                key={i}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                    fontSize: 12,
+                    color: C.amber,
+                    marginTop: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  YES
+                </span>
+                <span style={{ fontSize: 14, color: C.muted, lineHeight: 1.55, fontWeight: 300 }}>
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          padding: '140px 24px',
+          position: 'relative',
+          overflow: 'hidden',
+          textAlign: 'center',
+        }}
+      >
+        {/* Ambient glow */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 700,
+            height: 500,
+            background: `radial-gradient(ellipse at center, rgba(232,160,48,0.06) 0%, transparent 70%)`,
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, margin: '0 auto' }}>
+          <h2
+            style={{
+              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
+              fontSize: 'clamp(36px, 5vw, 60px)',
+              fontWeight: 400,
+              lineHeight: 1.1,
+              color: C.text,
+              margin: '0 0 20px',
+            }}
+          >
+            Your competitors aren&apos;t waiting.{' '}
+            <em style={{ color: C.amber, fontStyle: 'italic' }}>Neither should you.</em>
+          </h2>
+          <p
+            style={{
+              fontSize: 16,
+              color: C.muted,
+              lineHeight: 1.65,
+              margin: '0 auto 44px',
+              maxWidth: 480,
+              fontWeight: 300,
+            }}
+          >
+            We&apos;ll have a hypothesis on your highest-traffic surface within 24 hours of
+            onboarding.
+          </p>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Link
+              href="/auth/login"
+              style={{
+                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+                fontSize: 13,
+                background: C.amber,
+                color: '#000',
+                padding: '14px 28px',
+                textDecoration: 'none',
+                fontWeight: 500,
+                letterSpacing: '0.02em',
+              }}
+            >
+              Run NorthStar on my product →
+            </Link>
+            <Link
+              href="/auth/signin"
+              style={{
+                fontSize: 13,
+                color: C.muted,
+                textDecoration: 'none',
+                border: `1px solid ${C.border}`,
+                padding: '13px 20px',
+                fontWeight: 400,
+              }}
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────────────────────────── */}
+      <footer
+        style={{
+          borderTop: `1px solid ${C.border}`,
+          padding: '28px 24px',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
+              fontSize: 12,
+              color: C.dim,
+              letterSpacing: '0.06em',
+            }}
+          >
+            AGENT<span style={{ color: C.amber }}>.</span>NORTHSTAR · Built in San Francisco · © 2025
+          </span>
+          <div style={{ display: 'flex', gap: 28 }}>
+            {['Privacy', 'Terms', 'Security'].map((link) => (
+              <a
+                key={link}
+                href="#"
+                style={{ fontSize: 12, color: C.dim, textDecoration: 'none' }}
+              >
+                {link}
+              </a>
+            ))}
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }
