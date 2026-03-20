@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import NorthStarLoader from '@/components/NorthStarLoader'
 
 export const metadata = {
   title: 'Agent NorthStar — The Fastest Experimenter in Your Space',
@@ -17,20 +18,6 @@ const C = {
   dim: 'rgba(242,237,230,0.22)',
   border: 'rgba(255,255,255,0.07)',
 } as const
-
-// ── Ticker items ──────────────────────────────────────────────────────────────
-const TICKER = [
-  { label: 'MARKET', text: 'New AI inbox feature detected in Intercom' },
-  { label: 'THREAT', text: 'Notion launched AI DB builder — 3 onboarding steps removed' },
-  { label: 'GAP', text: 'Your sequence builder step 2 losing 41% vs competitor default' },
-  { label: 'SPEC', text: 'Variant generated → cursor ready → PR open in 22 mins' },
-  { label: 'RESULT', text: '+8.4% activation · $340K ARR attributed · next hypothesis queued' },
-  { label: 'MARKET', text: 'Linear shipped AI issue triage — avg resolution 60% faster' },
-  { label: 'THREAT', text: 'Loom added async approval flows — enterprise ACV up 22%' },
-  { label: 'GAP', text: 'Onboarding step 3 median 8.2 min vs competitor 2.1 min' },
-  { label: 'SPEC', text: 'Template pre-fill hypothesis → spec written in 4 mins → approved' },
-  { label: 'RESULT', text: '+12% trial-to-paid · experiment closed in 9 days' },
-]
 
 // ── Loop steps ────────────────────────────────────────────────────────────────
 const LOOP = [
@@ -57,22 +44,6 @@ const LOOP = [
     label: 'TEST',
     title: 'Smallest change. Fastest learning.',
     body: 'NorthStar generates a coding-agent-ready MD spec. Your PM approves, coding agent opens a PR, engineer reviews and merges. Test live. Results feed the next hypothesis.',
-  },
-]
-
-// ── Quotes ────────────────────────────────────────────────────────────────────
-const QUOTES = [
-  {
-    text: 'It had already formed three hypotheses by the time I opened Slack. One was something we\'d debated for months.',
-    role: 'Head of Product, Series C SaaS',
-  },
-  {
-    text: "We shipped 8 experiments in a sprint where we'd normally ship 2. The engineer reviewed PRs, not rewrote specs.",
-    role: 'VP Product, Series B PLG',
-  },
-  {
-    text: 'NorthStar caught a competitor move we completely missed. Had a test running on our equivalent flow within 3 days.',
-    role: 'Growth PM, Series D SaaS',
   },
 ]
 
@@ -321,40 +292,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TICKER ───────────────────────────────────────────────────────────── */}
+      {/* ── LOADER ───────────────────────────────────────────────────────────── */}
       <div
         style={{
           borderTop: `1px solid ${C.border}`,
           borderBottom: `1px solid ${C.border}`,
           background: C.surface,
-          overflow: 'hidden',
-          padding: '14px 0',
         }}
       >
-        <div
-          className="ticker-track"
-          style={{ display: 'flex', gap: 0, width: 'max-content' }}
-        >
-          {[...TICKER, ...TICKER].map((item, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                paddingRight: 48,
-                flexShrink: 0,
-                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                fontSize: 12,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ color: C.amber, letterSpacing: '0.08em' }}>{item.label}</span>
-              <span style={{ color: C.dim }}>·</span>
-              <span style={{ color: C.muted }}>{item.text}</span>
-            </div>
-          ))}
-        </div>
+        <NorthStarLoader />
       </div>
 
       {/* ── PROBLEM ──────────────────────────────────────────────────────────── */}
