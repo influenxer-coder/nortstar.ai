@@ -203,7 +203,7 @@ export default function LandingPage() {
               margin: '0 0 28px',
             }}
           >
-            The fastest companies{' '}
+            The fastest learners{' '}
             <em style={{ color: C.amber, fontStyle: 'italic' }}>win.</em>
           </h1>
 
