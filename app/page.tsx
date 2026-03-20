@@ -683,50 +683,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── SOCIAL PROOF ─────────────────────────────────────────────────────── */}
-      <section
-        className="land-section"
-        style={{ borderBottom: `1px solid ${C.border}` }}
-      >
-        <div
-          className="land-quote-grid"
-          style={{ maxWidth: 1200, margin: '0 auto' }}
-        >
-          {QUOTES.map((q, i) => (
-            <div
-              key={i}
-              style={{
-                background: C.bg,
-                padding: '40px 36px',
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-                  fontSize: 17,
-                  lineHeight: 1.6,
-                  color: C.text,
-                  margin: '0 0 24px',
-                  fontStyle: 'italic',
-                }}
-              >
-                &ldquo;{q.text}&rdquo;
-              </p>
-              <p
-                style={{
-                  fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                  fontSize: 10,
-                  color: C.dim,
-                  letterSpacing: '0.08em',
-                  margin: 0,
-                }}
-              >
-                — {q.role.toUpperCase()}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── ICP ──────────────────────────────────────────────────────────────── */}
       <section
