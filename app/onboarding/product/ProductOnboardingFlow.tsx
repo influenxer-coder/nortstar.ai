@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Check, ChevronRight, Plus, Trash2, ArrowLeft, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { buildReportMarkdown, type StrategyResultData } from './strategyReportBuilder'
+import { FlowMapCanvas } from './FlowMapCanvas'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -295,6 +297,7 @@ async function runBrowserFlowStream({
   product_url,
   email,
   password,
+  project_id,
   north_star_metric,
   goal_and_metrics,
   signal,
@@ -305,6 +308,7 @@ async function runBrowserFlowStream({
   product_url: string
   email: string
   password: string
+  project_id?: string | null
   north_star_metric?: string | null
   goal_and_metrics?: string | null
   signal?: AbortSignal
@@ -313,8 +317,8 @@ async function runBrowserFlowStream({
   onError: (msg: string) => void
 }): Promise<void> {
   console.log('[BROWSER FLOW] called with url:', product_url, 'email:', email ? 'provided' : 'empty')
-  const agentUrl = process.env.NEXT_PUBLIC_BROWSER_AGENT_URL
-  if (!agentUrl) { onError('Browser agent URL not configured (NEXT_PUBLIC_BROWSER_AGENT_URL).'); return }
+  const agentUrl = process.env.NEXT_PUBLIC_BROWSER_SCREENSHOT_URL
+  if (!agentUrl) { onError('Browser agent URL not configured (NEXT_PUBLIC_BROWSER_SCREENSHOT_URL).'); return }
 
   console.log('[BROWSER FLOW] sending credentials:', {
     email: email,
@@ -327,7 +331,7 @@ async function runBrowserFlowStream({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal,
-    body: JSON.stringify({ product_url, email, password, north_star_metric: north_star_metric ?? null, goal_and_metrics: goal_and_metrics ?? null }),
+    body: JSON.stringify({ product_url, email, password, project_id: project_id ?? null, north_star_metric: north_star_metric ?? null, goal_and_metrics: goal_and_metrics ?? null }),
   })
   if (!res.ok || !res.body) { onError(`Browser agent request failed (${res.status})`); return }
 
@@ -482,6 +486,14 @@ export default function ProductOnboardingFlow() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const resumedRef = useRef(false)
+  const [isGoogleAuth, setIsGoogleAuth] = useState(false)
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      const provider = data.user?.app_metadata?.provider
+      setIsGoogleAuth(provider === 'google')
+    })
+  }, [])
 
   // ── Step 1 ─────────────────────────────────────────────────────────────────
   const [productUrl, setProductUrl] = useState('')
@@ -494,6 +506,7 @@ export default function ProductOnboardingFlow() {
   const [demoPassword, setDemoPassword] = useState('')
   const [showDemoPassword, setShowDemoPassword] = useState(false)
   // Browser flow state
+  const [confirmedCta, setConfirmedCta] = useState<unknown>(null)
   const [browserLogs, setBrowserLogs] = useState<string[]>([])
   const [browserFlowRunning, setBrowserFlowRunning] = useState(false)
   const [browserFlowResult, setBrowserFlowResult] = useState<Record<string, unknown> | null>(null)
@@ -501,8 +514,8 @@ export default function ProductOnboardingFlow() {
   const [browserFlowCurrentStatus, setBrowserFlowCurrentStatus] = useState('')
   const browserLogsEndRef = useRef<HTMLDivElement>(null)
   const browserFlowControllerRef = useRef<AbortController | null>(null)
-  // Step 1 sub-states: form → streaming → report (no navigation)
-  type Step1Screen = 'form' | 'streaming' | 'report'
+  // Step 1 sub-states: form → streaming → report → flow_map
+  type Step1Screen = 'form' | 'streaming' | 'report' | 'flow_map'
   const [step1Screen, setStep1Screen] = useState<Step1Screen>('form')
   const [step1CurrentStatus, setStep1CurrentStatus] = useState('')
   const [step1Logs, setStep1Logs] = useState<string[]>([])
@@ -726,6 +739,8 @@ export default function ProductOnboardingFlow() {
     setStep1Elapsed(0)
     setStep1Result(null)
     setStep1ReportMd('')
+    // Track the effective project ID locally — setProjectId is async so closure won't update mid-function
+    let currentPid = projectId
 
     let strategyDocText = ''
     if (docFile) {
@@ -733,6 +748,34 @@ export default function ProductOnboardingFlow() {
         strategyDocText = await extractStrategyDocText(docFile)
       } catch (err) {
         setStep1Error(err instanceof Error ? err.message : 'Failed to extract document text')
+        setStep1Screen('form')
+        setStep1Running(false)
+        return
+      }
+    }
+
+    // Create project row early so browser flow agent has a project_id immediately
+    if (!currentPid) {
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: url,
+            url,
+            strategy_doc: strategyDocText || null,
+            has_doc: !!docFile,
+            onboarding_step: 1,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
+        currentPid = data.id as string
+        setProjectId(currentPid)
+        if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', currentPid)
+        router.replace(`?projectId=${currentPid}&step=1`, { scroll: false })
+      } catch (err) {
+        setStep1Error(err instanceof Error ? err.message : 'Could not create project — try again')
         setStep1Screen('form')
         setStep1Running(false)
         return
@@ -792,8 +835,8 @@ export default function ProductOnboardingFlow() {
           const d = data as StrategyResultData
           setStep1Result(d)
           setStep1ReportMd(buildReportMarkdown(d))
-          if (projectId) {
-            fetch(`/api/projects/${projectId}`, {
+          if (currentPid) {
+            fetch(`/api/projects/${currentPid}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -820,6 +863,7 @@ export default function ProductOnboardingFlow() {
               product_url: url,
               email: demoEmail.trim(),
               password: demoPassword.trim(),
+              project_id: currentPid,
               north_star_metric: null,
               goal_and_metrics: null,
               signal: (() => {
@@ -842,15 +886,19 @@ export default function ProductOnboardingFlow() {
                 setBrowserFlowRunning(false)
                 setBrowserFlowCurrentStatus('Flow mapped')
                 setBrowserFlowResult(fd)
-                if (projectId) {
-                  fetch(`/api/projects/${projectId}`, {
+                if (currentPid) {
+                  fetch(`/api/projects/${currentPid}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       browser_flow_json: flowData,
                       primary_conversion_cta: (flowData as Record<string, unknown>)?.cta_suggestion ?? null,
                     }),
+                  }).then(() => {
+                    setStep1Screen('flow_map')
                   }).catch(() => {})
+                } else {
+                  setStep1Screen('flow_map')
                 }
               },
               onError: (err) => {
@@ -893,7 +941,7 @@ export default function ProductOnboardingFlow() {
         setStep1Screen('form')
       }
     }
-  }, [productUrl, productDescription, docFile, demoEmail, demoPassword, projectId])
+  }, [productUrl, productDescription, docFile, demoEmail, demoPassword, projectId, router])
 
   const cancelStep1Stream = useCallback(() => {
     step1AbortRef.current?.abort()
@@ -1110,50 +1158,27 @@ export default function ProductOnboardingFlow() {
     setError('')
     try {
       const name = step1Result.input_product?.name || domainFromUrl(productUrl.trim()) || 'My Product'
-      let pid = projectId
+      const pid = projectId
 
       const bfFields = browserFlowResult
         ? { browser_flow_json: browserFlowResult, primary_conversion_cta: browserFlowResult.cta_suggestion ?? null }
         : {}
 
-      if (pid) {
-        // Project already exists — patch strategy fields only, preserve metrics_json
-        await fetch(`/api/projects/${pid}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            url: productUrl.trim() || null,
-            has_doc: !!docFile,
-            description: productDescription.trim() || null,
-            strategy_json: step1Result,
-            strategy_markdown: step1ReportMd,
-            demo_email: demoEmail || undefined,
-            ...bfFields,
-          }),
-        })
-      } else {
-        // First time — create project
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            url: productUrl.trim() || null,
-            has_doc: !!docFile,
-            description: productDescription.trim() || null,
-            strategy_json: step1Result,
-            strategy_markdown: step1ReportMd,
-            demo_email: demoEmail || undefined,
-            ...bfFields,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Failed to create project')
-        pid = data.id as string
-        setProjectId(pid)
-        if (typeof localStorage !== 'undefined') localStorage.setItem('northstar_current_project_id', pid)
-      }
+      // Project is always created at stream start — just patch strategy fields
+      await fetch(`/api/projects/${pid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          url: productUrl.trim() || null,
+          has_doc: !!docFile,
+          description: productDescription.trim() || null,
+          strategy_json: step1Result,
+          strategy_markdown: step1ReportMd,
+          demo_email: demoEmail || undefined,
+          ...bfFields,
+        }),
+      })
 
       resumedRef.current = true
       goToStep(2, pid!)
@@ -1162,7 +1187,7 @@ export default function ProductOnboardingFlow() {
     } finally {
       setSaving(false)
     }
-  }, [step1Result, productUrl, docFile, projectId, step1ReportMd, productDescription, goToStep])
+  }, [step1Result, productUrl, docFile, projectId, step1ReportMd, productDescription, demoEmail, browserFlowResult, goToStep])
 
   // Keep legacy handleStep1 for any non-stream path (e.g. if agent URL missing we already handle in runStep1Stream)
   const handleStep1 = useCallback(
@@ -1503,8 +1528,8 @@ export default function ProductOnboardingFlow() {
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) setDocFile(f) }} />
             </div>
 
-            {/* Demo credentials */}
-            <div className="mb-6">
+            {/* Demo credentials — hidden for Google OAuth users */}
+            {!isGoogleAuth && <div className="mb-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex-1 h-px bg-[#1f1f1f]" />
                 <span className="text-[11px] text-[#555] uppercase tracking-widest font-medium shrink-0">Demo account (optional but recommended)</span>
@@ -1543,7 +1568,7 @@ export default function ProductOnboardingFlow() {
                 </div>
               </div>
               <p className="text-[10px] text-[#333] mt-2">Used once to map your product. Never stored in plain text.</p>
-            </div>
+            </div>}
 
             <button
               type="submit"
@@ -2020,6 +2045,18 @@ export default function ProductOnboardingFlow() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Step 1: Flow map screen ─────────────────────────────────────── */}
+        {step === 1 && step1Screen === 'flow_map' && projectId && (
+          <FlowMapCanvas
+            projectId={projectId}
+            onConfirm={(cta: unknown) => {
+              setConfirmedCta(cta)
+              handleStep1ContinueToOnboarding()
+            }}
+            onBack={() => setStep1Screen('report')}
+          />
         )}
 
         {/* ── Step 2: Goal & Metrics (form → streaming → report) ──────────── */}
