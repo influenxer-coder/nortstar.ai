@@ -289,19 +289,13 @@ export default function LandingPage() {
             />
             IN BETA
           </div>
+
+          {/* Loader — inline below BETA badge */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <NorthStarLoader />
+          </div>
         </div>
       </section>
-
-      {/* ── LOADER ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          borderTop: `1px solid ${C.border}`,
-          borderBottom: `1px solid ${C.border}`,
-          background: C.surface,
-        }}
-      >
-        <NorthStarLoader />
-      </div>
 
       {/* ── PROBLEM ──────────────────────────────────────────────────────────── */}
       <section
