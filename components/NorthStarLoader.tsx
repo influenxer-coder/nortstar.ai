@@ -46,9 +46,9 @@ export default function NorthStarLoader({ onComplete }: Props) {
     <div
       style={{
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: 32,
+        gap: 20,
         padding: '48px 24px',
       }}
     >
@@ -94,10 +94,10 @@ export default function NorthStarLoader({ onComplete }: Props) {
         </div>
       </div>
 
-      {/* Message + dots */}
-      <div className="flex flex-col items-center gap-3">
+      {/* Message + dots inline */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {/* Message ticker */}
-        <div style={{ height: 22, position: 'relative', overflow: 'hidden', minWidth: 260, textAlign: 'center' }}>
+        <div style={{ height: 22, position: 'relative', overflow: 'hidden', minWidth: 220 }}>
           <div
             style={{
               fontSize: 13,
@@ -105,6 +105,7 @@ export default function NorthStarLoader({ onComplete }: Props) {
               animation: exiting
                 ? 'ns-fadeOut 350ms forwards'
                 : 'ns-fadeIn 500ms forwards',
+              whiteSpace: 'nowrap',
             }}
           >
             {MESSAGES[msgIndex]}
@@ -112,7 +113,7 @@ export default function NorthStarLoader({ onComplete }: Props) {
         </div>
 
         {/* Three dots */}
-        <div className="flex items-center gap-1.5">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {[0, 0.2, 0.4].map((delay, i) => (
             <div
               key={i}
