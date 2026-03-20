@@ -656,7 +656,7 @@ export default function ProductOnboardingFlow() {
         if (d.north_star_current) setNsCurrent(d.north_star_current)
         if (d.north_star_target) setNsTarget(d.north_star_target)
         if (Array.isArray(d.sub_metrics) && d.sub_metrics.length > 0) setSubMetrics(d.sub_metrics)
-        if (d.strategy_json) {
+        if (d.strategy_json && (d.strategy_json as StrategyResultData).input_product) {
           setStep1Result(d.strategy_json as StrategyResultData)
           setStep1Screen('report')
         }

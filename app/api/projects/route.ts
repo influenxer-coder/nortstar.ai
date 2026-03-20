@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       has_doc: body.has_doc ?? false,
       description: body.description ?? null,
       strategy_doc: body.strategy_doc ?? null,
-      strategy_json: body.strategy_json ?? {},
+      strategy_json: body.strategy_json ?? null,
       strategy_markdown: body.strategy_markdown ?? null,
       enrichment_status: 'running',
       onboarding_step: 1,
