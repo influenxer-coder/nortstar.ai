@@ -1806,7 +1806,7 @@ export default function ProductOnboardingFlow() {
                     {/* Error */}
                     {browserFlowError && !browserFlowResult && (
                       <div className="rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-3 space-y-3">
-                        <p className="text-xs text-red-400">Couldn&apos;t access your product — update your credentials and try again.</p>
+                        <p className="text-xs text-red-400">{browserFlowError}</p>
                         <div className="flex gap-2">
                           <input
                             type="email"
