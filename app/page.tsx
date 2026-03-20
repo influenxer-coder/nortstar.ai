@@ -136,7 +136,7 @@ export default function LandingPage() {
           </span>
 
           {/* Links + CTA */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+          <div className="land-nav-links">
             <a
               href="#how-it-works"
               style={{ fontSize: 13, color: C.muted, textDecoration: 'none', fontWeight: 400 }}
@@ -170,12 +170,11 @@ export default function LandingPage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section
+        className="land-hero"
         style={{
-          minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          paddingTop: 60,
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -254,6 +253,7 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div
+            className="land-hero-ctas"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -359,10 +359,8 @@ export default function LandingPage() {
 
       {/* ── PROBLEM ──────────────────────────────────────────────────────────── */}
       <section
-        style={{
-          borderBottom: `1px solid ${C.border}`,
-          padding: '120px 24px',
-        }}
+        className="land-section"
+        style={{ borderBottom: `1px solid ${C.border}` }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
@@ -408,10 +406,8 @@ export default function LandingPage() {
       {/* ── 4-STEP LOOP ──────────────────────────────────────────────────────── */}
       <section
         id="how-it-works"
-        style={{
-          borderBottom: `1px solid ${C.border}`,
-          padding: '120px 24px',
-        }}
+        className="land-section"
+        style={{ borderBottom: `1px solid ${C.border}` }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
@@ -439,9 +435,8 @@ export default function LandingPage() {
           </h2>
 
           <div
+            className="land-grid-4"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
               borderTop: `1px solid ${C.border}`,
               borderLeft: `1px solid ${C.border}`,
             }}
@@ -501,20 +496,12 @@ export default function LandingPage() {
 
       {/* ── TERMINAL + COPY ───────────────────────────────────────────────────── */}
       <section
-        style={{
-          borderBottom: `1px solid ${C.border}`,
-          padding: '120px 24px',
-        }}
+        className="land-section"
+        style={{ borderBottom: `1px solid ${C.border}` }}
       >
         <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 80,
-            alignItems: 'center',
-          }}
+          className="land-grid-2-center"
+          style={{ maxWidth: 1200, margin: '0 auto' }}
         >
           {/* Left: copy */}
           <div>
@@ -664,12 +651,8 @@ export default function LandingPage() {
         }}
       >
         <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-          }}
+          className="land-grid-3"
+          style={{ maxWidth: 1200, margin: '0 auto' }}
         >
           {[
             { num: '10×', label: 'more experiments shipped per sprint vs baseline' },
@@ -678,11 +661,7 @@ export default function LandingPage() {
           ].map((stat, i) => (
             <div
               key={i}
-              style={{
-                padding: '56px 48px',
-                borderRight: i < 2 ? `1px solid ${C.border}` : undefined,
-                textAlign: 'center',
-              }}
+              className={`land-stat-cell${i < 2 ? ' land-stat-border' : ''}`}
             >
               <div
                 style={{
@@ -706,21 +685,12 @@ export default function LandingPage() {
 
       {/* ── SOCIAL PROOF ─────────────────────────────────────────────────────── */}
       <section
-        style={{
-          borderBottom: `1px solid ${C.border}`,
-          padding: '120px 24px',
-        }}
+        className="land-section"
+        style={{ borderBottom: `1px solid ${C.border}` }}
       >
         <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 1,
-            background: C.border,
-            border: `1px solid ${C.border}`,
-          }}
+          className="land-quote-grid"
+          style={{ maxWidth: 1200, margin: '0 auto' }}
         >
           {QUOTES.map((q, i) => (
             <div
@@ -761,20 +731,12 @@ export default function LandingPage() {
       {/* ── ICP ──────────────────────────────────────────────────────────────── */}
       <section
         id="for-who"
-        style={{
-          borderBottom: `1px solid ${C.border}`,
-          padding: '120px 24px',
-        }}
+        className="land-section"
+        style={{ borderBottom: `1px solid ${C.border}` }}
       >
         <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 80,
-            alignItems: 'start',
-          }}
+          className="land-grid-2"
+          style={{ maxWidth: 1200, margin: '0 auto' }}
         >
           {/* Left */}
           <div>
@@ -854,8 +816,8 @@ export default function LandingPage() {
 
       {/* ── CTA ──────────────────────────────────────────────────────────────── */}
       <section
+        className="land-section"
         style={{
-          padding: '140px 24px',
           position: 'relative',
           overflow: 'hidden',
           textAlign: 'center',
@@ -904,6 +866,7 @@ export default function LandingPage() {
             onboarding.
           </p>
           <div
+            className="land-cta-buttons"
             style={{
               display: 'flex',
               alignItems: 'center',
