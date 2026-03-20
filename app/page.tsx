@@ -316,7 +316,7 @@ export default function LandingPage() {
                 flexShrink: 0,
               }}
             />
-            LIVE · TESTED BY PMS AT META · SNAP · GOOGLE · APPLE
+            IN BETA
           </div>
         </div>
       </section>
