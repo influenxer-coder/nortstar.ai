@@ -241,8 +241,48 @@ export default function LandingPage() {
       </section>
 
       {/* ── DEMO ──────────────────────────────────────────────────────────────── */}
-      <section style={{ borderBottom: `1px solid ${C.border}` }}>
-        <NorthStarDemo />
+      <section style={{ borderBottom: `1px solid ${C.border}`, background: C.surface, padding: '72px 32px 0' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+
+          {/* Laptop frame */}
+          <div style={{ filter: 'drop-shadow(0 32px 64px rgba(0,0,0,0.18))' }}>
+
+            {/* Screen body */}
+            <div style={{ background: '#1c1c1e', borderRadius: '16px 16px 0 0', padding: '14px 14px 0' }}>
+              {/* Camera dot */}
+              <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#3a3a3c' }} />
+              </div>
+              {/* Browser chrome */}
+              <div style={{ background: '#2c2c2e', borderRadius: '6px 6px 0 0', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  {['#ff5f57', '#febc2e', '#28c840'].map((c, i) => (
+                    <span key={i} style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: c }} />
+                  ))}
+                </div>
+                <div style={{ flex: 1, background: '#3a3a3c', borderRadius: 6, padding: '4px 12px', fontFamily: monoFont, fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+                  agent-northstar.com
+                </div>
+              </div>
+              {/* Screen content */}
+              <div style={{ background: C.bg, maxHeight: 560, overflowY: 'auto', overflowX: 'hidden' }}>
+                <NorthStarDemo compact />
+              </div>
+            </div>
+
+            {/* Hinge */}
+            <div style={{ height: 5, background: 'linear-gradient(to bottom, #111, #3a3a3c)' }} />
+
+            {/* Keyboard base */}
+            <div style={{ background: 'linear-gradient(to bottom, #e2e2e2, #c8c8c8)', height: 30, borderRadius: '0 0 10px 10px', position: 'relative', marginLeft: -16, marginRight: -16 }}>
+              <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', width: 88, height: 13, background: '#bdbdbd', border: '1px solid #aaa', borderRadius: 4 }} />
+            </div>
+
+            {/* Bottom edge */}
+            <div style={{ height: 4, background: '#b0b0b0', borderRadius: '0 0 4px 4px', marginLeft: -20, marginRight: -20 }} />
+          </div>
+
+        </div>
       </section>
 
       {/* ── STATS BAR ─────────────────────────────────────────────────────────── */}
