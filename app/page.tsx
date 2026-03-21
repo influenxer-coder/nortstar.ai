@@ -302,7 +302,7 @@ export default function LandingPage() {
         className="land-section"
         style={{ borderBottom: `1px solid ${C.border}` }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
           <div
             style={{
               fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
@@ -322,7 +322,7 @@ export default function LandingPage() {
               lineHeight: 1.1,
               color: C.text,
               maxWidth: 700,
-              margin: '0 0 28px',
+              margin: '0 auto 28px',
             }}
           >
             Your worst mistake isn&apos;t shipping too slow. It&apos;s not learning fast enough.
@@ -334,6 +334,7 @@ export default function LandingPage() {
               color: C.muted,
               maxWidth: 600,
               fontWeight: 300,
+              margin: '0 auto',
             }}
           >
             New incumbents don&apos;t outbuild you. They out-experiment you. They ship smaller
@@ -349,7 +350,7 @@ export default function LandingPage() {
         className="land-section"
         style={{ borderBottom: `1px solid ${C.border}` }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
           <div
             style={{
               fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
@@ -368,7 +369,7 @@ export default function LandingPage() {
               fontWeight: 400,
               lineHeight: 1.1,
               color: C.text,
-              margin: '0 0 64px',
+              margin: '0 auto 64px',
             }}
           >
             From market signal to live experiment
@@ -379,6 +380,7 @@ export default function LandingPage() {
             style={{
               borderTop: `1px solid ${C.border}`,
               borderLeft: `1px solid ${C.border}`,
+              textAlign: 'left',
             }}
           >
             {LOOP.map((step) => (
