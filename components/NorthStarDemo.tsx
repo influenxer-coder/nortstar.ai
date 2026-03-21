@@ -15,7 +15,7 @@ const C = {
 } as const
 
 const STEPS = [
-  { num: '01', label: 'MARKET' },
+  { num: '01', label: 'IDEAS' },
   { num: '02', label: 'HYPOTHESIS' },
   { num: '03', label: 'VARIANTS' },
   { num: '04', label: 'SPEC' },
@@ -24,7 +24,7 @@ const STEPS = [
 ]
 
 const STEP_TITLES = [
-  'Market sees it first',
+  'NorthStar listens to ideas across your teams',
   'NorthStar ranks the bet',
   'Three variants. One assumption each.',
   'Spec ready. PR open. No ticket written.',
