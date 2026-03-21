@@ -81,20 +81,20 @@ function AgentTreeNode({ agent, isActive }: { agent: AgentStub; isActive: boolea
           href={`/dashboard/agents/${agent.id}`}
           onClick={() => setConfirming(false)}
           className={`flex-1 flex items-center gap-2 pl-1 pr-2 rounded-md transition-colors min-w-0 ${
-            isActive ? 'bg-zinc-800' : 'hover:bg-zinc-900'
+            isActive ? 'bg-accent' : 'hover:bg-muted'
           }`}
           style={{ height: 28 }}
         >
           <div
             className={`w-4 h-4 rounded shrink-0 flex items-center justify-center text-[9px] font-bold ${
-              isActive ? 'bg-violet-500 text-white' : 'bg-zinc-700 text-zinc-400'
+              isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
             {agent.name.charAt(0).toUpperCase()}
           </div>
           <span
             className="hidden md:block truncate"
-            style={{ fontSize: 13, fontWeight: 500, color: isActive ? '#fff' : '#888' }}
+            style={{ fontSize: 13, fontWeight: 500, color: isActive ? '#1f2328' : '#535963' }}
           >
             {agent.name}
           </span>
@@ -109,14 +109,14 @@ function AgentTreeNode({ agent, isActive }: { agent: AgentStub; isActive: boolea
                 {deleting ? '…' : 'Delete'}
               </button>
               <button onClick={() => setConfirming(false)}
-                className="text-[10px] text-zinc-600 hover:text-zinc-400 px-1">
+                className="text-[10px] text-muted-foreground hover:text-foreground px-1">
                 Cancel
               </button>
             </>
           ) : (
             <button
               onClick={e => { e.preventDefault(); setConfirming(true) }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-zinc-800 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-muted transition-all"
               title="Delete agent"
             >
               <Trash2 className="h-3 w-3" />
@@ -142,7 +142,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       <Link
         href="/dashboard"
         className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors ${
-          pathname === '/dashboard' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100'
+          pathname === '/dashboard' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
       >
         <LayoutDashboard className="h-4 w-4 shrink-0" />
@@ -153,8 +153,8 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       {products.map((product) => (
         <div key={product.id} className="mt-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-            <span className="hidden text-xs font-medium text-zinc-400 truncate md:block">{product.name}</span>
+            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="hidden text-xs font-medium text-muted-foreground truncate md:block">{product.name}</span>
           </div>
           <div className="mt-0.5 space-y-0.5">
             {product.agents.map((agent) => (
@@ -162,7 +162,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
             ))}
             <Link
               href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`}
-              className="flex items-center gap-2.5 rounded-md pl-6 pr-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+              className="flex items-center gap-2.5 rounded-md pl-6 pr-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden md:block">Add agent</span>
@@ -175,8 +175,8 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       {ungroupedAgents.length > 0 && (
         <div className="mt-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <Bot className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-            <span className="hidden text-xs font-medium text-zinc-400 md:block">Ungrouped</span>
+            <Bot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="hidden text-xs font-medium text-muted-foreground md:block">Ungrouped</span>
           </div>
           <div className="mt-0.5 space-y-0.5">
             {ungroupedAgents.map((agent) => (
@@ -187,10 +187,10 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       )}
 
       {/* New agent */}
-      <div className="mt-3 pt-2 border-t border-zinc-900">
+      <div className="mt-3 pt-2 border-t border-border">
         <Link
           href="/dashboard/agents/new"
-          className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+          className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" />
           <span className="hidden md:block">New agent</span>

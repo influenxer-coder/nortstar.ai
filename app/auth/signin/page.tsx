@@ -45,15 +45,15 @@ function SignInForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <Logo size={28} className="shrink-0" />
-            <span className="text-xl font-semibold text-zinc-100">NorthStar</span>
+            <span className="text-xl font-semibold text-foreground">NorthStar</span>
           </Link>
-          <h1 className="text-2xl font-bold text-zinc-100 mb-2">Sign in</h1>
-          <p className="text-sm text-zinc-400">Sign in with your email and password</p>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Sign in</h1>
+          <p className="text-sm text-muted-foreground">Sign in with your email and password</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,7 +65,7 @@ function SignInForm() {
             required
             autoComplete="email"
             autoFocus
-            className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+            className="bg-card border-border text-foreground placeholder:text-muted-foreground"
           />
           <Input
             type="password"
@@ -74,7 +74,7 @@ function SignInForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+            className="bg-card border-border text-foreground placeholder:text-muted-foreground"
           />
           {error && (
             <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">
@@ -84,7 +84,7 @@ function SignInForm() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-violet-600 hover:bg-violet-500 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {loading ? (
               <>
@@ -95,24 +95,24 @@ function SignInForm() {
               'Sign in'
             )}
           </Button>
-          <p className="text-center text-xs text-zinc-500">
-            <Link href="/auth/forgot-password" className="text-violet-400 hover:text-violet-300">
+          <p className="text-center text-xs text-muted-foreground">
+            <Link href="/auth/forgot-password" className="text-primary hover:text-primary/80">
               Forgot password? Reset it
             </Link>
           </p>
-          <p className="text-center text-xs text-zinc-500">
+          <p className="text-center text-xs text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/login" className="text-violet-400 hover:text-violet-300">
+            <Link href="/auth/login" className="text-primary hover:text-primary/80">
               Sign up
             </Link>
           </p>
         </form>
 
-        <p className="mt-8 text-center text-xs text-zinc-500">
+        <p className="mt-8 text-center text-xs text-muted-foreground">
           By signing in, you agree to our{' '}
-          <a href="#" className="text-zinc-400 hover:text-zinc-300">Terms</a>
+          <a href="#" className="text-foreground hover:text-foreground/80">Terms</a>
           {' '}and{' '}
-          <a href="#" className="text-zinc-400 hover:text-zinc-300">Privacy Policy</a>
+          <a href="#" className="text-foreground hover:text-foreground/80">Privacy Policy</a>
         </p>
       </div>
     </div>
@@ -122,8 +122,8 @@ function SignInForm() {
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 p-4">
-        <div className="text-sm text-zinc-500">Loading…</div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <div className="text-sm text-muted-foreground">Loading…</div>
       </div>
     }>
       <SignInForm />

@@ -63,15 +63,15 @@ export default async function DashboardLayout({
   const email = profile?.email ?? user.email ?? ''
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
-      <aside className="flex w-14 shrink-0 flex-col border-r border-zinc-900 py-4 md:w-64">
+    <div className="flex min-h-screen bg-background">
+      <aside className="flex w-14 shrink-0 flex-col border-r border-border py-4 md:w-64">
         <div className="mb-6 px-3 md:px-4">
           <Link
             href="/dashboard"
-            className="flex items-center gap-[10px] rounded-md py-1.5 px-1 transition-colors hover:bg-zinc-900"
+            className="flex items-center gap-[10px] rounded-md py-1.5 px-1 transition-colors hover:bg-muted"
           >
             <Logo size={28} className="shrink-0" />
-            <span className="hidden font-medium text-zinc-100 text-sm tracking-[0.05em] md:block font-sans">NorthStar</span>
+            <span className="hidden font-medium text-foreground text-sm tracking-[0.05em] md:block font-sans">NorthStar</span>
           </Link>
         </div>
 
@@ -89,19 +89,19 @@ export default async function DashboardLayout({
           <DashboardSidebarNav products={productGroups} ungroupedAgents={ungrouped} />
         </nav>
 
-        <div className="mt-4 space-y-1 border-t border-zinc-900 px-2 pt-4">
-          <div className="flex items-center gap-2 rounded-md px-2 py-2 transition-colors hover:bg-zinc-900 cursor-default">
+        <div className="mt-4 space-y-1 border-t border-border px-2 pt-4">
+          <div className="flex items-center gap-2 rounded-md px-2 py-2 transition-colors hover:bg-muted cursor-default">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-xs font-bold text-white">
               {initial}
             </div>
             <div className="hidden min-w-0 md:block">
-              <p className="truncate text-xs font-medium text-zinc-300">{displayName}</p>
-              <p className="truncate text-[10px] text-zinc-600">{email}</p>
+              <p className="truncate text-xs font-medium text-foreground">{displayName}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{email}</p>
             </div>
           </div>
           <Link
             href="/auth/signout"
-            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-900 hover:text-zinc-400"
+            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <LogOut className="h-4 w-4" />
             <span className="hidden md:block">Sign out</span>
