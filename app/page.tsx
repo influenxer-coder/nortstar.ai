@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import NorthStarLoader from '@/components/NorthStarLoader'
+import NorthStarDemo from '@/components/NorthStarDemo'
 
 export const metadata = {
   title: 'Agent NorthStar — The Fastest Experimenter in Your Space',
@@ -436,153 +437,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TERMINAL + COPY ───────────────────────────────────────────────────── */}
-      <section
-        className="land-section"
-        style={{ borderBottom: `1px solid ${C.border}` }}
-      >
-        <div
-          className="land-grid-2-center"
-          style={{ maxWidth: 1200, margin: '0 auto' }}
-        >
-          {/* Left: copy */}
-          <div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                fontSize: 11,
-                color: C.amber,
-                letterSpacing: '0.1em',
-                marginBottom: 20,
-              }}
-            >
-              UNDER THE HOOD
-            </div>
-            <h2
-              style={{
-                fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-                fontSize: 'clamp(32px, 3.5vw, 48px)',
-                fontWeight: 400,
-                lineHeight: 1.12,
-                color: C.text,
-                margin: '0 0 24px',
-              }}
-            >
-              A 24/7 growth teammate who never stops watching
-            </h2>
-            <p
-              style={{
-                fontSize: 15,
-                lineHeight: 1.75,
-                color: C.muted,
-                fontWeight: 300,
-                margin: '0 0 20px',
-              }}
-            >
-              NorthStar reads your analytics, watches your competitors, and generates ranked
-              hypotheses with coding-agent-ready MD specs.
-            </p>
-            <p
-              style={{
-                fontSize: 15,
-                lineHeight: 1.75,
-                color: C.muted,
-                fontWeight: 300,
-                margin: 0,
-              }}
-            >
-              Your PM approves. Your coding agent opens a PR. You ship. No sprint tickets. No
-              spec meetings. No translation loss between PM and engineer.
-            </p>
-          </div>
-
-          {/* Right: terminal */}
-          <div
-            style={{
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 12,
-              overflow: 'hidden',
-            }}
-          >
-            {/* Terminal chrome */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderBottom: `1px solid ${C.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#febc2e', display: 'inline-block' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
-              <span style={{ marginLeft: 'auto', fontSize: 10, color: C.dim, letterSpacing: '0.06em' }}>
-                agent-northstar · apollo.io
-              </span>
-            </div>
-
-            {/* Terminal body */}
-            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {[
-                {
-                  key: 'competitor.detected',
-                  val: 'outreach.io',
-                  note: 'inline template suggestions · +22% activation',
-                },
-                {
-                  key: 'gap.identified',
-                  val: 'apollo step 2 blank editor',
-                  note: '41% abandonment',
-                  accent: true,
-                },
-                {
-                  key: 'hypothesis.ranked',
-                  val: '#1 confidence 0.87',
-                  note: '"default to template, opt-out to blank" → Q2 KR trial-to-paid 34%→45%',
-                },
-                {
-                  key: 'spec.generated',
-                  val: '→ cursor / claude code ready',
-                  note: undefined,
-                },
-                {
-                  key: 'pr.open',
-                  val: '22 mins after approval',
-                  note: undefined,
-                },
-              ].map((line, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ color: line.accent ? C.amber : C.dim }}>{line.key}</span>
-                    <span style={{ color: C.text }}>{line.val}</span>
-                  </div>
-                  {line.note && (
-                    <span style={{ color: C.dim, paddingLeft: 16, fontSize: 11 }}>
-                      {line.note}
-                    </span>
-                  )}
-                </div>
-              ))}
-
-              {/* Blinking cursor */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <span style={{ color: C.dim }}>›</span>
-                <span
-                  className="cursor-blink"
-                  style={{
-                    display: 'inline-block',
-                    width: 8,
-                    height: 14,
-                    background: C.amber,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* ── DEMO ─────────────────────────────────────────────────────────────── */}
+      <section style={{ borderBottom: `1px solid ${C.border}` }}>
+        <NorthStarDemo />
       </section>
 
       {/* ── STATS BAR ────────────────────────────────────────────────────────── */}
