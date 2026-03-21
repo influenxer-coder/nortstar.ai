@@ -8,19 +8,21 @@ export const metadata = {
     'NorthStar watches your market 24/7, maps competitor flows, finds the gaps in your product, and turns them into tested experiments. Shipped.',
 }
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
+// ── Statsig-inspired design tokens ───────────────────────────────────────────
 const C = {
-  bg: '#07080A',
-  surface: '#0F1114',
-  surface2: '#161A1F',
-  amber: '#E8A030',
-  text: '#F2EDE6',
-  muted: 'rgba(242,237,230,0.45)',
-  dim: 'rgba(242,237,230,0.22)',
-  border: 'rgba(255,255,255,0.07)',
+  bg: '#f6f6f6',
+  surface: '#ffffff',
+  surface2: '#ededed',
+  blue: '#367eed',
+  blueTint: 'rgba(54,126,237,0.08)',
+  text: '#1f2328',
+  muted: '#535963',
+  dim: '#9ca3af',
+  border: '#d4d7dc',
+  green: '#10b981',
+  shadow: '0 0 20px rgba(27,37,40,0.06)',
 } as const
 
-// ── Loop steps ────────────────────────────────────────────────────────────────
 const LOOP = [
   {
     num: '01',
@@ -48,7 +50,6 @@ const LOOP = [
   },
 ]
 
-// ── ICP checklist ─────────────────────────────────────────────────────────────
 const ICP = [
   'You have 50K+ MAU and a clear conversion metric',
   'Your improvement cycle is 4–12 weeks today',
@@ -58,286 +59,140 @@ const ICP = [
   "You have Q2 OKRs and not enough experiments to hit them",
 ]
 
+const sansFont = "var(--font-sans-dm, 'Inter', -apple-system, sans-serif)"
+const monoFont = "var(--font-mono-dm, 'Geist Mono', monospace)"
+
+const pillBtn = (primary: boolean) => ({
+  display: 'inline-block',
+  fontFamily: sansFont,
+  fontSize: 14,
+  fontWeight: 600,
+  borderRadius: 30,
+  padding: '11px 24px',
+  textDecoration: 'none',
+  border: primary ? 'none' : `1px solid ${C.border}`,
+  background: primary ? C.text : C.surface,
+  color: primary ? C.surface : C.muted,
+  cursor: 'pointer',
+  letterSpacing: '-0.01em',
+} as const)
+
 export default function LandingPage() {
   return (
-    <div
-      style={{
-        background: C.bg,
-        color: C.text,
-        fontFamily: "var(--font-sans-dm, 'DM Sans', sans-serif)",
-        fontWeight: 400,
-        overflowX: 'hidden',
-      }}
-    >
-      {/* ── NAV ──────────────────────────────────────────────────────────────── */}
-      <nav
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          height: 60,
-          borderBottom: `1px solid ${C.border}`,
-          background: 'rgba(7,8,10,0.88)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            padding: '0 24px',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          {/* Logo */}
-          <span
-            style={{
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 13,
-              letterSpacing: '0.08em',
-              color: C.text,
-            }}
-          >
-            AGENT<span style={{ color: C.amber }}>.</span>NORTHSTAR
+    <div style={{ background: C.bg, color: C.text, fontFamily: sansFont, overflowX: 'hidden' }}>
+
+      {/* ── NAV ───────────────────────────────────────────────────────────────── */}
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, height: 60,
+        borderBottom: `1px solid ${C.border}`,
+        background: 'rgba(246,246,246,0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}>
+        <div style={{
+          maxWidth: 1200, margin: '0 auto', padding: '0 24px',
+          height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{ fontFamily: monoFont, fontSize: 13, letterSpacing: '0.08em', color: C.text, fontWeight: 600 }}>
+            AGENT<span style={{ color: C.blue }}>.</span>NORTHSTAR
           </span>
 
-          {/* Links + CTA */}
           <div className="land-nav-links">
-            <a
-              href="#how-it-works"
-              style={{ fontSize: 13, color: C.muted, textDecoration: 'none', fontWeight: 400 }}
-            >
-              How it works
-            </a>
-            <a
-              href="#for-who"
-              style={{ fontSize: 13, color: C.muted, textDecoration: 'none', fontWeight: 400 }}
-            >
-              For who
-            </a>
-            <Link
-              href="/auth/login"
-              style={{
-                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                fontSize: 12,
-                background: C.amber,
-                color: '#000',
-                padding: '8px 16px',
-                textDecoration: 'none',
-                fontWeight: 500,
-                letterSpacing: '0.02em',
-              }}
-            >
+            <a href="#how-it-works" style={{ fontSize: 14, color: C.muted, textDecoration: 'none', fontWeight: 500 }}>How it works</a>
+            <a href="#for-who" style={{ fontSize: 14, color: C.muted, textDecoration: 'none', fontWeight: 500 }}>For who</a>
+            <Link href="/auth/login" style={{
+              fontFamily: sansFont, fontSize: 13, fontWeight: 600,
+              background: C.text, color: C.surface,
+              padding: '7px 18px', textDecoration: 'none', borderRadius: 30,
+            }}>
               Request access →
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section
-        className="land-hero"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Ambient amber glow */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: '30%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 800,
-            height: 600,
-            background: `radial-gradient(ellipse at center, rgba(232,160,48,0.05) 0%, transparent 70%)`,
-            pointerEvents: 'none',
-          }}
-        />
+      {/* ── HERO ──────────────────────────────────────────────────────────────── */}
+      <section className="land-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{
+          position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: 800, height: 600, pointerEvents: 'none',
+          background: `radial-gradient(ellipse at center, ${C.blueTint} 0%, transparent 70%)`,
+        }} />
 
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            maxWidth: 760,
-            margin: '0 auto',
-            padding: '0 24px',
-            textAlign: 'center',
-          }}
-        >
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 760, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
           {/* Eyebrow */}
-          <div
-            style={{
-              display: 'inline-block',
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 11,
-              letterSpacing: '0.12em',
-              color: C.amber,
-              border: `1px solid rgba(232,160,48,0.3)`,
-              padding: '5px 12px',
-              marginBottom: 32,
-            }}
-          >
+          <div style={{
+            display: 'inline-block',
+            fontFamily: monoFont, fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.1em', color: C.blue,
+            border: `1px solid rgba(54,126,237,0.3)`,
+            padding: '5px 14px', marginBottom: 32, borderRadius: 30,
+          }}>
             AUTONOMOUS GROWTH INTELLIGENCE
           </div>
 
           {/* Headline */}
-          <h1
-            style={{
-              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-              fontSize: 'clamp(52px, 7vw, 88px)',
-              fontWeight: 400,
-              lineHeight: 1.02,
-              letterSpacing: '-0.01em',
-              color: C.text,
-              margin: '0 0 28px',
-            }}
-          >
+          <h1 style={{
+            fontFamily: sansFont,
+            fontSize: 'clamp(44px, 6vw, 64px)',
+            fontWeight: 700,
+            lineHeight: 1.05,
+            letterSpacing: '-2px',
+            color: C.text,
+            margin: '0 0 24px',
+          }}>
             The fastest learners{' '}
-            <em style={{ color: C.amber, fontStyle: 'italic' }}>win.</em>
+            <em style={{ color: C.blue, fontStyle: 'italic' }}>win.</em>
           </h1>
 
           {/* Sub */}
-          <p
-            style={{
-              fontSize: 17,
-              lineHeight: 1.65,
-              color: C.muted,
-              maxWidth: 560,
-              margin: '0 auto 40px',
-              fontWeight: 300,
-            }}
-          >
+          <p style={{
+            fontSize: 18, lineHeight: 1.65, color: C.muted,
+            maxWidth: 540, margin: '0 auto 40px', fontWeight: 400,
+          }}>
             Your competitors are shipping. Your customers are already trying their new features.
             NorthStar makes sure you&apos;re never the last to learn what&apos;s working.
           </p>
 
           {/* CTAs */}
-          <div
-            className="land-hero-ctas"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 16,
-              flexWrap: 'wrap',
-              marginBottom: 32,
-            }}
-          >
-            <Link
-              href="/auth/login"
-              style={{
-                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                fontSize: 13,
-                background: C.amber,
-                color: '#000',
-                padding: '13px 24px',
-                textDecoration: 'none',
-                fontWeight: 500,
-                letterSpacing: '0.02em',
-              }}
-            >
-              Run NorthStar on my product →
-            </Link>
-            <a
-              href="#how-it-works"
-              style={{
-                fontSize: 13,
-                color: C.muted,
-                textDecoration: 'none',
-                border: `1px solid ${C.border}`,
-                padding: '12px 20px',
-                fontWeight: 400,
-              }}
-            >
-              See how it works
-            </a>
+          <div className="land-hero-ctas" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 12, flexWrap: 'wrap', marginBottom: 36,
+          }}>
+            <Link href="/auth/login" style={pillBtn(true)}>Run NorthStar on my product →</Link>
+            <a href="#how-it-works" style={pillBtn(false)}>See how it works</a>
           </div>
 
           {/* Trust line */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 11,
-              color: C.dim,
-              letterSpacing: '0.06em',
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#22c55e',
-                display: 'inline-block',
-                flexShrink: 0,
-              }}
-            />
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 7, fontFamily: monoFont, fontSize: 11, color: C.dim, letterSpacing: '0.06em',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, display: 'inline-block', flexShrink: 0 }} />
             IN BETA
           </div>
 
-          {/* Loader — inline below BETA badge */}
+          {/* Loader */}
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-            <NorthStarLoader />
+            <NorthStarLoader bgColor={C.bg} />
           </div>
         </div>
       </section>
 
-      {/* ── PROBLEM ──────────────────────────────────────────────────────────── */}
-      <section
-        className="land-section"
-        style={{ borderBottom: `1px solid ${C.border}` }}
-      >
+      {/* ── PROBLEM ───────────────────────────────────────────────────────────── */}
+      <section className="land-section" style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: C.surface }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 11,
-              color: C.amber,
-              letterSpacing: '0.1em',
-              marginBottom: 24,
-            }}
-          >
+          <div style={{ fontFamily: monoFont, fontSize: 11, fontWeight: 600, color: C.blue, letterSpacing: '0.1em', marginBottom: 20 }}>
             THE PROBLEM
           </div>
-          <h2
-            style={{
-              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-              fontSize: 'clamp(36px, 5vw, 60px)',
-              fontWeight: 400,
-              lineHeight: 1.1,
-              color: C.text,
-              maxWidth: 700,
-              margin: '0 auto 28px',
-            }}
-          >
+          <h2 style={{
+            fontFamily: sansFont, fontSize: 'clamp(32px, 4vw, 52px)',
+            fontWeight: 700, letterSpacing: '-1.5px', lineHeight: 1.1,
+            color: C.text, maxWidth: 680, margin: '0 auto 24px',
+          }}>
             Your worst mistake isn&apos;t shipping too slow. It&apos;s not learning fast enough.
           </h2>
-          <p
-            style={{
-              fontSize: 16,
-              lineHeight: 1.7,
-              color: C.muted,
-              maxWidth: 600,
-              fontWeight: 300,
-              margin: '0 auto',
-            }}
-          >
+          <p style={{ fontSize: 16, lineHeight: 1.7, color: C.muted, maxWidth: 580, fontWeight: 400, margin: '0 auto' }}>
             New incumbents don&apos;t outbuild you. They out-experiment you. They ship smaller
             bets, learn faster, and compound those learnings week over week. By the time you
             notice them, they&apos;ve already reshaped what your customers expect.
@@ -345,90 +200,38 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 4-STEP LOOP ──────────────────────────────────────────────────────── */}
-      <section
-        id="how-it-works"
-        className="land-section"
-        style={{ borderBottom: `1px solid ${C.border}` }}
-      >
+      {/* ── 4-STEP LOOP ───────────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="land-section" style={{ borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 11,
-              color: C.amber,
-              letterSpacing: '0.1em',
-              marginBottom: 16,
-            }}
-          >
+          <div style={{ fontFamily: monoFont, fontSize: 11, fontWeight: 600, color: C.blue, letterSpacing: '0.1em', marginBottom: 16 }}>
             THE LOOP
           </div>
-          <h2
-            style={{
-              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-              fontSize: 'clamp(32px, 4vw, 52px)',
-              fontWeight: 400,
-              lineHeight: 1.1,
-              color: C.text,
-              margin: '0 auto 64px',
-            }}
-          >
+          <h2 style={{
+            fontFamily: sansFont, fontSize: 'clamp(28px, 3.5vw, 44px)',
+            fontWeight: 700, letterSpacing: '-1px', lineHeight: 1.1,
+            color: C.text, margin: '0 auto 56px',
+          }}>
             From market signal to live experiment
           </h2>
 
-          <div
-            className="land-grid-4"
-            style={{
-              borderTop: `1px solid ${C.border}`,
-              borderLeft: `1px solid ${C.border}`,
-              textAlign: 'left',
-            }}
-          >
+          <div className="land-grid-4" style={{ textAlign: 'left', gap: 16 }}>
             {LOOP.map((step) => (
-              <div
-                key={step.num}
-                className="loop-step"
-                style={{
-                  padding: '40px 32px',
-                  borderRight: `1px solid ${C.border}`,
-                  borderBottom: `1px solid ${C.border}`,
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                    fontSize: 11,
-                    color: C.dim,
-                    letterSpacing: '0.08em',
-                    marginBottom: 20,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <span>{step.num}</span>
-                  <span style={{ color: C.amber }}>— {step.label}</span>
+              <div key={step.num} className="loop-step" style={{
+                background: C.surface, border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: '32px 28px',
+                boxShadow: C.shadow,
+              }}>
+                <div style={{
+                  fontFamily: monoFont, fontSize: 11, letterSpacing: '0.06em',
+                  marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ color: C.dim, fontWeight: 500 }}>{step.num}</span>
+                  <span style={{ color: C.blue, fontWeight: 600 }}>— {step.label}</span>
                 </div>
-                <h3
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: C.text,
-                    margin: '0 0 14px',
-                    lineHeight: 1.3,
-                  }}
-                >
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: C.text, margin: '0 0 12px', lineHeight: 1.35 }}>
                   {step.title}
                 </h3>
-                <p
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.7,
-                    color: C.muted,
-                    margin: 0,
-                    fontWeight: 300,
-                  }}
-                >
+                <p style={{ fontSize: 13, lineHeight: 1.7, color: C.muted, margin: 0, fontWeight: 400 }}>
                   {step.body}
                 </p>
               </div>
@@ -437,268 +240,116 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── DEMO ─────────────────────────────────────────────────────────────── */}
+      {/* ── DEMO ──────────────────────────────────────────────────────────────── */}
       <section style={{ borderBottom: `1px solid ${C.border}` }}>
         <NorthStarDemo />
       </section>
 
-      {/* ── STATS BAR ────────────────────────────────────────────────────────── */}
-      <section
-        style={{
-          borderBottom: `1px solid ${C.border}`,
-          background: C.surface,
-        }}
-      >
-        <div
-          className="land-grid-3"
-          style={{ maxWidth: 1200, margin: '0 auto' }}
-        >
+      {/* ── STATS BAR ─────────────────────────────────────────────────────────── */}
+      <section style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+        <div className="land-grid-3" style={{ maxWidth: 1200, margin: '0 auto' }}>
           {[
             { num: '10×', label: 'more experiments shipped per sprint vs baseline' },
             { num: '48h', label: 'from market signal to live PR — no sprint required' },
             { num: '0', label: 'meetings required to go from hypothesis to merged code' },
           ].map((stat, i) => (
-            <div
-              key={i}
-              className={`land-stat-cell${i < 2 ? ' land-stat-border' : ''}`}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-                  fontSize: 56,
-                  fontWeight: 400,
-                  color: C.amber,
-                  lineHeight: 1,
-                  marginBottom: 12,
-                }}
-              >
+            <div key={i} className={`land-stat-cell${i < 2 ? ' land-stat-border' : ''}`}>
+              <div style={{
+                fontFamily: sansFont, fontSize: 52, fontWeight: 700,
+                color: C.blue, lineHeight: 1, marginBottom: 10, letterSpacing: '-2px',
+              }}>
                 {stat.num}
               </div>
-              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, fontWeight: 300 }}>
-                {stat.label}
-              </div>
+              <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.55, fontWeight: 400 }}>{stat.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-
-      {/* ── ICP ──────────────────────────────────────────────────────────────── */}
-      <section
-        id="for-who"
-        className="land-section"
-        style={{ borderBottom: `1px solid ${C.border}` }}
-      >
-        <div
-          className="land-grid-2"
-          style={{ maxWidth: 1200, margin: '0 auto' }}
-        >
+      {/* ── ICP ───────────────────────────────────────────────────────────────── */}
+      <section id="for-who" className="land-section" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div className="land-grid-2" style={{ maxWidth: 1200, margin: '0 auto' }}>
           {/* Left */}
           <div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                fontSize: 11,
-                color: C.amber,
-                letterSpacing: '0.1em',
-                marginBottom: 20,
-              }}
-            >
+            <div style={{ fontFamily: monoFont, fontSize: 11, fontWeight: 600, color: C.blue, letterSpacing: '0.1em', marginBottom: 20 }}>
               BUILT FOR
             </div>
-            <h2
-              style={{
-                fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-                fontSize: 'clamp(32px, 3.5vw, 48px)',
-                fontWeight: 400,
-                lineHeight: 1.12,
-                color: C.text,
-                margin: '0 0 24px',
-              }}
-            >
+            <h2 style={{
+              fontFamily: sansFont, fontSize: 'clamp(28px, 3vw, 40px)',
+              fontWeight: 700, letterSpacing: '-1px', lineHeight: 1.15,
+              color: C.text, margin: '0 0 20px',
+            }}>
               VP / Head of Product at Series B–D SaaS
             </h2>
-            <p
-              style={{
-                fontSize: 15,
-                lineHeight: 1.75,
-                color: C.muted,
-                fontWeight: 300,
-                margin: 0,
-              }}
-            >
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: C.muted, fontWeight: 400, margin: 0 }}>
               You have OKRs, traffic, and a team that moves fast when unblocked. NorthStar
-              removes the bottleneck between &quot;we should test that&quot; and &quot;it&apos;s
-              live.&quot;
+              removes the bottleneck between &quot;we should test that&quot; and &quot;it&apos;s live.&quot;
             </p>
           </div>
 
           {/* Right: checklist */}
-          <div
-            style={{
-              border: `1px solid ${C.border}`,
-              background: C.surface,
-              padding: '36px 40px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20,
-            }}
-          >
+          <div style={{
+            border: `1px solid ${C.border}`, background: C.surface,
+            borderRadius: 10, padding: '32px 36px',
+            boxShadow: C.shadow,
+            display: 'flex', flexDirection: 'column', gap: 18,
+          }}>
             {ICP.map((item, i) => (
-              <div
-                key={i}
-                style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                    fontSize: 12,
-                    color: C.amber,
-                    marginTop: 2,
-                    flexShrink: 0,
-                  }}
-                >
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <span style={{
+                  fontFamily: monoFont, fontSize: 11, fontWeight: 700,
+                  color: C.surface, background: C.blue,
+                  padding: '1px 8px', borderRadius: 30,
+                  marginTop: 2, flexShrink: 0,
+                }}>
                   YES
                 </span>
-                <span style={{ fontSize: 14, color: C.muted, lineHeight: 1.55, fontWeight: 300 }}>
-                  {item}
-                </span>
+                <span style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, fontWeight: 400 }}>{item}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────────────────── */}
-      <section
-        className="land-section"
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          textAlign: 'center',
-        }}
-      >
-        {/* Ambient glow */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 700,
-            height: 500,
-            background: `radial-gradient(ellipse at center, rgba(232,160,48,0.06) 0%, transparent 70%)`,
-            pointerEvents: 'none',
-          }}
-        />
-
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, margin: '0 auto' }}>
-          <h2
-            style={{
-              fontFamily: "var(--font-serif, 'Instrument Serif', serif)",
-              fontSize: 'clamp(36px, 5vw, 60px)',
-              fontWeight: 400,
-              lineHeight: 1.1,
-              color: C.text,
-              margin: '0 0 20px',
-            }}
-          >
+      {/* ── CTA ───────────────────────────────────────────────────────────────── */}
+      <section className="land-section" style={{ background: C.surface, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: 700, height: 500, pointerEvents: 'none',
+          background: `radial-gradient(ellipse at center, ${C.blueTint} 0%, transparent 70%)`,
+        }} />
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 600, margin: '0 auto' }}>
+          <h2 style={{
+            fontFamily: sansFont, fontSize: 'clamp(32px, 4vw, 52px)',
+            fontWeight: 700, letterSpacing: '-1.5px', lineHeight: 1.1,
+            color: C.text, margin: '0 0 18px',
+          }}>
             Your competitors aren&apos;t waiting.{' '}
-            <em style={{ color: C.amber, fontStyle: 'italic' }}>Neither should you.</em>
+            <em style={{ color: C.blue, fontStyle: 'italic' }}>Neither should you.</em>
           </h2>
-          <p
-            style={{
-              fontSize: 16,
-              color: C.muted,
-              lineHeight: 1.65,
-              margin: '0 auto 44px',
-              maxWidth: 480,
-              fontWeight: 300,
-            }}
-          >
-            We&apos;ll have a hypothesis on your highest-traffic surface within 24 hours of
-            onboarding.
+          <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.65, margin: '0 auto 40px', maxWidth: 460, fontWeight: 400 }}>
+            We&apos;ll have a hypothesis on your highest-traffic surface within 24 hours of onboarding.
           </p>
-          <div
-            className="land-cta-buttons"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 16,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Link
-              href="/auth/login"
-              style={{
-                fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-                fontSize: 13,
-                background: C.amber,
-                color: '#000',
-                padding: '14px 28px',
-                textDecoration: 'none',
-                fontWeight: 500,
-                letterSpacing: '0.02em',
-              }}
-            >
-              Run NorthStar on my product →
-            </Link>
-            <Link
-              href="/auth/signin"
-              style={{
-                fontSize: 13,
-                color: C.muted,
-                textDecoration: 'none',
-                border: `1px solid ${C.border}`,
-                padding: '13px 20px',
-                fontWeight: 400,
-              }}
-            >
-              Log in
-            </Link>
+          <div className="land-cta-buttons" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Link href="/auth/login" style={pillBtn(true)}>Run NorthStar on my product →</Link>
+            <Link href="/auth/signin" style={pillBtn(false)}>Log in</Link>
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────────────── */}
-      <footer
-        style={{
-          borderTop: `1px solid ${C.border}`,
-          padding: '28px 24px',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 16,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--font-mono-dm, 'DM Mono', monospace)",
-              fontSize: 12,
-              color: C.dim,
-              letterSpacing: '0.06em',
-            }}
-          >
-            AGENT<span style={{ color: C.amber }}>.</span>NORTHSTAR · Built in San Francisco · © 2025
+      {/* ── FOOTER ────────────────────────────────────────────────────────────── */}
+      <footer style={{ borderTop: `1px solid ${C.border}`, padding: '28px 24px', background: C.bg }}>
+        <div style={{
+          maxWidth: 1200, margin: '0 auto',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 16,
+        }}>
+          <span style={{ fontFamily: monoFont, fontSize: 12, color: C.dim, letterSpacing: '0.06em', fontWeight: 500 }}>
+            AGENT<span style={{ color: C.blue }}>.</span>NORTHSTAR · Built in San Francisco · © 2025
           </span>
           <div style={{ display: 'flex', gap: 28 }}>
             {['Privacy', 'Terms', 'Security'].map((link) => (
-              <a
-                key={link}
-                href="#"
-                style={{ fontSize: 12, color: C.dim, textDecoration: 'none' }}
-              >
-                {link}
-              </a>
+              <a key={link} href="#" style={{ fontSize: 13, color: C.dim, textDecoration: 'none', fontWeight: 400 }}>{link}</a>
             ))}
           </div>
         </div>

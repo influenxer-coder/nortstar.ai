@@ -14,9 +14,10 @@ const MESSAGES = [
 
 interface Props {
   onComplete?: () => void
+  bgColor?: string
 }
 
-export default function NorthStarLoader({ onComplete }: Props) {
+export default function NorthStarLoader({ onComplete, bgColor }: Props) {
   const [msgIndex, setMsgIndex] = useState(0)
   const [exiting, setExiting] = useState(false)
 
@@ -70,7 +71,7 @@ export default function NorthStarLoader({ onComplete }: Props) {
             position: 'absolute',
             inset: 8,
             borderRadius: '50%',
-            background: 'hsl(var(--background))',
+            background: bgColor ?? 'hsl(var(--background))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
