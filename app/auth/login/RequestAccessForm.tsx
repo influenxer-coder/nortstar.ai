@@ -33,6 +33,16 @@ export function RequestAccessForm() {
       setError('Password must be at least 8 characters')
       return
     }
+    const personalDomains = new Set([
+      'gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com',
+      'protonmail.com','aol.com','live.com','me.com','mac.com','msn.com','ymail.com',
+    ])
+    const domain = email.trim().split('@')[1]?.toLowerCase()
+    if (!domain || personalDomains.has(domain)) {
+      setError('Please sign up with your work email address.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
