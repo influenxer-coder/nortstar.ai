@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import NorthStarLoader from '@/components/NorthStarLoader'
 import NorthStarDemo from '@/components/NorthStarDemo'
 
 export const metadata = {
@@ -172,10 +171,6 @@ export default function LandingPage() {
             IN BETA
           </div>
 
-          {/* Loader */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-            <NorthStarLoader bgColor={C.bg} />
-          </div>
         </div>
       </section>
 
