@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { ExternalLink, ChevronDown, ChevronUp, TrendingUp, Minus, TrendingDown, ArrowRight, RefreshCw, Loader2 } from 'lucide-react'
 
@@ -179,17 +179,23 @@ function GoalChip({ goal }: { goal?: string }) {
   return <Chip {...style}>{goal}</Chip>
 }
 
-function Section({ label, defaultOpen = true, children }: {
+function Section({ label, defaultOpen = true, onOpen, children }: {
   label: string
   defaultOpen?: boolean
+  onOpen?: () => void
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    if (next) onOpen?.()
+  }
   return (
     <div style={{ marginBottom: 24 }}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={toggle}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           width: '100%', background: 'none', border: 'none',
@@ -340,7 +346,7 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
     }
   }, [subverticalId, goal])
 
-  useEffect(() => { void fetchIdeas() }, [fetchIdeas])
+  // Fetch lazily on first expand — no auto-fetch on mount
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: C.bg }}>
@@ -420,6 +426,77 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
             </div>
           )}
         </div>
+
+        {/* ── OPPORTUNITIES — under product header ────────────────────── */}
+        {(subverticalId && goal) && (
+          <Section
+            label={goal}
+            defaultOpen={false}
+            onOpen={() => { if (ideas.length === 0 && !ideasLoading) void fetchIdeas() }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, marginTop: -8 }}>
+              <button
+                type="button"
+                onClick={() => void fetchIdeas()}
+                disabled={ideasLoading}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 12, fontWeight: 500, color: C.blue,
+                  background: 'none', border: 'none', cursor: ideasLoading ? 'not-allowed' : 'pointer',
+                  opacity: ideasLoading ? 0.5 : 1, padding: 0,
+                }}
+              >
+                <RefreshCw style={{ width: 12, height: 12 }} />
+                Refresh
+              </button>
+            </div>
+
+            {ideasLoading && ideas.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: C.muted }}>
+                <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: 13 }}>Generating opportunities…</span>
+              </div>
+            ) : ideasError ? (
+              <div style={{ padding: '16px', borderRadius: 8, background: '#fff5f5', border: '1px solid #fed7d7' }}>
+                <p style={{ fontSize: 13, color: '#c53030' }}>{ideasError}</p>
+                <button type="button" onClick={() => void fetchIdeas()} style={{ fontSize: 12, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 6 }}>
+                  Try again
+                </button>
+              </div>
+            ) : ideas.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', borderRadius: 10, border: `1px dashed ${C.border}`, background: C.surface }}>
+                <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>No opportunities yet</p>
+                <button type="button" onClick={() => void fetchIdeas()} style={{ fontSize: 13, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                  Generate →
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {ideas.map((idea, idx) => {
+                  const effort = idea.effort.toLowerCase()
+                  const effortStyle =
+                    effort === 'low' ? { color: '#2e7d32', bg: '#e8f5e9', border: '#a5d6a7' } :
+                    effort === 'high' ? { color: '#be123c', bg: '#fff1f2', border: '#fda4af' } :
+                    { color: '#92600a', bg: '#fffbeb', border: '#f0b429' }
+                  return (
+                    <div key={idx} style={{
+                      background: C.surface, border: `1px solid ${C.border}`,
+                      borderRadius: 10, padding: '16px', boxShadow: C.cardShadow,
+                    }}>
+                      <h4 style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>{idea.title}</h4>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                        <Chip>{idea.goal}</Chip>
+                        <Chip color={effortStyle.color} bg={effortStyle.bg} border={effortStyle.border}>{effort} effort</Chip>
+                      </div>
+                      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, marginBottom: 8 }}>{idea.evidence}</p>
+                      <p style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>{idea.winning_pattern}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Section>
+        )}
 
         {/* ── SECTION 2 — MARKET POSITION ─────────────────────────────── */}
         <Section label="Market Position">
@@ -625,74 +702,6 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
           )}
         </Section>
 
-        {/* ── SECTION 5 — OPPORTUNITIES ───────────────────────────────── */}
-        {(subverticalId && goal) && (
-          <Section label="Opportunities">
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, marginTop: -8 }}>
-              <button
-                type="button"
-                onClick={() => void fetchIdeas()}
-                disabled={ideasLoading}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  fontSize: 12, fontWeight: 500, color: C.blue,
-                  background: 'none', border: 'none', cursor: ideasLoading ? 'not-allowed' : 'pointer',
-                  opacity: ideasLoading ? 0.5 : 1, padding: 0,
-                }}
-              >
-                <RefreshCw style={{ width: 12, height: 12 }} />
-                Refresh
-              </button>
-            </div>
-
-            {ideasLoading && ideas.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: C.muted }}>
-                <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                <span style={{ fontSize: 13 }}>Generating opportunities…</span>
-              </div>
-            ) : ideasError ? (
-              <div style={{ padding: '16px', borderRadius: 8, background: '#fff5f5', border: '1px solid #fed7d7' }}>
-                <p style={{ fontSize: 13, color: '#c53030' }}>{ideasError}</p>
-                <button type="button" onClick={() => void fetchIdeas()} style={{ fontSize: 12, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 6 }}>
-                  Try again
-                </button>
-              </div>
-            ) : ideas.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', borderRadius: 10, border: `1px dashed ${C.border}`, background: C.surface }}>
-                <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>No opportunities yet</p>
-                <button type="button" onClick={() => void fetchIdeas()} style={{ fontSize: 13, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                  Generate opportunities →
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {ideas.map((idea, idx) => {
-                  const effort = idea.effort.toLowerCase()
-                  const effortStyle =
-                    effort === 'low' ? { color: '#2e7d32', bg: '#e8f5e9', border: '#a5d6a7' } :
-                    effort === 'high' ? { color: '#be123c', bg: '#fff1f2', border: '#fda4af' } :
-                    { color: '#92600a', bg: '#fffbeb', border: '#f0b429' }
-                  return (
-                    <div key={idx} style={{
-                      background: C.surface, border: `1px solid ${C.border}`,
-                      borderRadius: 10, padding: '16px', boxShadow: C.cardShadow,
-                    }}>
-                      <h4 style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>{idea.title}</h4>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                        <Chip>{idea.goal}</Chip>
-                        <Chip color={effortStyle.color} bg={effortStyle.bg} border={effortStyle.border}>
-                          {effort} effort
-                        </Chip>
-                      </div>
-                      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, marginBottom: 8 }}>{idea.evidence}</p>
-                      <p style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>{idea.winning_pattern}</p>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </Section>
-        )}
       </div>
 
       {/* ── RIGHT COLUMN (sticky) ─────────────────────────────────────── */}
