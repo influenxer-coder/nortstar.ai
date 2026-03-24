@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { flushSync } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2, CheckCircle2 } from 'lucide-react'
@@ -186,23 +185,32 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
           const trimmedLine = line.trim()
           if (!trimmedLine) continue
 
+          // Support raw NDJSON and SSE-style "data: { ... }" lines.
+          const normalized = trimmedLine.startsWith('data:')
+            ? trimmedLine.slice(5).trim()
+            : trimmedLine
+
           let event: Record<string, unknown>
           try {
-            event = JSON.parse(trimmedLine) as Record<string, unknown>
+            event = JSON.parse(normalized) as Record<string, unknown>
           } catch {
             // Skip malformed JSON lines silently
             continue
           }
 
           if (event.type === 'log') {
-            const msg = typeof event.message === 'string' ? event.message : ''
+            const msg = typeof event.message === 'string'
+              ? event.message
+              : typeof event.content === 'string'
+              ? event.content
+              : ''
             if (!msg) continue
-            flushSync(() => {
-              setStatusMessage(msg)
-              setStreamMessages(prev => [...prev, msg])
+            setStatusMessage(msg)
+            setStreamMessages(prev => [...prev, msg])
+            // Force a paint tick so logs appear incrementally.
+            await new Promise<void>((resolve) => {
+              requestAnimationFrame(() => resolve())
             })
-            // Yield to browser so each message paints immediately
-            await new Promise<void>(r => setTimeout(r, 0))
           } else if (event.type === 'result') {
             const data = event.data as Record<string, unknown>
             const competitors = (data.competitors as Array<{ id: string }>) ?? []
@@ -217,12 +225,12 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               onboarding_step: 1,
               timestamp: Date.now(),
             }))
-            flushSync(() => {
-              setAnalysisComplete(true)
-              setStatusMessage('Analysis complete!')
-              setStreamMessages(prev => [...prev, '✓ Analysis complete'])
+            setAnalysisComplete(true)
+            setStatusMessage('Analysis complete!')
+            setStreamMessages(prev => [...prev, '✓ Analysis complete'])
+            await new Promise<void>((resolve) => {
+              requestAnimationFrame(() => resolve())
             })
-            await new Promise<void>(r => setTimeout(r, 0))
           } else if (event.type === 'error') {
             throw new Error(typeof event.message === 'string' ? event.message : 'Analysis failed')
           }
