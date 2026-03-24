@@ -26,10 +26,14 @@ export async function AppShell({
   ])
 
   const projectIdByProductId = new Map<string, string>()
+  const goalByProductId = new Map<string, string>()
   for (const proj of completedProjects ?? []) {
     const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
     const cpid = ctx?.created_product_id
-    if (typeof cpid === 'string' && cpid) projectIdByProductId.set(cpid, proj.id)
+    if (typeof cpid === 'string' && cpid) {
+      projectIdByProductId.set(cpid, proj.id)
+      if (typeof ctx?.goal === 'string' && ctx.goal) goalByProductId.set(cpid, ctx.goal)
+    }
   }
 
   const agentsByProduct = new Map<string, { id: string; name: string; status: string | null }[]>()
@@ -50,6 +54,7 @@ export async function AppShell({
     name: p.name,
     agents: agentsByProduct.get(p.id) ?? [],
     projectId: projectIdByProductId.get(p.id) ?? null,
+    goal: goalByProductId.get(p.id) ?? null,
   }))
 
   const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()

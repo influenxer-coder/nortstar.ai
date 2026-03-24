@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight, Lightbulb } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 
@@ -15,6 +15,7 @@ type ProductGroup = {
   name: string
   agents: AgentStub[]
   projectId?: string | null
+  goal?: string | null
 }
 
 type Props = {
@@ -171,6 +172,23 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
             )}
           </div>
           <div className="mt-0.5 space-y-0.5">
+            {product.projectId && product.goal && (
+              <Link
+                href={`/products/${product.projectId}`}
+                className={`flex items-center gap-2 pl-5 pr-2 rounded-md transition-colors ${
+                  pathname === `/products/${product.projectId}` ? 'bg-accent' : 'hover:bg-muted'
+                }`}
+                style={{ height: 28 }}
+              >
+                <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
+                <span
+                  className="hidden md:block truncate"
+                  style={{ fontSize: 13, fontWeight: 500, color: pathname === `/products/${product.projectId}` ? '#1f2328' : '#535963' }}
+                >
+                  {product.goal}
+                </span>
+              </Link>
+            )}
             {product.agents.map((agent) => (
               <AgentTreeNode key={agent.id} agent={agent} isActive={pathname.includes(agent.id)} />
             ))}
