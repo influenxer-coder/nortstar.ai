@@ -16,7 +16,7 @@ export default async function DashboardPage() {
 
   const displayName = profile?.full_name || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'
 
-  const [{ data: products }, { data: agents }, { data: inProgressProjects }] = await Promise.all([
+  const [{ data: products }, { data: agents }, { data: inProgressProjects }, { data: completedProjects }] = await Promise.all([
     supabase
       .from('products')
       .select('id, name, created_at')
@@ -34,6 +34,11 @@ export default async function DashboardPage() {
       .eq('user_id', user.id)
       .eq('onboarding_completed', false)
       .order('updated_at', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('id, strategy_json')
+      .eq('user_id', user.id)
+      .eq('onboarding_completed', true),
   ])
 
   const productList = products ?? []
@@ -58,11 +63,22 @@ export default async function DashboardPage() {
     }
   }
 
+  // Build map: products.id → projects.id (via strategy_json.onboarding_context.created_product_id)
+  const projectIdByProductId = new Map<string, string>()
+  for (const proj of completedProjects ?? []) {
+    const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
+    const createdProductId = ctx?.created_product_id
+    if (typeof createdProductId === 'string' && createdProductId) {
+      projectIdByProductId.set(createdProductId, proj.id)
+    }
+  }
+
   const productsWithAgents: ProductWithAgents[] = productList.map((p) => ({
     id: p.id,
     name: p.name,
     created_at: p.created_at,
     agents: agentsByProduct.get(p.id) ?? [],
+    projectId: projectIdByProductId.get(p.id) ?? null,
   }))
 
   return (

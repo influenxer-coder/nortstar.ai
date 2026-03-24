@@ -12,6 +12,7 @@ export type ProductWithAgents = {
   name: string
   created_at: string
   agents: { id: string; name: string; status: string | null; url: string | null }[]
+  projectId?: string | null
 }
 
 export type UngroupedAgents = { id: string; name: string; status: string | null; url: string | null }[]
@@ -436,7 +437,13 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <FolderOpen style={{ width: 15, height: 15, color: C.blue, flexShrink: 0 }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{product.name}</span>
+                    {product.projectId ? (
+                      <Link href={`/products/${product.projectId}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>
+                        {product.name}
+                      </Link>
+                    ) : (
+                      <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{product.name}</span>
+                    )}
                   </div>
                   <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`} style={{ textDecoration: 'none' }}>
                     <button
