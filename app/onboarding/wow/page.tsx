@@ -68,6 +68,7 @@ export default function WowPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [wow, setWow] = useState<WowResponse | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     const raw = localStorage.getItem('northstar_onboarding')
@@ -100,7 +101,9 @@ export default function WowPage() {
           },
         },
       }),
-    }).catch(() => {})
+    }).catch(() => {
+      // Keep flow usable even if this non-critical heartbeat update fails.
+    })
 
     fetch(`/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(parsed.subvertical_id)}&goal=${encodeURIComponent(parsed.goal)}`)
       .then(async (r) => {
@@ -124,40 +127,62 @@ export default function WowPage() {
 
   async function saveIdeaAndGo(idea: WowIdea) {
     if (!saved?.project_id) return
+    setActionLoading(true)
+    setError(null)
     const next = { ...saved, selected_idea: idea }
     localStorage.setItem('northstar_onboarding', JSON.stringify(next))
-    await fetch(`/api/projects/${saved.project_id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        strategy_json: {
-          ...(saved.analysis_result ?? {}),
-          onboarding_context: {
-            ...(saved as Record<string, unknown>),
-            selected_idea: idea,
-            onboarding_step: 5,
+    try {
+      const res = await fetch(`/api/projects/${saved.project_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          strategy_json: {
+            ...(saved.analysis_result ?? {}),
+            onboarding_context: {
+              ...(saved as Record<string, unknown>),
+              selected_idea: idea,
+              onboarding_step: 5,
+            },
           },
-        },
-        onboarding_step: 5,
-        onboarding_completed: true,
-      }),
-    }).catch(() => {})
-    localStorage.removeItem('northstar_onboarding')
-    router.push('/dashboard')
+          onboarding_step: 5,
+          onboarding_completed: true,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to save selected idea')
+      }
+      localStorage.removeItem('northstar_onboarding')
+      router.push('/dashboard')
+    } catch (e) {
+      setError((e as Error).message || 'Could not persist your selected idea. Please try again.')
+      setActionLoading(false)
+    }
   }
 
   async function completeAndGoDashboard() {
     if (!saved?.project_id) return
-    await fetch(`/api/projects/${saved.project_id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        onboarding_completed: true,
-        onboarding_step: 5,
-      }),
-    }).catch(() => {})
-    localStorage.removeItem('northstar_onboarding')
-    router.push('/dashboard')
+    setActionLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/projects/${saved.project_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          onboarding_completed: true,
+          onboarding_step: 5,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to complete onboarding')
+      }
+      localStorage.removeItem('northstar_onboarding')
+      router.push('/dashboard')
+    } catch (e) {
+      setError((e as Error).message || 'Could not persist onboarding completion. Please try again.')
+      setActionLoading(false)
+    }
   }
 
   if (loading) {
@@ -270,6 +295,7 @@ export default function WowPage() {
                   <button
                     type="button"
                     onClick={() => void saveIdeaAndGo(idea)}
+                    disabled={actionLoading}
                     style={{
                       borderRadius: 30,
                       border: `1px solid ${C.border}`,
@@ -278,7 +304,8 @@ export default function WowPage() {
                       padding: '8px 14px',
                       fontSize: 13,
                       fontWeight: 700,
-                      cursor: 'pointer',
+                      cursor: actionLoading ? 'not-allowed' : 'pointer',
+                      opacity: actionLoading ? 0.65 : 1,
                     }}
                   >
                     Generate Spec →
@@ -289,6 +316,25 @@ export default function WowPage() {
           </div>
         </section>
       </div>
+
+      {error && (
+        <div style={{
+          position: 'fixed',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          bottom: 76,
+          background: '#fff1f2',
+          border: '1px solid #fecaca',
+          borderRadius: 8,
+          padding: '10px 12px',
+          color: '#b91c1c',
+          fontSize: 13,
+          maxWidth: 900,
+          width: 'calc(100% - 36px)',
+        }}>
+          {error}
+        </div>
+      )}
 
       {/* Sticky bottom bar */}
       <div style={{
@@ -311,6 +357,7 @@ export default function WowPage() {
           <button
             type="button"
             onClick={() => void completeAndGoDashboard()}
+            disabled={actionLoading}
             style={{
               borderRadius: 30,
               border: 'none',
@@ -322,7 +369,8 @@ export default function WowPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              cursor: 'pointer',
+              cursor: actionLoading ? 'not-allowed' : 'pointer',
+              opacity: actionLoading ? 0.7 : 1,
             }}
           >
             Go to my dashboard
