@@ -369,31 +369,31 @@ async function runBrowserFlowStream({
 
 const MD_COMPONENTS: import('react-markdown').Components = {
   p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed">{children}</p>,
-  h1: ({ children }) => <p className="text-sm font-semibold text-[#f0f0f0] mt-3 mb-1 first:mt-0">{children}</p>,
-  h2: ({ children }) => <p className="text-sm font-semibold text-[#f0f0f0] mt-3 mb-1 first:mt-0">{children}</p>,
-  h3: ({ children }) => <p className="text-xs font-semibold text-[#d0d0d0] mt-2 mb-0.5 first:mt-0">{children}</p>,
-  strong: ({ children }) => <strong className="font-semibold text-[#f0f0f0]">{children}</strong>,
-  em: ({ children }) => <em className="italic text-[#a0a0a0]">{children}</em>,
+  h1: ({ children }) => <p className="text-sm font-semibold text-[#1f2328] mt-3 mb-1 first:mt-0">{children}</p>,
+  h2: ({ children }) => <p className="text-sm font-semibold text-[#1f2328] mt-3 mb-1 first:mt-0">{children}</p>,
+  h3: ({ children }) => <p className="text-xs font-semibold text-[#3d4349] mt-2 mb-0.5 first:mt-0">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-[#1f2328]">{children}</strong>,
+  em: ({ children }) => <em className="italic text-[#535963]">{children}</em>,
   ul: ({ children }) => <ul className="my-1.5 space-y-0.5 pl-4">{children}</ul>,
   ol: ({ children }) => <ol className="my-1.5 space-y-0.5 pl-4 list-decimal">{children}</ol>,
-  li: ({ children }) => <li className="text-sm leading-relaxed list-disc marker:text-[#555]">{children}</li>,
+  li: ({ children }) => <li className="text-sm leading-relaxed list-disc marker:text-[#8c95a0]">{children}</li>,
   code: ({ children, className }) =>
     className
-      ? <code className="block my-1.5 rounded-md bg-[#111] border border-[#2a2a2a] px-3 py-2 text-xs font-mono text-[#e0e0e0] overflow-x-auto whitespace-pre">{children}</code>
-      : <code className="rounded px-1 py-0.5 bg-[#1a1a1a] text-xs font-mono text-[#c0c0c0]">{children}</code>,
+      ? <code className="block my-1.5 rounded-md bg-[#f4f4f5] border border-[#d4d7dc] px-3 py-2 text-xs font-mono text-[#2d3239] overflow-x-auto whitespace-pre">{children}</code>
+      : <code className="rounded px-1 py-0.5 bg-[#f0f1f3] text-xs font-mono text-[#535963]">{children}</code>,
   pre: ({ children }) => <>{children}</>,
-  blockquote: ({ children }) => <blockquote className="border-l-2 border-[#4f8ef7]/40 pl-3 my-1.5 text-[#888] italic">{children}</blockquote>,
+  blockquote: ({ children }) => <blockquote className="border-l-2 border-[#367eed]/40 pl-3 my-1.5 text-[#535963] italic">{children}</blockquote>,
   table: ({ children }) => (
-    <div className="my-2 overflow-x-auto rounded-lg border border-[#2a2a2a]">
+    <div className="my-2 overflow-x-auto rounded-lg border border-[#d4d7dc]">
       <table className="w-full text-xs border-collapse">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="bg-[#1a1a1a]">{children}</thead>,
-  tbody: ({ children }) => <tbody className="divide-y divide-[#1a1a1a]">{children}</tbody>,
+  thead: ({ children }) => <thead className="bg-[#f0f1f3]">{children}</thead>,
+  tbody: ({ children }) => <tbody className="divide-y divide-[#f0f1f3]">{children}</tbody>,
   tr: ({ children }) => <tr>{children}</tr>,
-  th: ({ children }) => <th className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-[#888]">{children}</th>,
-  td: ({ children }) => <td className="px-3 py-2 text-[#a0a0a0] align-top">{children}</td>,
-  hr: () => <hr className="my-2 border-[#2a2a2a]" />,
+  th: ({ children }) => <th className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-[#535963]">{children}</th>,
+  td: ({ children }) => <td className="px-3 py-2 text-[#535963] align-top">{children}</td>,
+  hr: () => <hr className="my-2 border-[#d4d7dc]" />,
 }
 
 function MarkdownMessage({ content }: { content: string }) {
@@ -422,15 +422,15 @@ function StepBar({ current, onGoBack }: { current: number; onGoBack?: (n: number
                   done
                     ? 'bg-[#22c55e] text-white cursor-pointer hover:opacity-80'
                     : active
-                    ? 'bg-[#4f8ef7] text-white'
-                    : 'bg-[#1f1f1f] text-[#444] border border-[#2a2a2a]'
+                    ? 'bg-[#367eed] text-white'
+                    : 'bg-[#e8e8e8] text-[#a0a8b0] border border-[#d4d7dc]'
                 }`}
               >
                 {done ? <Check className="w-3.5 h-3.5" /> : n}
               </div>
               <span
                 className={`text-[10px] font-medium whitespace-nowrap hidden sm:block ${
-                  active ? 'text-[#4f8ef7]' : done ? 'text-[#22c55e]' : 'text-[#444]'
+                  active ? 'text-[#367eed]' : done ? 'text-[#22c55e]' : 'text-[#a0a8b0]'
                 }`}
               >
                 {label}
@@ -439,7 +439,7 @@ function StepBar({ current, onGoBack }: { current: number; onGoBack?: (n: number
             {i < STEP_LABELS.length - 1 && (
               <div
                 className={`h-px w-8 sm:w-12 mx-1 mt-3.5 transition-colors ${
-                  done ? 'bg-[#22c55e]' : 'bg-[#2a2a2a]'
+                  done ? 'bg-[#22c55e]' : 'bg-[#d4d7dc]'
                 }`}
               />
             )}
@@ -453,8 +453,8 @@ function StepBar({ current, onGoBack }: { current: number; onGoBack?: (n: number
 // ─── Input primitives ─────────────────────────────────────────────────────────
 
 const inputCls =
-  'w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-[14px] py-3 text-[14px] text-[#f0f0f0] placeholder:text-zinc-500 focus:outline-none focus:border-[#4f8ef7] transition-[border-color] duration-150 disabled:opacity-50'
-const labelCls = 'block text-[11px] text-[#888] uppercase tracking-[0.08em] mb-1.5'
+  'w-full bg-white border border-[#d4d7dc] rounded-lg px-[14px] py-3 text-[14px] text-[#1f2328] placeholder:text-[#a0a8b0] focus:outline-none focus:border-[#367eed] transition-[border-color] duration-150 disabled:opacity-50'
+const labelCls = 'block text-[11px] text-[#535963] uppercase tracking-[0.08em] mb-1.5'
 
 function ContinueBtn({ label = 'Continue →', disabled, loading }: { label?: string; disabled?: boolean; loading?: boolean }) {
   return (
@@ -463,8 +463,8 @@ function ContinueBtn({ label = 'Continue →', disabled, loading }: { label?: st
       disabled={disabled || loading}
       className={`w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150 mt-8 disabled:opacity-40 disabled:cursor-not-allowed ${loading ? 'animate-pulse' : ''}`}
       style={{
-        background: !disabled && !loading ? '#4f8ef7' : '#1a1a2a',
-        color: !disabled && !loading ? '#fff' : '#888',
+        background: !disabled && !loading ? '#367eed' : '#e8eaed',
+        color: !disabled && !loading ? '#fff' : '#535963',
       }}
     >
       {loading ? 'Saving...' : label}
@@ -1427,14 +1427,14 @@ export default function ProductOnboardingFlow() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#f0f0f0]">
+    <div className="min-h-screen bg-[#f6f6f6] text-[#1f2328]">
       <div className={(step === 1 && step1Screen === 'report') || (step === 2 && step2Screen === 'report') ? 'max-w-[1200px] mx-auto px-6 py-10' : 'max-w-[600px] mx-auto px-6 py-10'}>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
           <Link
             href="/dashboard"
-            className="flex items-center gap-1.5 text-xs text-[#555] hover:text-[#888] transition-colors"
+            className="flex items-center gap-1.5 text-xs text-[#8c95a0] hover:text-[#535963] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to dashboard
@@ -1452,9 +1452,9 @@ export default function ProductOnboardingFlow() {
         {/* ── Step 1: Your Product (form → streaming → report) ───────────────── */}
         {step === 1 && step1Screen === 'form' && (
           <form onSubmit={handleStep1}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Tell NorthStar about your product</h1>
-            <p className="text-sm text-[#666] mb-8">
+            <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-2">Step 1 of 6</p>
+            <h1 className="text-2xl font-semibold text-[#1f2328] mb-1">Tell NorthStar about your product</h1>
+            <p className="text-sm text-[#7a8290] mb-8">
               Share your product URL and optional strategy doc. NorthStar will analyze and produce a strategy report.
             </p>
 
@@ -1483,7 +1483,7 @@ export default function ProductOnboardingFlow() {
             </div>
 
             <div className="mb-5">
-              <label htmlFor="product-description" className={labelCls}>Product description <span className="text-[#444] normal-case">(optional)</span></label>
+              <label htmlFor="product-description" className={labelCls}>Product description <span className="text-[#a0a8b0] normal-case">(optional)</span></label>
               <textarea
                 id="product-description"
                 value={productDescription}
@@ -1496,7 +1496,7 @@ export default function ProductOnboardingFlow() {
 
             <div className="mb-6">
               <label className={labelCls}>Upload strategy doc (optional)</label>
-              <p className="text-[11px] text-[#555] mb-2">PRD, positioning doc, ICP notes — the agent will use this as additional context</p>
+              <p className="text-[11px] text-[#8c95a0] mb-2">PRD, positioning doc, ICP notes — the agent will use this as additional context</p>
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -1504,23 +1504,23 @@ export default function ProductOnboardingFlow() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && !docFile && fileInputRef.current?.click()}
-                className="rounded-lg border border-dashed border-[#2a2a2a] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#3a3a3a] transition-colors"
-                style={{ background: '#0d0d0d' }}
+                className="rounded-lg border border-dashed border-[#d4d7dc] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#c4c8d0] transition-colors"
+                style={{ background: '#ffffff' }}
               >
                 {docFile ? (
-                  <div className="flex items-center justify-between w-full gap-2 text-sm text-[#f0f0f0]">
+                  <div className="flex items-center justify-between w-full gap-2 text-sm text-[#1f2328]">
                     <span className="truncate">{docFile.name}</span>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setDocFile(null) }} className="shrink-0 text-[#666] hover:text-[#f0f0f0] px-1.5 py-0.5 rounded border border-[#2a2a2a]">× Remove</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setDocFile(null) }} className="shrink-0 text-[#7a8290] hover:text-[#1f2328] px-1.5 py-0.5 rounded border border-[#d4d7dc]">× Remove</button>
                   </div>
                 ) : (
                   <>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#444]">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#a0a8b0]">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
-                    <p className="text-sm text-[#666]">Drop .pdf, .txt, .md, or .docx</p>
-                    <p className="text-xs text-[#444]">or click to browse</p>
+                    <p className="text-sm text-[#7a8290]">Drop .pdf, .txt, .md, or .docx</p>
+                    <p className="text-xs text-[#a0a8b0]">or click to browse</p>
                   </>
                 )}
               </div>
@@ -1531,11 +1531,11 @@ export default function ProductOnboardingFlow() {
             {/* Demo credentials — hidden for Google OAuth users */}
             {!isGoogleAuth && <div className="mb-6">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1 h-px bg-[#1f1f1f]" />
-                <span className="text-[11px] text-[#555] uppercase tracking-widest font-medium shrink-0">Demo account (optional but recommended)</span>
-                <div className="flex-1 h-px bg-[#1f1f1f]" />
+                <div className="flex-1 h-px bg-[#e8e8e8]" />
+                <span className="text-[11px] text-[#8c95a0] uppercase tracking-widest font-medium shrink-0">Demo account (optional but recommended)</span>
+                <div className="flex-1 h-px bg-[#e8e8e8]" />
               </div>
-              <p className="text-[11px] text-[#444] mb-3">We&apos;ll use this to map how users navigate your product.</p>
+              <p className="text-[11px] text-[#a0a8b0] mb-3">We&apos;ll use this to map how users navigate your product.</p>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className={labelCls}>Demo email</label>
@@ -1560,21 +1560,21 @@ export default function ProductOnboardingFlow() {
                     <button
                       type="button"
                       onClick={() => setShowDemoPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a0a8b0] hover:text-[#535963] transition-colors"
                     >
                       {showDemoPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
               </div>
-              <p className="text-[10px] text-[#333] mt-2">Used once to map your product. Never stored in plain text.</p>
+              <p className="text-[10px] text-[#b0b8c0] mt-2">Used once to map your product. Never stored in plain text.</p>
             </div>}
 
             <button
               type="submit"
               disabled={!can1}
               className="w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150 mt-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: can1 ? '#4f8ef7' : '#1a1a2a', color: can1 ? '#fff' : '#888' }}
+              style={{ background: can1 ? '#367eed' : '#e8eaed', color: can1 ? '#fff' : '#535963' }}
             >
               Start analysis →
             </button>
@@ -1583,38 +1583,38 @@ export default function ProductOnboardingFlow() {
 
         {step === 1 && step1Screen === 'streaming' && (
           <div className="py-8">
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-6">Step 1 of 6</p>
+            <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-6">Step 1 of 6</p>
 
             {/* Top row: pulsing dot + one-line current status */}
             <div className="flex items-center gap-3 mb-2">
               {step1Running ? (
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '300ms' }} />
                 </div>
               ) : (
                 <div className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
               )}
-              <p className="text-sm text-[#a0a0a0] min-h-[1.25rem] truncate flex-1">
+              <p className="text-sm text-[#535963] min-h-[1.25rem] truncate flex-1">
                 {step1CurrentStatus || 'Researching your product…'}
               </p>
             </div>
-            <p className="text-xs text-[#555] mb-4">{step1Elapsed}s</p>
+            <p className="text-xs text-[#8c95a0] mb-4">{step1Elapsed}s</p>
 
             {/* Collapsible Details: full log history */}
             {step1Logs.length > 0 && (
-              <div className="mb-4 rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
+              <div className="mb-4 rounded-lg border border-[#d4d7dc] bg-[#ffffff] overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setStep1DetailsOpen((o) => !o)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-[#666] hover:text-[#a0a0a0] hover:bg-[#1a1a1a] transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-[#7a8290] hover:text-[#535963] hover:bg-[#f0f1f3] transition-colors"
                 >
                   <span>Details</span>
-                  <span className="text-[#444]">{step1DetailsOpen ? '▼' : '▶'}</span>
+                  <span className="text-[#a0a8b0]">{step1DetailsOpen ? '▼' : '▶'}</span>
                 </button>
                 {step1DetailsOpen && (
-                  <div className="max-h-48 overflow-y-auto border-t border-[#2a2a2a] p-3 font-mono text-[12px] text-[#666] leading-relaxed space-y-0.5">
+                  <div className="max-h-48 overflow-y-auto border-t border-[#d4d7dc] p-3 font-mono text-[12px] text-[#7a8290] leading-relaxed space-y-0.5">
                     {step1Logs.map((line, i) => (
                       <div key={i}>{line}</div>
                     ))}
@@ -1626,7 +1626,7 @@ export default function ProductOnboardingFlow() {
             <button
               type="button"
               onClick={cancelStep1Stream}
-              className="py-2.5 px-5 text-sm text-[#666] hover:text-[#f0f0f0] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors"
+              className="py-2.5 px-5 text-sm text-[#7a8290] hover:text-[#1f2328] border border-[#d4d7dc] rounded-lg hover:border-[#c4c8d0] transition-colors"
             >
               Cancel
             </button>
@@ -1638,8 +1638,8 @@ export default function ProductOnboardingFlow() {
             {/* Header row */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-1">Step 1 of 6</p>
-                <h2 className="text-xl font-semibold text-[#f0f0f0]">Strategy Report</h2>
+                <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-1">Step 1 of 6</p>
+                <h2 className="text-xl font-semibold text-[#1f2328]">Strategy Report</h2>
               </div>
               <div className="flex gap-3">
                 <button
@@ -1693,7 +1693,7 @@ export default function ProductOnboardingFlow() {
                     a.click()
                     URL.revokeObjectURL(a.href)
                   }}
-                  className="py-2 px-4 rounded-lg text-sm border border-[#2a2a2a] text-[#a0a0a0] hover:text-[#f0f0f0] hover:border-[#3a3a3a] transition-colors"
+                  className="py-2 px-4 rounded-lg text-sm border border-[#d4d7dc] text-[#535963] hover:text-[#1f2328] hover:border-[#c4c8d0] transition-colors"
                 >
                   Download
                 </button>
@@ -1701,7 +1701,7 @@ export default function ProductOnboardingFlow() {
                   type="button"
                   onClick={handleStep1ContinueToOnboarding}
                   className="py-2 px-5 rounded-lg text-sm font-semibold"
-                  style={{ background: '#4f8ef7', color: '#fff' }}
+                  style={{ background: '#367eed', color: '#fff' }}
                 >
                   Continue to onboarding →
                 </button>
@@ -1714,34 +1714,34 @@ export default function ProductOnboardingFlow() {
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
 
                 {/* Card 1 — Product */}
-                <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
                   <div className="flex items-start justify-between mb-3">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Product</p>
+                    <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium">Product</p>
                     {step1Result.stage && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#666] capitalize">{step1Result.stage}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#d4d7dc] text-[#7a8290] capitalize">{step1Result.stage}</span>
                     )}
                   </div>
-                  <p className="text-base font-semibold text-[#f0f0f0] mb-0.5">{step1Result.input_product?.name}</p>
+                  <p className="text-base font-semibold text-[#1f2328] mb-0.5">{step1Result.input_product?.name}</p>
                   {step1Result.input_product?.category && (
-                    <p className="text-xs text-[#555] mb-3">{step1Result.input_product.category}</p>
+                    <p className="text-xs text-[#8c95a0] mb-3">{step1Result.input_product.category}</p>
                   )}
                   {step1Result.input_product?.core_value_prop && (
-                    <p className="text-sm text-[#a0a0a0]">{step1Result.input_product.core_value_prop}</p>
+                    <p className="text-sm text-[#535963]">{step1Result.input_product.core_value_prop}</p>
                   )}
                 </div>
 
                 {/* Card 2 — ICP */}
                 {step1Result.input_product?.target_customer && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
                     <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">ICP</p>
+                      <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium">ICP</p>
                       {step1Result.icp_inferred_from_competitors && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1a1a1a] text-[#555]">Inferred</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f0f1f3] text-[#8c95a0]">Inferred</span>
                       )}
                     </div>
-                    <p className="text-sm text-[#e0e0e0]">{step1Result.input_product.target_customer}</p>
+                    <p className="text-sm text-[#2d3239]">{step1Result.input_product.target_customer}</p>
                     {step1Result.icp_inference_reasoning && (
-                      <p className="text-xs text-[#555] italic mt-2">{step1Result.icp_inference_reasoning}</p>
+                      <p className="text-xs text-[#8c95a0] italic mt-2">{step1Result.icp_inference_reasoning}</p>
                     )}
                   </div>
                 )}
@@ -1750,16 +1750,16 @@ export default function ProductOnboardingFlow() {
                 {(step1Result.ranked_opportunities?.length ?? 0) > 0 && (() => {
                   const opp = step1Result.ranked_opportunities![0]
                   return (
-                    <div className="rounded-xl border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-5">
+                    <div className="rounded-xl border border-[#367eed]/30 bg-[#367eed]/5 p-5">
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium">Top opportunity</p>
+                        <p className="text-[10px] text-[#367eed] uppercase tracking-widest font-medium">Top opportunity</p>
                         {opp.composite_score != null && (
-                          <span className="text-sm font-semibold text-[#4f8ef7] font-mono">{opp.composite_score}<span className="text-[10px] text-[#4f8ef7]/40">/10</span></span>
+                          <span className="text-sm font-semibold text-[#367eed] font-mono">{opp.composite_score}<span className="text-[10px] text-[#367eed]/40">/10</span></span>
                         )}
                       </div>
-                      <p className="text-sm font-medium text-[#f0f0f0] mb-2">{opp.opportunity}</p>
+                      <p className="text-sm font-medium text-[#1f2328] mb-2">{opp.opportunity}</p>
                       {opp.recommended_action && (
-                        <p className="text-xs text-[#555] italic">{opp.recommended_action}</p>
+                        <p className="text-xs text-[#8c95a0] italic">{opp.recommended_action}</p>
                       )}
                     </div>
                   )
@@ -1767,36 +1767,36 @@ export default function ProductOnboardingFlow() {
 
                 {/* Browser flow section */}
                 {(demoEmail && demoPassword) ? (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
                     <div className="flex items-center gap-2 mb-2">
                       {browserFlowRunning ? (
-                        <Loader2 className="w-3.5 h-3.5 text-[#4f8ef7] animate-spin shrink-0" />
+                        <Loader2 className="w-3.5 h-3.5 text-[#367eed] animate-spin shrink-0" />
                       ) : browserFlowResult ? (
                         <div className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
                       ) : browserFlowError ? (
                         <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                       ) : null}
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Mapping your product flows</p>
+                      <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium">Mapping your product flows</p>
                     </div>
 
                     {/* Current status line */}
                     {(browserFlowRunning || browserFlowCurrentStatus) && !browserFlowError && (
-                      <p className="text-sm text-[#a0a0a0] mb-3 min-h-[1.25rem] truncate">
+                      <p className="text-sm text-[#535963] mb-3 min-h-[1.25rem] truncate">
                         {browserFlowCurrentStatus || 'Connecting to browser agent…'}
                       </p>
                     )}
 
                     {/* Log stream — always show while running or if logs exist */}
                     {(browserFlowRunning || browserLogs.length > 0) && (
-                      <div className="max-h-56 overflow-y-auto rounded-lg border border-[#1a1a1a] bg-[#070707] p-3 font-mono text-[11px] leading-relaxed space-y-0.5 mb-3">
+                      <div className="max-h-56 overflow-y-auto rounded-lg border border-[#f0f1f3] bg-[#f8f8f8] p-3 font-mono text-[11px] leading-relaxed space-y-0.5 mb-3">
                         {browserLogs.length === 0 && browserFlowRunning && (
-                          <div className="text-[#444]">Connecting to browser agent…</div>
+                          <div className="text-[#a0a8b0]">Connecting to browser agent…</div>
                         )}
                         {browserLogs.map((line, i) => {
                           const isSection = line.startsWith('[Browser')
                           const isSuccess = line.includes('✓') || line.includes('→')
                           const isFailure = line.includes('✗')
-                          const color = isSection ? 'text-[#a0a0a0]' : isFailure ? 'text-red-500/70' : isSuccess ? 'text-[#666]' : 'text-[#444]'
+                          const color = isSection ? 'text-[#535963]' : isFailure ? 'text-red-500/70' : isSuccess ? 'text-[#7a8290]' : 'text-[#a0a8b0]'
                           return <div key={i} className={color}>{line}</div>
                         })}
                         <div ref={browserLogsEndRef} />
@@ -1813,7 +1813,7 @@ export default function ProductOnboardingFlow() {
                             value={demoEmail}
                             onChange={(e) => setDemoEmail(e.target.value)}
                             placeholder="demo@yourproduct.com"
-                            className="flex-1 bg-[#0d0d0d] border border-red-900/40 rounded-lg px-3 py-2 text-[13px] text-[#f0f0f0] placeholder:text-zinc-600 focus:outline-none focus:border-red-500 transition-[border-color]"
+                            className="flex-1 bg-[#ffffff] border border-red-900/40 rounded-lg px-3 py-2 text-[13px] text-[#1f2328] placeholder:text-[#a0a8b0] focus:outline-none focus:border-red-500 transition-[border-color]"
                           />
                           <div className="relative flex-1">
                             <input
@@ -1821,12 +1821,12 @@ export default function ProductOnboardingFlow() {
                               value={demoPassword}
                               onChange={(e) => setDemoPassword(e.target.value)}
                               placeholder="••••••••"
-                              className="w-full bg-[#0d0d0d] border border-red-900/40 rounded-lg px-3 py-2 pr-9 text-[13px] text-[#f0f0f0] placeholder:text-zinc-600 focus:outline-none focus:border-red-500 transition-[border-color]"
+                              className="w-full bg-[#ffffff] border border-red-900/40 rounded-lg px-3 py-2 pr-9 text-[13px] text-[#1f2328] placeholder:text-[#a0a8b0] focus:outline-none focus:border-red-500 transition-[border-color]"
                             />
                             <button
                               type="button"
                               onClick={() => setShowDemoPassword((v) => !v)}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors"
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#a0a8b0] hover:text-[#535963] transition-colors"
                             >
                               {showDemoPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -1892,8 +1892,8 @@ export default function ProductOnboardingFlow() {
                         <div className="space-y-4">
                           {/* Header */}
                           <div>
-                            <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-1">Product flow map</p>
-                            <p className="text-xs text-[#444]">
+                            <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium mb-1">Product flow map</p>
+                            <p className="text-xs text-[#a0a8b0]">
                               {[
                                 pagesExplored != null && `${pagesExplored} pages`,
                                 totalCtas != null && `${totalCtas} CTAs`,
@@ -1912,11 +1912,11 @@ export default function ProductOnboardingFlow() {
                                 return (
                                   <div
                                     key={fromPath}
-                                    className={`rounded-lg bg-[#070707] p-3 ${isPrimary ? 'border border-[#4f8ef7]/40 border-l-[3px]' : 'border border-[#1a1a1a]'}`}
-                                    style={isPrimary ? { borderLeftColor: '#4f8ef7' } : undefined}
+                                    className={`rounded-lg bg-[#f8f8f8] p-3 ${isPrimary ? 'border border-[#367eed]/40 border-l-[3px]' : 'border border-[#f0f1f3]'}`}
+                                    style={isPrimary ? { borderLeftColor: '#367eed' } : undefined}
                                   >
                                     {isPrimary && (
-                                      <p className="text-[10px] text-[#4f8ef7] mb-2 font-medium">★ Recommended</p>
+                                      <p className="text-[10px] text-[#367eed] mb-2 font-medium">★ Recommended</p>
                                     )}
                                     <div className="space-y-2">
                                       {edges.map((edge, i) => {
@@ -1925,18 +1925,18 @@ export default function ProductOnboardingFlow() {
                                           ? 'bg-[#22c55e]/10 text-[#22c55e] border border-[#22c55e]/20'
                                           : ef === false
                                           ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                          : 'bg-[#1a1a1a] text-[#555] border border-[#2a2a2a]'
+                                          : 'bg-[#f0f1f3] text-[#8c95a0] border border-[#d4d7dc]'
                                         const label = edge.via_cta.length > 24 ? edge.via_cta.slice(0, 24) + '…' : edge.via_cta
                                         return (
                                           <div key={i} className="flex items-center gap-2 flex-wrap">
-                                            <div className="rounded px-2 py-0.5 bg-[#111] border border-[#2a2a2a]">
-                                              <span className="text-[11px] text-[#888] font-mono">{fromPath}</span>
+                                            <div className="rounded px-2 py-0.5 bg-[#f4f4f5] border border-[#d4d7dc]">
+                                              <span className="text-[11px] text-[#535963] font-mono">{fromPath}</span>
                                             </div>
-                                            <span className="text-[#333] text-xs">→</span>
+                                            <span className="text-[#b0b8c0] text-xs">→</span>
                                             <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${badgeClass}`}>{label}</span>
-                                            <span className="text-[#333] text-xs">→</span>
-                                            <div className="rounded px-2 py-0.5 bg-[#111] border border-[#2a2a2a]">
-                                              <span className="text-[11px] text-[#888] font-mono">{edge.to_path}</span>
+                                            <span className="text-[#b0b8c0] text-xs">→</span>
+                                            <div className="rounded px-2 py-0.5 bg-[#f4f4f5] border border-[#d4d7dc]">
+                                              <span className="text-[11px] text-[#535963] font-mono">{edge.to_path}</span>
                                             </div>
                                           </div>
                                         )
@@ -1950,23 +1950,23 @@ export default function ProductOnboardingFlow() {
 
                           {/* Activation CTA card */}
                           {primaryCtaText && (
-                            <div className="rounded-lg border border-[#4f8ef7]/30 bg-[#4f8ef7]/5 p-4">
-                              <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Activation CTA</p>
-                              <p className="text-base font-semibold text-[#f0f0f0] mb-1">{primaryCtaText}</p>
-                              {primaryPage && <p className="text-xs text-[#555] mb-3">{getPath(primaryPage)}</p>}
+                            <div className="rounded-lg border border-[#367eed]/30 bg-[#367eed]/5 p-4">
+                              <p className="text-[10px] text-[#367eed] uppercase tracking-widest font-medium mb-2">Activation CTA</p>
+                              <p className="text-base font-semibold text-[#1f2328] mb-1">{primaryCtaText}</p>
+                              {primaryPage && <p className="text-xs text-[#8c95a0] mb-3">{getPath(primaryPage)}</p>}
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                                 <p className="text-xs text-red-400">Not tracked — add this event:</p>
                               </div>
-                              <pre className="text-[11px] text-[#22c55e] bg-[#070707] rounded p-3 font-mono overflow-x-auto">{`posthog.capture('${suggestedEvent}')`}</pre>
+                              <pre className="text-[11px] text-[#22c55e] bg-[#f8f8f8] rounded p-3 font-mono overflow-x-auto">{`posthog.capture('${suggestedEvent}')`}</pre>
                             </div>
                           )}
 
                           {/* Fallback */}
                           {!hasData && (
                             <details>
-                              <summary className="text-[10px] text-[#444] cursor-pointer hover:text-[#888]">Raw agent output</summary>
-                              <pre className="mt-1 text-[10px] text-[#555] bg-[#070707] rounded p-2 overflow-auto max-h-32 whitespace-pre-wrap">{JSON.stringify(browserFlowResult, null, 2)}</pre>
+                              <summary className="text-[10px] text-[#a0a8b0] cursor-pointer hover:text-[#535963]">Raw agent output</summary>
+                              <pre className="mt-1 text-[10px] text-[#8c95a0] bg-[#f8f8f8] rounded p-2 overflow-auto max-h-32 whitespace-pre-wrap">{JSON.stringify(browserFlowResult, null, 2)}</pre>
                             </details>
                           )}
                         </div>
@@ -1974,12 +1974,12 @@ export default function ProductOnboardingFlow() {
                     })()}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-[#1a1a1a] bg-[#070707] px-5 py-4 flex items-center justify-between gap-3">
-                    <p className="text-xs text-[#444]">No demo account provided — add one to enable flow mapping</p>
+                  <div className="rounded-xl border border-[#f0f1f3] bg-[#f8f8f8] px-5 py-4 flex items-center justify-between gap-3">
+                    <p className="text-xs text-[#a0a8b0]">No demo account provided — add one to enable flow mapping</p>
                     <button
                       type="button"
                       onClick={() => { setStep1Screen('form') }}
-                      className="text-xs text-[#4f8ef7] hover:text-[#7fb3ff] transition-colors shrink-0"
+                      className="text-xs text-[#367eed] hover:text-[#5ba4ff] transition-colors shrink-0"
                     >Add credentials</button>
                   </div>
                 )}
@@ -1987,22 +1987,22 @@ export default function ProductOnboardingFlow() {
               </div>
 
               {/* Right: chat panel */}
-              <div className="w-[340px] shrink-0 flex flex-col border border-[#2a2a2a] rounded-xl bg-[#0d0d0d] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#2a2a2a] shrink-0">
-                  <p className="text-sm font-medium text-[#f0f0f0]">Ask about your strategy</p>
-                  <p className="text-xs text-[#444] mt-0.5">Competitors, positioning, opportunities…</p>
+              <div className="w-[340px] shrink-0 flex flex-col border border-[#d4d7dc] rounded-xl bg-[#ffffff] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#d4d7dc] shrink-0">
+                  <p className="text-sm font-medium text-[#1f2328]">Ask about your strategy</p>
+                  <p className="text-xs text-[#a0a8b0] mt-0.5">Competitors, positioning, opportunities…</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {chatMessages.length === 0 && (
-                    <p className="text-xs text-[#444]">Challenge assumptions, add context, or ask NorthStar to evolve any part of this strategy.</p>
+                    <p className="text-xs text-[#a0a8b0]">Challenge assumptions, add context, or ask NorthStar to evolve any part of this strategy.</p>
                   )}
                   {chatMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div
                         className={`max-w-[85%] rounded-lg px-3 py-2 ${
                           m.role === 'user'
-                            ? 'bg-[#4f8ef7] text-white text-sm'
-                            : 'bg-[#1a1a1a] text-[#c0c0c0]'
+                            ? 'bg-[#367eed] text-white text-sm'
+                            : 'bg-[#f0f1f3] text-[#535963]'
                         }`}
                       >
                         {m.role === 'assistant' ? <MarkdownMessage content={m.content} /> : m.content}
@@ -2011,18 +2011,18 @@ export default function ProductOnboardingFlow() {
                   ))}
                   {chatLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-[#1a1a1a] rounded-lg px-3 py-2">
+                      <div className="bg-[#f0f1f3] rounded-lg px-3 py-2">
                         <div className="flex gap-1 items-center">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '0ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '150ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '300ms' }} />
                         </div>
                       </div>
                     </div>
                   )}
                   <div ref={chatBottomRef} />
                 </div>
-                <div className="border-t border-[#2a2a2a] p-3 shrink-0">
+                <div className="border-t border-[#d4d7dc] p-3 shrink-0">
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -2030,13 +2030,13 @@ export default function ProductOnboardingFlow() {
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat() } }}
                       placeholder="Evolve the strategy, challenge assumptions…"
-                      className="flex-1 bg-[#1a1a1a] text-sm text-[#f0f0f0] placeholder-[#444] border border-[#2a2a2a] rounded-lg px-3 py-2 focus:outline-none focus:border-[#4f8ef7] transition-colors"
+                      className="flex-1 bg-[#f0f1f3] text-sm text-[#1f2328] placeholder-[#a0a8b0] border border-[#d4d7dc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#367eed] transition-colors"
                     />
                     <button
                       type="button"
                       onClick={handleChat}
                       disabled={!chatInput.trim() || chatLoading}
-                      className="px-3 py-2 bg-[#4f8ef7] text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-[#6b9ef7] transition-colors"
+                      className="px-3 py-2 bg-[#367eed] text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-[#4d94f5] transition-colors"
                     >
                       →
                     </button>
@@ -2062,9 +2062,9 @@ export default function ProductOnboardingFlow() {
         {/* ── Step 2: Goal & Metrics (form → streaming → report) ──────────── */}
         {step === 2 && step2Screen === 'form' && (
           <form onSubmit={handleStep2}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 2 of 6</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Set your goal &amp; metrics</h1>
-            <p className="text-sm text-[#666] mb-8">
+            <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-2">Step 2 of 6</p>
+            <h1 className="text-2xl font-semibold text-[#1f2328] mb-1">Set your goal &amp; metrics</h1>
+            <p className="text-sm text-[#7a8290] mb-8">
               NorthStar will generate a goal, north star metric, and full KPI hierarchy from your strategy. Optionally hint at your north star metric below.
             </p>
 
@@ -2076,7 +2076,7 @@ export default function ProductOnboardingFlow() {
             )}
 
             <div className="mb-5">
-              <label className={labelCls}>North star metric hint <span className="text-[#444] normal-case">(optional)</span></label>
+              <label className={labelCls}>North star metric hint <span className="text-[#a0a8b0] normal-case">(optional)</span></label>
               <input
                 type="text"
                 value={nsMetric}
@@ -2093,8 +2093,8 @@ export default function ProductOnboardingFlow() {
                     onClick={() => setNsMetric(s)}
                     className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                       nsMetric === s
-                        ? 'border-[#4f8ef7] bg-[#4f8ef7]/10 text-[#4f8ef7]'
-                        : 'border-[#2a2a2a] text-[#555] hover:text-[#888] hover:border-[#3a3a3a]'
+                        ? 'border-[#367eed] bg-[#367eed]/10 text-[#367eed]'
+                        : 'border-[#d4d7dc] text-[#8c95a0] hover:text-[#535963] hover:border-[#c4c8d0]'
                     }`}
                   >
                     {s}
@@ -2105,12 +2105,12 @@ export default function ProductOnboardingFlow() {
 
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div>
-                <label className={labelCls}>Current value <span className="text-[#444] normal-case">(optional)</span></label>
+                <label className={labelCls}>Current value <span className="text-[#a0a8b0] normal-case">(optional)</span></label>
                 <input type="text" value={nsCurrent} onChange={(e) => setNsCurrent(e.target.value)}
                   placeholder='e.g. "$450K" or "23%"' className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>90-day target <span className="text-[#444] normal-case">(optional)</span></label>
+                <label className={labelCls}>90-day target <span className="text-[#a0a8b0] normal-case">(optional)</span></label>
                 <input type="text" value={nsTarget} onChange={(e) => setNsTarget(e.target.value)}
                   placeholder='e.g. "$700K" or "35%"' className={inputCls} />
               </div>
@@ -2119,7 +2119,7 @@ export default function ProductOnboardingFlow() {
             <button
               type="submit"
               className="w-full h-11 rounded-lg text-sm font-medium transition-colors duration-150"
-              style={{ background: '#4f8ef7', color: '#fff' }}
+              style={{ background: '#367eed', color: '#fff' }}
             >
               Generate goal &amp; metrics →
             </button>
@@ -2129,36 +2129,36 @@ export default function ProductOnboardingFlow() {
 
         {step === 2 && step2Screen === 'streaming' && (
           <div className="py-8">
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-6">Step 2 of 6</p>
+            <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-6">Step 2 of 6</p>
 
             <div className="flex items-center gap-3 mb-2">
               {step2Running ? (
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '300ms' }} />
                 </div>
               ) : (
                 <div className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
               )}
-              <p className="text-sm text-[#a0a0a0] min-h-[1.25rem] truncate flex-1">
+              <p className="text-sm text-[#535963] min-h-[1.25rem] truncate flex-1">
                 {step2CurrentStatus || 'Generating your goal & metrics…'}
               </p>
             </div>
-            <p className="text-xs text-[#555] mb-4">{step2Elapsed}s</p>
+            <p className="text-xs text-[#8c95a0] mb-4">{step2Elapsed}s</p>
 
             {step2Logs.length > 0 && (
-              <div className="mb-4 rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
+              <div className="mb-4 rounded-lg border border-[#d4d7dc] bg-[#ffffff] overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setStep2DetailsOpen((o) => !o)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-[#666] hover:text-[#a0a0a0] hover:bg-[#1a1a1a] transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-[#7a8290] hover:text-[#535963] hover:bg-[#f0f1f3] transition-colors"
                 >
                   <span>Details</span>
-                  <span className="text-[#444]">{step2DetailsOpen ? '▼' : '▶'}</span>
+                  <span className="text-[#a0a8b0]">{step2DetailsOpen ? '▼' : '▶'}</span>
                 </button>
                 {step2DetailsOpen && (
-                  <div className="max-h-48 overflow-y-auto border-t border-[#2a2a2a] p-3 font-mono text-[12px] text-[#666] leading-relaxed space-y-0.5">
+                  <div className="max-h-48 overflow-y-auto border-t border-[#d4d7dc] p-3 font-mono text-[12px] text-[#7a8290] leading-relaxed space-y-0.5">
                     {step2Logs.map((line, i) => (
                       <div key={i}>{line}</div>
                     ))}
@@ -2170,7 +2170,7 @@ export default function ProductOnboardingFlow() {
             <button
               type="button"
               onClick={cancelStep2Stream}
-              className="py-2.5 px-5 text-sm text-[#666] hover:text-[#f0f0f0] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors"
+              className="py-2.5 px-5 text-sm text-[#7a8290] hover:text-[#1f2328] border border-[#d4d7dc] rounded-lg hover:border-[#c4c8d0] transition-colors"
             >
               Cancel
             </button>
@@ -2182,14 +2182,14 @@ export default function ProductOnboardingFlow() {
             {/* Header row */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-1">Step 2 of 6</p>
-                <h2 className="text-xl font-semibold text-[#f0f0f0]">Goal &amp; Metrics</h2>
+                <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-1">Step 2 of 6</p>
+                <h2 className="text-xl font-semibold text-[#1f2328]">Goal &amp; Metrics</h2>
               </div>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => { setStep2Screen('form'); setStep2Result(null); setStep2ChatMessages([]) }}
-                  className="py-2 px-4 rounded-lg text-sm border border-[#2a2a2a] text-[#666] hover:text-[#f0f0f0] hover:border-[#3a3a3a] transition-colors"
+                  className="py-2 px-4 rounded-lg text-sm border border-[#d4d7dc] text-[#7a8290] hover:text-[#1f2328] hover:border-[#c4c8d0] transition-colors"
                 >
                   Re-run
                 </button>
@@ -2198,7 +2198,7 @@ export default function ProductOnboardingFlow() {
                   onClick={handleStep2Confirm}
                   disabled={saving}
                   className="py-2 px-5 rounded-lg text-sm font-semibold disabled:opacity-50"
-                  style={{ background: '#4f8ef7', color: '#fff' }}
+                  style={{ background: '#367eed', color: '#fff' }}
                 >
                   {saving ? 'Saving…' : 'Confirm & continue →'}
                 </button>
@@ -2212,28 +2212,28 @@ export default function ProductOnboardingFlow() {
 
                 {/* 1. Goal */}
                 {step2Result.goal && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
                     <div className="flex items-start justify-between mb-3">
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Goal</p>
+                      <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium">Goal</p>
                       {step2Result.goal.timeframe && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#4f8ef7]">{step2Result.goal.timeframe}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#d4d7dc] text-[#367eed]">{step2Result.goal.timeframe}</span>
                       )}
                     </div>
                     {step2Result.goal.objective && (
-                      <p className="text-base font-semibold text-[#f0f0f0] mb-2 leading-snug">{step2Result.goal.objective}</p>
+                      <p className="text-base font-semibold text-[#1f2328] mb-2 leading-snug">{step2Result.goal.objective}</p>
                     )}
                     {step2Result.goal.connection_to_strategy && (
-                      <p className="text-xs text-[#666] mb-2">{step2Result.goal.connection_to_strategy}</p>
+                      <p className="text-xs text-[#7a8290] mb-2">{step2Result.goal.connection_to_strategy}</p>
                     )}
                     {step2Result.goal.objective_reasoning && (
-                      <p className="text-xs text-[#444] italic">{step2Result.goal.objective_reasoning}</p>
+                      <p className="text-xs text-[#a0a8b0] italic">{step2Result.goal.objective_reasoning}</p>
                     )}
                     {step2Result.framework_applied && (
-                      <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1">Framework</p>
-                        <p className="text-xs text-[#666]">{step2Result.framework_applied}</p>
+                      <div className="mt-3 pt-3 border-t border-[#f0f1f3]">
+                        <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest mb-1">Framework</p>
+                        <p className="text-xs text-[#7a8290]">{step2Result.framework_applied}</p>
                         {step2Result.framework_reasoning && (
-                          <p className="text-xs text-[#3a3a3a] mt-0.5 italic">{step2Result.framework_reasoning}</p>
+                          <p className="text-xs text-[#c4c8d0] mt-0.5 italic">{step2Result.framework_reasoning}</p>
                         )}
                       </div>
                     )}
@@ -2242,37 +2242,37 @@ export default function ProductOnboardingFlow() {
 
                 {/* 2. North Star Metric */}
                 {step2Result.north_star_metric && (
-                  <div className="rounded-xl border border-[#4f8ef7]/20 bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#4f8ef7] uppercase tracking-widest font-medium mb-3">North Star Metric</p>
+                  <div className="rounded-xl border border-[#367eed]/20 bg-[#ffffff] p-5">
+                    <p className="text-[10px] text-[#367eed] uppercase tracking-widest font-medium mb-3">North Star Metric</p>
                     {step2Result.north_star_metric.metric && (
-                      <p className="text-base font-semibold text-[#f0f0f0] mb-3">{step2Result.north_star_metric.metric}</p>
+                      <p className="text-base font-semibold text-[#1f2328] mb-3">{step2Result.north_star_metric.metric}</p>
                     )}
                     {(step2Result.north_star_metric.current_value || step2Result.north_star_metric.target_value) && (
-                      <div className="flex items-center gap-3 mb-3 p-3 rounded-lg bg-[#111] border border-[#1a1a1a]">
+                      <div className="flex items-center gap-3 mb-3 p-3 rounded-lg bg-[#f4f4f5] border border-[#f0f1f3]">
                         <div className="text-center">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest mb-0.5">Now</p>
-                          <p className="text-sm font-semibold text-[#a0a0a0]">{step2Result.north_star_metric.current_value || '—'}</p>
+                          <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest mb-0.5">Now</p>
+                          <p className="text-sm font-semibold text-[#535963]">{step2Result.north_star_metric.current_value || '—'}</p>
                         </div>
-                        <div className="text-[#2a2a2a] text-lg">→</div>
+                        <div className="text-[#d4d7dc] text-lg">→</div>
                         <div className="text-center">
-                          <p className="text-[10px] text-[#444] uppercase tracking-widest mb-0.5">Target</p>
-                          <p className="text-sm font-semibold text-[#4f8ef7]">{step2Result.north_star_metric.target_value || '—'}</p>
+                          <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest mb-0.5">Target</p>
+                          <p className="text-sm font-semibold text-[#367eed]">{step2Result.north_star_metric.target_value || '—'}</p>
                         </div>
                       </div>
                     )}
                     {step2Result.north_star_metric.why_this_metric && (
-                      <p className="text-xs text-[#666] mb-2">{step2Result.north_star_metric.why_this_metric}</p>
+                      <p className="text-xs text-[#7a8290] mb-2">{step2Result.north_star_metric.why_this_metric}</p>
                     )}
                     {step2Result.north_star_metric.measurement_method && (
                       <div className="flex gap-2 mb-1">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Measure via</p>
-                        <p className="text-xs text-[#555]">{step2Result.north_star_metric.measurement_method}</p>
+                        <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest shrink-0 w-20 mt-0.5">Measure via</p>
+                        <p className="text-xs text-[#8c95a0]">{step2Result.north_star_metric.measurement_method}</p>
                       </div>
                     )}
                     {step2Result.north_star_metric.similar_company_example && (
                       <div className="flex gap-2">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Similar co.</p>
-                        <p className="text-xs text-[#555] italic">{step2Result.north_star_metric.similar_company_example}</p>
+                        <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest shrink-0 w-20 mt-0.5">Similar co.</p>
+                        <p className="text-xs text-[#8c95a0] italic">{step2Result.north_star_metric.similar_company_example}</p>
                       </div>
                     )}
                   </div>
@@ -2294,52 +2294,52 @@ export default function ProductOnboardingFlow() {
                     : krStrings.map((kr) => ({ kr }))
                   if (!items.length) return null
                   return (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Key Results</p>
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
+                    <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium mb-3">Key Results</p>
                     <div className="space-y-2">
                       {items.map((krObj, i) => {
                         const isExpanded = !!step2KrExpanded[i]
                         return (
-                          <div key={i} className="rounded-lg border border-[#1a1a1a] bg-[#111] overflow-hidden">
+                          <div key={i} className="rounded-lg border border-[#f0f1f3] bg-[#f4f4f5] overflow-hidden">
                             <button
                               type="button"
                               onClick={() => setStep2KrExpanded((prev) => ({ ...prev, [i]: !prev[i] }))}
-                              className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[#1a1a1a] transition-colors"
+                              className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[#f0f1f3] transition-colors"
                             >
-                              <span className="shrink-0 mt-0.5 text-[10px] font-semibold text-[#4f8ef7]/60 w-5">KR{i + 1}</span>
-                              <p className="text-xs text-[#a0a0a0] flex-1 leading-relaxed">{krObj.kr ?? ''}</p>
-                              <span className="text-[10px] text-[#444] shrink-0 mt-0.5">{isExpanded ? '▼' : '▶'}</span>
+                              <span className="shrink-0 mt-0.5 text-[10px] font-semibold text-[#367eed]/60 w-5">KR{i + 1}</span>
+                              <p className="text-xs text-[#535963] flex-1 leading-relaxed">{krObj.kr ?? ''}</p>
+                              <span className="text-[10px] text-[#a0a8b0] shrink-0 mt-0.5">{isExpanded ? '▼' : '▶'}</span>
                             </button>
                             {isExpanded && (
-                              <div className="px-4 pb-3 border-t border-[#1a1a1a] space-y-2 pt-2">
+                              <div className="px-4 pb-3 border-t border-[#f0f1f3] space-y-2 pt-2">
                                 {krObj.why_this_kr && (
                                   <div className="flex gap-2">
-                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Why</p>
-                                    <p className="text-xs text-[#555]">{krObj.why_this_kr}</p>
+                                    <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest shrink-0 w-20 mt-0.5">Why</p>
+                                    <p className="text-xs text-[#8c95a0]">{krObj.why_this_kr}</p>
                                   </div>
                                 )}
                                 {(krObj.current_baseline || krObj.target) && (
                                   <div className="flex gap-2">
-                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Baseline→Target</p>
-                                    <p className="text-xs text-[#555]">{krObj.current_baseline} → {krObj.target}</p>
+                                    <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest shrink-0 w-20 mt-0.5">Baseline→Target</p>
+                                    <p className="text-xs text-[#8c95a0]">{krObj.current_baseline} → {krObj.target}</p>
                                   </div>
                                 )}
                                 {krObj.measurement_method && (
                                   <div className="flex gap-2">
-                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Measure via</p>
-                                    <p className="text-xs text-[#555]">{krObj.measurement_method}</p>
+                                    <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest shrink-0 w-20 mt-0.5">Measure via</p>
+                                    <p className="text-xs text-[#8c95a0]">{krObj.measurement_method}</p>
                                   </div>
                                 )}
                                 {krObj.industry_benchmark && (
                                   <div className="flex gap-2">
-                                    <p className="text-[10px] text-[#444] uppercase tracking-widest shrink-0 w-20 mt-0.5">Benchmark</p>
-                                    <p className="text-xs text-[#444] italic">{krObj.industry_benchmark}</p>
+                                    <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest shrink-0 w-20 mt-0.5">Benchmark</p>
+                                    <p className="text-xs text-[#a0a8b0] italic">{krObj.industry_benchmark}</p>
                                   </div>
                                 )}
                                 {(krObj.metric_type || krObj.leading_or_lagging) && (
                                   <div className="flex gap-2">
-                                    {krObj.metric_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#555] capitalize">{krObj.metric_type}</span>}
-                                    {krObj.leading_or_lagging && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2a2a] text-[#555] capitalize">{krObj.leading_or_lagging}</span>}
+                                    {krObj.metric_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#d4d7dc] text-[#8c95a0] capitalize">{krObj.metric_type}</span>}
+                                    {krObj.leading_or_lagging && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#d4d7dc] text-[#8c95a0] capitalize">{krObj.leading_or_lagging}</span>}
                                   </div>
                                 )}
                               </div>
@@ -2354,14 +2354,14 @@ export default function ProductOnboardingFlow() {
 
                 {/* 4. Health Metrics */}
                 {(step2Result.health_metrics?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Health Metrics</p>
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
+                    <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium mb-3">Health Metrics</p>
                     <div className="space-y-2">
                       {step2Result.health_metrics!.map((h, i) => (
-                        <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
-                          {h.metric && <p className="text-xs font-medium text-[#a0a0a0] mb-1">{h.metric}</p>}
+                        <div key={i} className="rounded-lg bg-[#f4f4f5] border border-[#f0f1f3] p-3">
+                          {h.metric && <p className="text-xs font-medium text-[#535963] mb-1">{h.metric}</p>}
                           {h.threshold && <p className="text-[10px] text-[#22c55e]/70">{h.threshold}</p>}
-                          {h.why_it_matters && <p className="text-[10px] text-[#444] mt-0.5 italic">{h.why_it_matters}</p>}
+                          {h.why_it_matters && <p className="text-[10px] text-[#a0a8b0] mt-0.5 italic">{h.why_it_matters}</p>}
                         </div>
                       ))}
                     </div>
@@ -2370,14 +2370,14 @@ export default function ProductOnboardingFlow() {
 
                 {/* 5. Input Metrics */}
                 {(step2Result.input_metrics?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Input Metrics</p>
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
+                    <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium mb-3">Input Metrics</p>
                     <div className="space-y-2">
                       {step2Result.input_metrics!.map((m, i) => (
-                        <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
-                          {m.metric && <p className="text-xs font-medium text-[#a0a0a0] mb-1">{m.metric}</p>}
-                          {m.drives && <p className="text-[10px] text-[#4f8ef7]/70">Drives: {m.drives}</p>}
-                          {m.why_high_correlation && <p className="text-[10px] text-[#444] mt-0.5 italic">{m.why_high_correlation}</p>}
+                        <div key={i} className="rounded-lg bg-[#f4f4f5] border border-[#f0f1f3] p-3">
+                          {m.metric && <p className="text-xs font-medium text-[#535963] mb-1">{m.metric}</p>}
+                          {m.drives && <p className="text-[10px] text-[#367eed]/70">Drives: {m.drives}</p>}
+                          {m.why_high_correlation && <p className="text-[10px] text-[#a0a8b0] mt-0.5 italic">{m.why_high_correlation}</p>}
                         </div>
                       ))}
                     </div>
@@ -2386,15 +2386,15 @@ export default function ProductOnboardingFlow() {
 
                 {/* 6. Do Not Measure */}
                 {(step2Result.what_not_to_measure?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
-                    <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium mb-3">Do Not Measure</p>
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
+                    <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium mb-3">Do Not Measure</p>
                     <div className="space-y-1.5">
                       {step2Result.what_not_to_measure!.map((m, i) => (
                         <div key={i} className="flex gap-2">
                           <span className="text-red-500/40 shrink-0 mt-0.5 text-xs">✕</span>
                           <div>
-                            {m.metric && <p className="text-xs text-[#666] line-through decoration-red-900">{m.metric}</p>}
-                            {m.why_not && <p className="text-[10px] text-[#444] italic">{m.why_not}</p>}
+                            {m.metric && <p className="text-xs text-[#7a8290] line-through decoration-red-900">{m.metric}</p>}
+                            {m.why_not && <p className="text-[10px] text-[#a0a8b0] italic">{m.why_not}</p>}
                           </div>
                         </div>
                       ))}
@@ -2404,12 +2404,12 @@ export default function ProductOnboardingFlow() {
 
                 {/* 7. Stress Test */}
                 {step2Result.stress_test && (
-                  <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-5">
+                  <div className="rounded-xl border border-[#d4d7dc] bg-[#ffffff] p-5">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-[10px] text-[#555] uppercase tracking-widest font-medium">Stress Test</p>
+                      <p className="text-[10px] text-[#8c95a0] uppercase tracking-widest font-medium">Stress Test</p>
                       <div className="flex items-center gap-2">
                         {step2Result.stress_test.confidence_score != null && (
-                          <span className="text-[10px] text-[#666]">Confidence: {step2Result.stress_test.confidence_score}/10</span>
+                          <span className="text-[10px] text-[#7a8290]">Confidence: {step2Result.stress_test.confidence_score}/10</span>
                         )}
                         {step2Result.stress_test.overall_quality && (
                           <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${
@@ -2421,26 +2421,26 @@ export default function ProductOnboardingFlow() {
                       </div>
                     </div>
                     {step2Result.stress_test.confidence_reasoning && (
-                      <p className="text-xs text-[#444] italic mb-3">{step2Result.stress_test.confidence_reasoning}</p>
+                      <p className="text-xs text-[#a0a8b0] italic mb-3">{step2Result.stress_test.confidence_reasoning}</p>
                     )}
                     {(step2Result.stress_test.issues_found?.length ?? 0) > 0 && (
                       <div className="space-y-2">
                         {step2Result.stress_test.issues_found!.map((issue, i) => (
-                          <div key={i} className="rounded-lg bg-[#111] border border-[#1a1a1a] p-3">
-                            {issue.issue && <p className="text-xs text-[#a0a0a0] mb-1">{issue.issue}</p>}
-                            {issue.affected_kr && <p className="text-[10px] text-[#555]">KR: {issue.affected_kr}</p>}
+                          <div key={i} className="rounded-lg bg-[#f4f4f5] border border-[#f0f1f3] p-3">
+                            {issue.issue && <p className="text-xs text-[#535963] mb-1">{issue.issue}</p>}
+                            {issue.affected_kr && <p className="text-[10px] text-[#8c95a0]">KR: {issue.affected_kr}</p>}
                             {issue.fix && <p className="text-[10px] text-[#22c55e]/70 mt-0.5">Fix: {issue.fix}</p>}
                           </div>
                         ))}
                       </div>
                     )}
                     {(step2Result.stress_test.refined_key_results?.length ?? 0) > 0 && (
-                      <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
-                        <p className="text-[10px] text-[#444] uppercase tracking-widest mb-1.5">Refined KRs</p>
+                      <div className="mt-3 pt-3 border-t border-[#f0f1f3]">
+                        <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest mb-1.5">Refined KRs</p>
                         <ul className="space-y-1">
                           {step2Result.stress_test.refined_key_results!.map((kr, i) => {
                             const krText = typeof kr === 'string' ? kr : (kr as MetricsKRFull).kr ?? JSON.stringify(kr)
-                            return <li key={i} className="text-xs text-[#555] flex gap-2"><span className="text-[#22c55e]/40 shrink-0">→</span>{krText}</li>
+                            return <li key={i} className="text-xs text-[#8c95a0] flex gap-2"><span className="text-[#22c55e]/40 shrink-0">→</span>{krText}</li>
                           })}
                         </ul>
                       </div>
@@ -2451,19 +2451,19 @@ export default function ProductOnboardingFlow() {
               </div>
 
               {/* Right: chat panel */}
-              <div className="w-[360px] shrink-0 flex flex-col rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#1a1a1a]">
-                  <p className="text-xs font-medium text-[#a0a0a0]">Ask NorthStar</p>
-                  <p className="text-[10px] text-[#444] mt-0.5">Challenge or refine your goal &amp; KPIs</p>
+              <div className="w-[360px] shrink-0 flex flex-col rounded-xl border border-[#d4d7dc] bg-[#ffffff] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#f0f1f3]">
+                  <p className="text-xs font-medium text-[#535963]">Ask NorthStar</p>
+                  <p className="text-[10px] text-[#a0a8b0] mt-0.5">Challenge or refine your goal &amp; KPIs</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {step2ChatMessages.length === 0 && (
-                    <p className="text-xs text-[#444] text-center mt-4">Ask about a KR, suggest a different metric, or challenge the goal.</p>
+                    <p className="text-xs text-[#a0a8b0] text-center mt-4">Ask about a KR, suggest a different metric, or challenge the goal.</p>
                   )}
                   {step2ChatMessages.map((m, i) => (
                     <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                      <div className={`rounded-xl px-3 py-2 max-w-[90%] ${m.role === 'user' ? 'bg-[#4f8ef7]/20 text-[#c0d4f5] text-sm' : 'bg-[#1a1a1a] text-[#c0c0c0]'}`}>
+                      <div className={`rounded-xl px-3 py-2 max-w-[90%] ${m.role === 'user' ? 'bg-[#367eed]/20 text-[#1d5dbd] text-sm' : 'bg-[#f0f1f3] text-[#535963]'}`}>
                         {m.role === 'assistant' ? <MarkdownMessage content={m.content} /> : m.content}
                       </div>
                       {m.updated && (
@@ -2478,17 +2478,17 @@ export default function ProductOnboardingFlow() {
                   ))}
                   {step2ChatLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-[#1a1a1a] rounded-xl px-3 py-2 flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#4f8ef7] animate-pulse" style={{ animationDelay: '300ms' }} />
+                      <div className="bg-[#f0f1f3] rounded-xl px-3 py-2 flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#367eed] animate-pulse" style={{ animationDelay: '300ms' }} />
                       </div>
                     </div>
                   )}
                   <div ref={step2ChatBottomRef} />
                 </div>
 
-                <div className="border-t border-[#1a1a1a] p-3">
+                <div className="border-t border-[#f0f1f3] p-3">
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -2496,14 +2496,14 @@ export default function ProductOnboardingFlow() {
                       onChange={(e) => setStep2ChatInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStep2Chat() } }}
                       placeholder="e.g. Suggest a better north star metric…"
-                      className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-3 py-2 text-xs text-[#f0f0f0] placeholder:text-[#444] focus:outline-none focus:border-[#4f8ef7]"
+                      className="flex-1 bg-[#f4f4f5] border border-[#e8e8e8] rounded-lg px-3 py-2 text-xs text-[#1f2328] placeholder:text-[#a0a8b0] focus:outline-none focus:border-[#367eed]"
                     />
                     <button
                       type="button"
                       onClick={handleStep2Chat}
                       disabled={!step2ChatInput.trim() || step2ChatLoading}
                       className="px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40 transition-colors"
-                      style={{ background: '#4f8ef7', color: '#fff' }}
+                      style={{ background: '#367eed', color: '#fff' }}
                     >
                       Send
                     </button>
@@ -2529,27 +2529,27 @@ export default function ProductOnboardingFlow() {
 
           return (
             <div>
-              <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 3 of 5</p>
-              <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">Connect your analytics</h1>
-              <p className="text-sm text-[#666] mb-8">
-                NorthStar scans <span className="text-[#f0f0f0]">{productUrl}</span> to detect which analytics tools are powering your product, then asks for your API credentials so it can pull behavioral data.
+              <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-2">Step 3 of 5</p>
+              <h1 className="text-2xl font-semibold text-[#1f2328] mb-1">Connect your analytics</h1>
+              <p className="text-sm text-[#7a8290] mb-8">
+                NorthStar scans <span className="text-[#1f2328]">{productUrl}</span> to detect which analytics tools are powering your product, then asks for your API credentials so it can pull behavioral data.
               </p>
 
               {/* Crawl loading */}
               {crawlRunning && (
-                <div className="flex items-center gap-3 py-6 px-5 rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] mb-6">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#4f8ef7] shrink-0" />
+                <div className="flex items-center gap-3 py-6 px-5 rounded-xl border border-[#d4d7dc] bg-[#ffffff] mb-6">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#367eed] shrink-0" />
                   <div>
-                    <p className="text-sm text-[#f0f0f0] font-medium">Scanning your page for analytics…</p>
-                    <p className="text-xs text-[#555] mt-0.5">This usually takes a few seconds</p>
+                    <p className="text-sm text-[#1f2328] font-medium">Scanning your page for analytics…</p>
+                    <p className="text-xs text-[#8c95a0] mt-0.5">This usually takes a few seconds</p>
                   </div>
                 </div>
               )}
 
               {/* Crawl failed */}
               {!crawlRunning && crawlFailed && (
-                <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-5 py-4 text-sm text-[#666] mb-6">
-                  <p className="font-medium text-[#888] mb-1">Could not scan your page</p>
+                <div className="rounded-lg border border-[#d4d7dc] bg-[#ffffff] px-5 py-4 text-sm text-[#7a8290] mb-6">
+                  <p className="font-medium text-[#535963] mb-1">Could not scan your page</p>
                   <p className="text-xs">Connect an analytics tool below, or skip for now.</p>
                 </div>
               )}
@@ -2564,9 +2564,9 @@ export default function ProductOnboardingFlow() {
                       </p>
 
                       {showRecommendationBanner && (
-                        <div className="rounded-lg border border-[#4f8ef7]/20 bg-[#4f8ef7]/5 px-4 py-3 text-sm text-[#4f8ef7]">
+                        <div className="rounded-lg border border-[#367eed]/20 bg-[#367eed]/5 px-4 py-3 text-sm text-[#367eed]">
                           <p className="font-medium mb-0.5">Recommendation</p>
-                          <p className="text-xs text-[#4f8ef7]/70 leading-relaxed">
+                          <p className="text-xs text-[#367eed]/70 leading-relaxed">
                             Connect {recommendedDetected.map((t) => t.name).join(' or ')} — they give NorthStar the richest behavioral signals including session recordings and click heatmaps.
                           </p>
                         </div>
@@ -2581,12 +2581,12 @@ export default function ProductOnboardingFlow() {
                           const inputs = analyticsInputs[tool.id] ?? {}
                           const allFilled = tool.fields.every((f) => inputs[f.key]?.trim())
                           return (
-                            <div key={tool.id} className={`rounded-xl border p-5 transition-colors ${connected ? 'border-emerald-600/40 bg-emerald-950/10' : 'border-[#2a2a2a] bg-[#0d0d0d]'}`}>
+                            <div key={tool.id} className={`rounded-xl border p-5 transition-colors ${connected ? 'border-emerald-600/40 bg-emerald-950/10' : 'border-[#d4d7dc] bg-[#ffffff]'}`}>
                               <div className="flex items-center gap-3 mb-4">
                                 <span className="flex items-center justify-center h-8 w-8 rounded-lg text-xs font-bold text-white shrink-0" style={{ backgroundColor: tool.color }}>{tool.initials}</span>
                                 <div className="flex items-center gap-2 flex-1">
-                                  <span className="font-semibold text-[#f0f0f0]">{tool.name}</span>
-                                  {tool.recommended && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#4f8ef7]/20 text-[#4f8ef7]">Recommended</span>}
+                                  <span className="font-semibold text-[#1f2328]">{tool.name}</span>
+                                  {tool.recommended && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#367eed]/20 text-[#367eed]">Recommended</span>}
                                 </div>
                                 {connected
                                   ? <span className="flex items-center gap-1 text-emerald-400 text-xs font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Connected</span>
@@ -2605,13 +2605,13 @@ export default function ProductOnboardingFlow() {
                                         onChange={(e) => setAnalyticsInputs((p) => ({ ...p, [tool.id]: { ...p[tool.id], [field.key]: e.target.value } }))}
                                         className={inputCls}
                                       />
-                                      <p className="text-[11px] text-[#444] mt-1">Found in {field.helper}</p>
+                                      <p className="text-[11px] text-[#a0a8b0] mt-1">Found in {field.helper}</p>
                                     </div>
                                   ))}
                                   {err && <p className="text-xs text-red-400">{err}</p>}
                                   <button type="button" onClick={() => handleConnectTool(tool.id)}
                                     disabled={validating || !allFilled}
-                                    className="text-xs px-3 py-1.5 rounded-lg bg-[#4f8ef7]/10 border border-[#4f8ef7]/40 text-[#4f8ef7] hover:bg-[#4f8ef7]/20 transition-colors disabled:opacity-50">
+                                    className="text-xs px-3 py-1.5 rounded-lg bg-[#367eed]/10 border border-[#367eed]/40 text-[#367eed] hover:bg-[#367eed]/20 transition-colors disabled:opacity-50">
                                     {validating ? 'Connecting…' : 'Connect'}
                                   </button>
                                 </div>
@@ -2622,7 +2622,7 @@ export default function ProductOnboardingFlow() {
                       </div>
                     </>
                   ) : (
-                    <p className="text-sm text-[#555]">No analytics detected on your page.</p>
+                    <p className="text-sm text-[#8c95a0]">No analytics detected on your page.</p>
                   )}
                 </div>
               )}
@@ -2630,7 +2630,7 @@ export default function ProductOnboardingFlow() {
               {/* Manual / additional tools */}
               {(!crawlRunning) && (
                 <div className="mb-6">
-                  <p className="text-xs text-[#444] uppercase tracking-widest font-medium mb-3">
+                  <p className="text-xs text-[#a0a8b0] uppercase tracking-widest font-medium mb-3">
                     {crawlData?.analytics.hasAny ? 'Connect another tool' : 'Connect your analytics'}
                   </p>
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -2641,8 +2641,8 @@ export default function ProductOnboardingFlow() {
                           analyticsConnected[tool.id]
                             ? 'border-emerald-600/40 bg-emerald-950/10 text-emerald-400'
                             : selectedTool === tool.id
-                            ? 'border-[#4f8ef7] bg-[#4f8ef7]/10 text-[#4f8ef7]'
-                            : 'border-[#2a2a2a] text-[#555] hover:text-[#888]'
+                            ? 'border-[#367eed] bg-[#367eed]/10 text-[#367eed]'
+                            : 'border-[#d4d7dc] text-[#8c95a0] hover:text-[#535963]'
                         }`}
                       >
                         <div className="w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center shrink-0" style={{ background: tool.color, color: '#fff' }}>{tool.initials}</div>
@@ -2659,7 +2659,7 @@ export default function ProductOnboardingFlow() {
                     const inputs = analyticsInputs[tool.id] ?? {}
                     const allFilled = tool.fields.every((f) => inputs[f.key]?.trim())
                     return (
-                      <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+                      <div className="rounded-lg border border-[#d4d7dc] bg-[#ffffff] p-4">
                         {tool.fields.map((f) => (
                           <div key={f.key} className="mb-3">
                             <label className={labelCls}>{f.label}</label>
@@ -2670,13 +2670,13 @@ export default function ProductOnboardingFlow() {
                               placeholder={f.placeholder}
                               className={inputCls}
                             />
-                            <p className="text-[11px] text-[#444] mt-1">Found in {f.helper}</p>
+                            <p className="text-[11px] text-[#a0a8b0] mt-1">Found in {f.helper}</p>
                           </div>
                         ))}
                         {analyticsErrors[tool.id] && <p className="text-xs text-red-400 mb-3">{analyticsErrors[tool.id]}</p>}
                         <button type="button" onClick={() => handleConnectTool(tool.id)}
                           disabled={analyticsValidating[tool.id] || !allFilled}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-[#4f8ef7]/10 border border-[#4f8ef7]/40 text-[#4f8ef7] hover:bg-[#4f8ef7]/20 transition-colors disabled:opacity-50">
+                          className="text-xs px-3 py-1.5 rounded-lg bg-[#367eed]/10 border border-[#367eed]/40 text-[#367eed] hover:bg-[#367eed]/20 transition-colors disabled:opacity-50">
                           {analyticsValidating[tool.id] ? 'Connecting…' : 'Connect'}
                         </button>
                       </div>
@@ -2690,31 +2690,31 @@ export default function ProductOnboardingFlow() {
                 if (!analyticsConnected[toolId]) return null
                 const tool = ANALYTICS_TOOLS.find((t) => t.id === toolId)
                 return (
-                  <div key={toolId} className="mb-6 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] p-5">
+                  <div key={toolId} className="mb-6 rounded-xl border border-[#d4d7dc] bg-[#f6f6f6] p-5">
                     <div className="flex items-center gap-2 mb-4">
-                      <span className="flex items-center justify-center h-6 w-6 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: tool?.color ?? '#555' }}>
+                      <span className="flex items-center justify-center h-6 w-6 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: tool?.color ?? '#8c95a0' }}>
                         {tool?.initials ?? toolId.slice(0, 2).toUpperCase()}
                       </span>
-                      <span className="text-xs font-medium text-[#888] uppercase tracking-widest">User Flows · last 30 days</span>
+                      <span className="text-xs font-medium text-[#535963] uppercase tracking-widest">User Flows · last 30 days</span>
                     </div>
 
                     {fd.loading && (
-                      <div className="flex items-center gap-2 text-[#555] py-4">
+                      <div className="flex items-center gap-2 text-[#8c95a0] py-4">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         <span className="text-xs">Mapping user flows…</span>
                       </div>
                     )}
 
                     {fd.error && (
-                      <p className="text-xs text-[#555] py-2">{fd.error}</p>
+                      <p className="text-xs text-[#8c95a0] py-2">{fd.error}</p>
                     )}
 
                     {fd.unsupported && (
-                      <p className="text-xs text-[#444] py-2">Flow mapping available for PostHog. Other tools will be supported soon.</p>
+                      <p className="text-xs text-[#a0a8b0] py-2">Flow mapping available for PostHog. Other tools will be supported soon.</p>
                     )}
 
                     {fd.flows && fd.flows.length === 0 && (
-                      <p className="text-xs text-[#444] py-2">No pageview data found in the last 30 days.</p>
+                      <p className="text-xs text-[#a0a8b0] py-2">No pageview data found in the last 30 days.</p>
                     )}
 
                     {fd.flows && fd.flows.length > 0 && (
@@ -2724,7 +2724,7 @@ export default function ProductOnboardingFlow() {
                           return (
                             <div key={fi} className="space-y-1">
                               {/* Flow number */}
-                              <p className="text-[10px] text-[#444] uppercase tracking-widest mb-2">Flow {fi + 1}</p>
+                              <p className="text-[10px] text-[#a0a8b0] uppercase tracking-widest mb-2">Flow {fi + 1}</p>
                               {/* Step boxes */}
                               <div className="flex items-start flex-wrap gap-1">
                                 {flow.steps.map((step, si) => {
@@ -2732,17 +2732,17 @@ export default function ProductOnboardingFlow() {
                                   const isDropoff = si > 0 && pct < 50
                                   return (
                                     <div key={si} className="flex items-start gap-1">
-                                      {si > 0 && <span className="text-[#333] text-xs mt-2">→</span>}
+                                      {si > 0 && <span className="text-[#b0b8c0] text-xs mt-2">→</span>}
                                       <div className="flex flex-col items-center">
-                                        <div className={`rounded-lg border px-3 py-1.5 text-center min-w-[80px] max-w-[140px] ${isDropoff ? 'border-red-900/30 bg-red-950/10' : 'border-[#2a2a2a] bg-[#111]'}`}>
-                                          <p className="text-[11px] text-[#f0f0f0] font-mono truncate" title={step.path}>{step.path}</p>
+                                        <div className={`rounded-lg border px-3 py-1.5 text-center min-w-[80px] max-w-[140px] ${isDropoff ? 'border-red-900/30 bg-red-950/10' : 'border-[#d4d7dc] bg-[#f4f4f5]'}`}>
+                                          <p className="text-[11px] text-[#1f2328] font-mono truncate" title={step.path}>{step.path}</p>
                                         </div>
                                         <div className="flex items-center gap-1 mt-1">
-                                          <span className={`text-[10px] font-medium ${isDropoff ? 'text-red-400/70' : 'text-[#555]'}`}>
+                                          <span className={`text-[10px] font-medium ${isDropoff ? 'text-red-400/70' : 'text-[#8c95a0]'}`}>
                                             {step.count.toLocaleString()}
                                           </span>
                                           {si > 0 && (
-                                            <span className={`text-[10px] ${isDropoff ? 'text-red-400/70' : 'text-[#3a3a3a]'}`}>
+                                            <span className={`text-[10px] ${isDropoff ? 'text-red-400/70' : 'text-[#c4c8d0]'}`}>
                                               ({pct}%)
                                             </span>
                                           )}
@@ -2762,12 +2762,12 @@ export default function ProductOnboardingFlow() {
               })}
 
               <button type="button" onClick={handleStep3} disabled={saving}
-                className="w-full py-3 rounded-xl text-sm font-medium transition-colors bg-[#4f8ef7] text-white hover:bg-[#3a7de8] disabled:opacity-50">
+                className="w-full py-3 rounded-xl text-sm font-medium transition-colors bg-[#367eed] text-white hover:bg-[#3a7de8] disabled:opacity-50">
                 {saving ? 'Saving…' : 'Continue →'}
               </button>
               {!anyConnected && (
                 <button type="button" onClick={handleStep3}
-                  className="w-full mt-2 py-2.5 text-sm text-[#444] hover:text-[#666] transition-colors">
+                  className="w-full mt-2 py-2.5 text-sm text-[#a0a8b0] hover:text-[#7a8290] transition-colors">
                   Skip for now
                 </button>
               )}
@@ -2779,39 +2779,39 @@ export default function ProductOnboardingFlow() {
         {/* ── Step 4: Growth Levers ─────────────────────────────────────────── */}
         {step === 4 && (
           <form onSubmit={handleStep4}>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 4 of 5</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">What moves your NorthStar?</h1>
-            <p className="text-sm text-[#666] mb-2">
-              Sub-metrics that ladder up to <span className="text-[#f0f0f0] font-medium">{nsMetric || 'your NorthStar'}</span>.
+            <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-2">Step 4 of 5</p>
+            <h1 className="text-2xl font-semibold text-[#1f2328] mb-1">What moves your NorthStar?</h1>
+            <p className="text-sm text-[#7a8290] mb-2">
+              Sub-metrics that ladder up to <span className="text-[#1f2328] font-medium">{nsMetric || 'your NorthStar'}</span>.
               NorthStar uses these to rank hypotheses by predicted impact.
             </p>
-            <p className="text-xs text-[#444] mb-8">Pre-populated based on your metric — edit freely.</p>
+            <p className="text-xs text-[#a0a8b0] mb-8">Pre-populated based on your metric — edit freely.</p>
 
             <div className="space-y-3 mb-5">
               {subMetrics.map((m, i) => (
-                <div key={i} className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+                <div key={i} className="rounded-lg border border-[#d4d7dc] bg-[#ffffff] p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <input type="text" value={m.name} onChange={(e) => setSubMetrics((prev) => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                      placeholder="Metric name" className="flex-1 bg-transparent border-b border-[#2a2a2a] pb-1 text-sm text-[#f0f0f0] focus:outline-none focus:border-[#4f8ef7]" />
+                      placeholder="Metric name" className="flex-1 bg-transparent border-b border-[#d4d7dc] pb-1 text-sm text-[#1f2328] focus:outline-none focus:border-[#367eed]" />
                     <button type="button" onClick={() => setSubMetrics((prev) => prev.filter((_, j) => j !== i))}
-                      className="text-[#444] hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      className="text-[#a0a8b0] hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] text-[#555] uppercase tracking-wider mb-1">Current</label>
+                      <label className="block text-[10px] text-[#8c95a0] uppercase tracking-wider mb-1">Current</label>
                       <input type="text" value={m.current} onChange={(e) => setSubMetrics((prev) => prev.map((x, j) => j === i ? { ...x, current: e.target.value } : x))}
-                        placeholder="e.g. 24%" className="w-full bg-transparent border-b border-[#2a2a2a] pb-1 text-sm text-[#f0f0f0] focus:outline-none focus:border-[#4f8ef7]" />
+                        placeholder="e.g. 24%" className="w-full bg-transparent border-b border-[#d4d7dc] pb-1 text-sm text-[#1f2328] focus:outline-none focus:border-[#367eed]" />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-[#555] uppercase tracking-wider mb-1">Target</label>
+                      <label className="block text-[10px] text-[#8c95a0] uppercase tracking-wider mb-1">Target</label>
                       <input type="text" value={m.target} onChange={(e) => setSubMetrics((prev) => prev.map((x, j) => j === i ? { ...x, target: e.target.value } : x))}
-                        placeholder="e.g. 35%" className="w-full bg-transparent border-b border-[#2a2a2a] pb-1 text-sm text-[#f0f0f0] focus:outline-none focus:border-[#4f8ef7]" />
+                        placeholder="e.g. 35%" className="w-full bg-transparent border-b border-[#d4d7dc] pb-1 text-sm text-[#1f2328] focus:outline-none focus:border-[#367eed]" />
                     </div>
                   </div>
                 </div>
               ))}
               <button type="button" onClick={() => setSubMetrics((prev) => [...prev, { name: '', current: '', target: '' }])}
-                className="w-full rounded-lg border border-dashed border-[#2a2a2a] py-3 text-xs text-[#555] hover:text-[#888] hover:border-[#3a3a3a] flex items-center justify-center gap-2 transition-colors">
+                className="w-full rounded-lg border border-dashed border-[#d4d7dc] py-3 text-xs text-[#8c95a0] hover:text-[#535963] hover:border-[#c4c8d0] flex items-center justify-center gap-2 transition-colors">
                 <Plus className="w-3.5 h-3.5" /> Add sub-metric
               </button>
             </div>
@@ -2824,9 +2824,9 @@ export default function ProductOnboardingFlow() {
         {/* ── Step 5: Review & Launch ───────────────────────────────────────── */}
         {step === 5 && (
           <div>
-            <p className="text-xs text-[#4f8ef7] uppercase tracking-widest font-medium mb-2">Step 5 of 5</p>
-            <h1 className="text-2xl font-semibold text-[#f0f0f0] mb-1">You&apos;re ready to launch</h1>
-            <p className="text-sm text-[#666] mb-8">
+            <p className="text-xs text-[#367eed] uppercase tracking-widest font-medium mb-2">Step 5 of 5</p>
+            <h1 className="text-2xl font-semibold text-[#1f2328] mb-1">You&apos;re ready to launch</h1>
+            <p className="text-sm text-[#7a8290] mb-8">
               Here&apos;s what NorthStar knows about your product. Your intelligence layer is now active.
             </p>
 
@@ -2834,13 +2834,13 @@ export default function ProductOnboardingFlow() {
               <ReviewRow label="Product URL" value={productUrl || '—'} onEdit={() => goToStep(1)} />
               <ReviewRow label="NorthStar Metric" value={nsMetric || '—'} onEdit={() => goToStep(2)}>
                 {nsCurrent && nsTarget && (
-                  <p className="text-xs text-[#555] mt-0.5">{nsCurrent} → {nsTarget}</p>
+                  <p className="text-xs text-[#8c95a0] mt-0.5">{nsCurrent} → {nsTarget}</p>
                 )}
               </ReviewRow>
               <ReviewRow label="Analytics" value={Object.keys(analyticsConnected).filter((k) => analyticsConnected[k]).map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(', ') || 'Not connected'} onEdit={() => goToStep(3)} />
               <ReviewRow label="Growth levers" value={subMetrics.filter((m) => m.name).length > 0 ? `${subMetrics.filter((m) => m.name).length} metrics defined` : '—'} onEdit={() => goToStep(4)}>
                 {subMetrics.filter((m) => m.name).slice(0, 3).map((m) => (
-                  <span key={m.name} className="inline-block text-xs bg-[#1f1f1f] rounded px-1.5 py-0.5 text-[#666] mr-1 mt-1">{m.name}</span>
+                  <span key={m.name} className="inline-block text-xs bg-[#e8e8e8] rounded px-1.5 py-0.5 text-[#7a8290] mr-1 mt-1">{m.name}</span>
                 ))}
               </ReviewRow>
             </div>
@@ -2850,7 +2850,7 @@ export default function ProductOnboardingFlow() {
                 <div className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
                 <span className="text-sm font-medium text-[#22c55e]">Intelligence layer active</span>
               </div>
-              <p className="text-xs text-[#555] leading-relaxed">
+              <p className="text-xs text-[#8c95a0] leading-relaxed">
                 NorthStar is analyzing your product data and building your initial Feature Hit List.
                 Your first ranked hypotheses will appear within minutes.
               </p>
@@ -2861,7 +2861,7 @@ export default function ProductOnboardingFlow() {
               onClick={handleLaunch}
               disabled={saving}
               className="w-full h-12 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              style={{ background: '#4f8ef7', color: '#fff' }}
+              style={{ background: '#367eed', color: '#fff' }}
             >
               {saving ? 'Launching...' : 'Enter my product dashboard'}
               {!saving && <ChevronRight className="w-4 h-4" />}
@@ -2915,7 +2915,7 @@ function DriveFileIcon({ mimeType }: { mimeType: string }) {
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      className="w-full mt-3 py-2.5 text-sm text-[#444] hover:text-[#666] transition-colors flex items-center justify-center gap-1">
+      className="w-full mt-3 py-2.5 text-sm text-[#a0a8b0] hover:text-[#7a8290] transition-colors flex items-center justify-center gap-1">
       <ArrowLeft className="w-3.5 h-3.5" /> Back
     </button>
   )
@@ -2923,13 +2923,13 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 
 function ReviewRow({ label, value, onEdit, children }: { label: string; value: string; onEdit: () => void; children?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-4 py-3 flex items-start justify-between gap-4">
+    <div className="rounded-lg border border-[#d4d7dc] bg-[#ffffff] px-4 py-3 flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-[10px] text-[#555] uppercase tracking-wider mb-0.5">{label}</p>
-        <p className="text-sm text-[#f0f0f0] font-medium">{value}</p>
+        <p className="text-[10px] text-[#8c95a0] uppercase tracking-wider mb-0.5">{label}</p>
+        <p className="text-sm text-[#1f2328] font-medium">{value}</p>
         {children}
       </div>
-      <button type="button" onClick={onEdit} className="shrink-0 text-xs text-[#444] hover:text-[#4f8ef7] transition-colors mt-1">Edit</button>
+      <button type="button" onClick={onEdit} className="shrink-0 text-xs text-[#a0a8b0] hover:text-[#367eed] transition-colors mt-1">Edit</button>
     </div>
   )
 }
