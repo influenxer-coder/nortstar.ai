@@ -649,29 +649,35 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
         }}>
           <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: C.muted, marginBottom: 12 }}>SIGNAL SOURCES</p>
           {[
+            { name: 'Competitive Intelligence', status: strategy.competitors?.length ? 'connected' : 'not_connected', detail: strategy.competitors?.length ? `${competitors.length} competitors tracked` : undefined },
             { name: 'PostHog', status: 'not_connected' },
             { name: 'GitHub', status: 'not_connected' },
             { name: 'Slack', status: 'not_connected' },
             { name: 'Gong', status: 'coming_soon' },
             { name: 'Intercom', status: 'coming_soon' },
-          ].map(({ name, status }) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: status === 'connected' ? '#2e7d32' : '#d4d7dc',
-                  flexShrink: 0,
-                }} />
-                <span style={{ fontSize: 12, color: C.text }}>{name}</span>
+          ].map(({ name, status, detail }) => (
+            <div key={name} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: status === 'connected' ? '#2e7d32' : '#d4d7dc',
+                    flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: 12, color: C.text }}>{name}</span>
+                </div>
+                {status === 'coming_soon' ? (
+                  <span style={{ fontSize: 10, color: C.muted }}>Soon</span>
+                ) : status === 'not_connected' ? (
+                  <Link href="/dashboard" style={{ fontSize: 11, color: C.blue, textDecoration: 'none', fontWeight: 500 }}>
+                    Connect
+                  </Link>
+                ) : (
+                  <span style={{ fontSize: 10, color: '#2e7d32', fontWeight: 600 }}>Connected</span>
+                )}
               </div>
-              {status === 'coming_soon' ? (
-                <span style={{ fontSize: 10, color: C.muted }}>Soon</span>
-              ) : status === 'not_connected' ? (
-                <Link href="/dashboard" style={{ fontSize: 11, color: C.blue, textDecoration: 'none', fontWeight: 500 }}>
-                  Connect
-                </Link>
-              ) : (
-                <span style={{ fontSize: 10, color: '#2e7d32', fontWeight: 600 }}>Connected</span>
+              {detail && (
+                <p style={{ fontSize: 10, color: C.muted, paddingLeft: 15, marginTop: 2 }}>{detail}</p>
               )}
             </div>
           ))}
