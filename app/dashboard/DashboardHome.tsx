@@ -208,7 +208,6 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       }
 
       setAnalyzing(false)
-      router.push('/onboarding/new?from=dashboard')
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') return
       setLogs((prev) => [...prev, `Error: ${(err as Error)?.message ?? 'Unknown error'}`])
@@ -272,7 +271,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 )}
               </div>
               <Link
-                href={`/onboarding/new?projectId=${project.id}`}
+                href="/dashboard"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   fontSize: 13, fontWeight: 600, color: C.blue,
@@ -644,7 +643,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                     <div style={{ marginTop: 16, textAlign: 'right' }}>
                       <button
                         type="button"
-                        onClick={() => router.push('/onboarding/new?from=dashboard')}
+                        onClick={closeModal}
                         style={{
                           padding: '9px 20px', borderRadius: 30,
                           border: 'none', background: C.blue, color: '#fff',
