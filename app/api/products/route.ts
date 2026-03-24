@@ -40,6 +40,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
   }
 
+  // Ensure a profiles row exists — products.user_id references profiles(id),
+  // and the trigger that creates it can silently miss some signups.
+  await supabase
+    .from('profiles')
+    .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
+
   const { data, error } = await supabase
     .from('products')
     .insert({ user_id: user.id, name })
