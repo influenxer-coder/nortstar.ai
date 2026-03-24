@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2 } from 'lucide-react'
 
@@ -25,12 +24,22 @@ type Props = {
   dbInProgressProjects?: InProgressProject[]
 }
 
+const C = {
+  bg: '#f6f6f6',
+  surface: '#ffffff',
+  text: '#1f2328',
+  muted: '#535963',
+  border: '#d4d7dc',
+  blue: '#367eed',
+  shadow: '0 0 0 1px #d4d7dc',
+  cardShadow: '0 1px 4px rgba(27,37,40,0.06)',
+}
+
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName, dbInProgressProjects = [] }: Props) {
   const router = useRouter()
   const [inProgressProjects, setInProgressProjects] = useState<InProgressProject[]>(dbInProgressProjects)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // Sync server data; fall back to localStorage only if DB returned nothing
   useEffect(() => {
     if (dbInProgressProjects.length > 0) {
       setInProgressProjects(dbInProgressProjects)
@@ -74,112 +83,196 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   const hasAny = products.length > 0 || ungroupedAgents.length > 0
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Org level */}
-      <div className="mb-8">
-        <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Organization</p>
-        <h1 className="text-2xl font-bold text-zinc-100">{userDisplayName}&apos;s workspace</h1>
+    <div style={{ padding: '40px 32px', maxWidth: 860, margin: '0 auto' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.muted, marginBottom: 4 }}>
+          Workspace
+        </p>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em' }}>
+          {userDisplayName}&apos;s workspace
+        </h1>
       </div>
 
-      {/* In-progress product setup banners — one per incomplete project */}
+      {/* In-progress banners */}
       {inProgressProjects.map((project) => (
         <div
           key={project.id}
-          className="mb-4 rounded-xl border border-[#2a2a2a] p-4"
-          style={{ background: '#141414' }}
+          style={{
+            marginBottom: 16,
+            borderRadius: 10,
+            border: `1px solid #f0b429`,
+            background: '#fffbeb',
+            padding: '16px 20px',
+          }}
         >
-          <div className="flex items-center justify-between gap-4">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <div>
-              <p className="text-xs text-[#555] uppercase tracking-wider mb-0.5">Product setup in progress</p>
-              <p className="text-[#f0f0f0] font-medium">{project.name || 'New product'}</p>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#92600a', marginBottom: 2 }}>
+                Product setup in progress
+              </p>
+              <p style={{ fontSize: 15, fontWeight: 500, color: C.text }}>{project.name || 'New product'}</p>
               {project.onboarding_step && (
-                <p className="text-xs text-[#444] mt-0.5">Step {project.onboarding_step} of 5 complete</p>
+                <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Step {project.onboarding_step} of 5 complete</p>
               )}
             </div>
             <Link
               href={`/onboarding/product?projectId=${project.id}&step=${project.onboarding_step ?? 1}`}
-              className="shrink-0 inline-flex items-center gap-2 text-sm font-medium text-[#4f8ef7] hover:text-[#3d7de8] transition-colors"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 13, fontWeight: 600, color: C.blue,
+                textDecoration: 'none', flexShrink: 0,
+              }}
             >
               Continue setup
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight style={{ width: 14, height: 14 }} />
             </Link>
           </div>
-          <div className="mt-3 pt-3 border-t border-[#1f1f1f]">
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #fde68a' }}>
             <button
               type="button"
               disabled={deletingId === project.id}
               onClick={() => deleteProject(project.id)}
-              className="inline-flex items-center gap-1.5 text-xs text-[#444] hover:text-red-400 transition-colors disabled:opacity-40"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 12, color: C.muted, background: 'none', border: 'none',
+                cursor: 'pointer', padding: 0, opacity: deletingId === project.id ? 0.4 : 1,
+              }}
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 style={{ width: 12, height: 12 }} />
               {deletingId === project.id ? 'Deleting…' : 'Delete product'}
             </button>
           </div>
         </div>
       ))}
 
-      {/* Create product CTA */}
-      <div className="mb-8">
-        <Link href="/onboarding/product">
-          <Button
+      {/* Create product button */}
+      <div style={{ marginBottom: 32 }}>
+        <Link href="/onboarding/product" style={{ textDecoration: 'none' }}>
+          <button
             type="button"
-            variant="outline"
-            className="border-zinc-700 text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100 gap-2"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 20px', borderRadius: 30,
+              background: C.text, color: '#fff',
+              fontSize: 13, fontWeight: 600,
+              border: 'none', cursor: 'pointer',
+            }}
           >
-            <FolderOpen className="h-4 w-4" />
+            <Plus style={{ width: 14, height: 14 }} />
             Create product
-          </Button>
+          </button>
         </Link>
       </div>
 
-      {/* Hierarchy: Products and their agents */}
+      {/* Empty state */}
       {!hasAny ? (
-        <div className="border border-zinc-800 rounded-xl p-12 text-center bg-zinc-900/30">
-          <FolderOpen className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-zinc-100 mb-2">No products yet</h2>
-          <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto">
+        <div style={{
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: C.surface,
+          boxShadow: C.cardShadow,
+        }}>
+          <FolderOpen style={{ width: 40, height: 40, color: C.border, margin: '0 auto 16px' }} />
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: C.text, marginBottom: 8 }}>No products yet</h2>
+          <p style={{ fontSize: 14, color: C.muted, marginBottom: 24, maxWidth: 380, margin: '0 auto 24px' }}>
             Create a product to group your feature agents. Each product can have multiple agents working on different parts of the experience.
           </p>
-          <Link href="/onboarding/product">
-            <Button type="button" className="bg-violet-600 hover:bg-violet-500 text-white gap-2">
-              <Plus className="h-4 w-4" />
+          <Link href="/onboarding/product" style={{ textDecoration: 'none' }}>
+            <button
+              type="button"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '11px 24px', borderRadius: 30,
+                background: C.blue, color: '#fff',
+                fontSize: 14, fontWeight: 600,
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              <Plus style={{ width: 15, height: 15 }} />
               Create your first product
-            </Button>
+            </button>
           </Link>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {products.map((product) => (
-            <section key={product.id} className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/30">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-900/50">
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4 text-violet-400 shrink-0" />
-                  <h2 className="font-semibold text-zinc-100">{product.name}</h2>
+            <section
+              key={product.id}
+              style={{
+                border: `1px solid ${C.border}`,
+                borderRadius: 10,
+                overflow: 'hidden',
+                background: C.surface,
+                boxShadow: C.cardShadow,
+              }}
+            >
+              {/* Product header */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 20px',
+                borderBottom: `1px solid ${C.border}`,
+                background: C.bg,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <FolderOpen style={{ width: 15, height: 15, color: C.blue, flexShrink: 0 }} />
+                  <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{product.name}</span>
                 </div>
-                <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`}>
-                  <Button size="sm" className="bg-violet-600 hover:bg-violet-500 text-white gap-1.5">
-                    <Plus className="h-3.5 w-3.5" />
+                <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`} style={{ textDecoration: 'none' }}>
+                  <button
+                    type="button"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 14px', borderRadius: 30,
+                      background: C.blue, color: '#fff',
+                      fontSize: 12, fontWeight: 600,
+                      border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    <Plus style={{ width: 12, height: 12 }} />
                     Add agent
-                  </Button>
+                  </button>
                 </Link>
               </div>
-              <ul className="divide-y divide-zinc-800">
+
+              {/* Agent list */}
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {product.agents.length === 0 ? (
-                  <li className="px-5 py-6 text-center text-sm text-zinc-500">No agents yet. Add an agent to get started.</li>
+                  <li style={{ padding: '20px 24px', textAlign: 'center', fontSize: 13, color: C.muted }}>
+                    No agents yet. Add an agent to get started.
+                  </li>
                 ) : (
-                  product.agents.map((agent) => (
-                    <li key={agent.id}>
-                      <Link href={`/dashboard/agents/${agent.id}`}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-800/50 transition-colors">
-                        <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
-                          <Bot className="h-4 w-4 text-zinc-400" />
+                  product.agents.map((agent, i) => (
+                    <li key={agent.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : undefined }}>
+                      <Link
+                        href={`/dashboard/agents/${agent.id}`}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', textDecoration: 'none' }}
+                        className="agent-row"
+                      >
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 8,
+                          background: C.bg, border: `1px solid ${C.border}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <Bot style={{ width: 15, height: 15, color: C.muted }} />
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-zinc-100 truncate">{agent.name}</p>
-                          {agent.url && <p className="text-xs text-zinc-500 truncate">{agent.url}</p>}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{ fontSize: 14, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</p>
+                          {agent.url && <p style={{ fontSize: 12, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.url}</p>}
                         </div>
-                        <span className="text-xs text-zinc-500 shrink-0">{agent.status || '—'}</span>
-                        <ChevronRight className="h-4 w-4 text-zinc-500 shrink-0" />
+                        {agent.status && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 500, color: C.muted,
+                            background: C.bg, border: `1px solid ${C.border}`,
+                            borderRadius: 30, padding: '2px 10px', flexShrink: 0,
+                          }}>
+                            {agent.status}
+                          </span>
+                        )}
+                        <ChevronRight style={{ width: 15, height: 15, color: C.border, flexShrink: 0 }} />
                       </Link>
                     </li>
                   ))
@@ -190,27 +283,50 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
 
           {/* Ungrouped agents */}
           {ungroupedAgents.length > 0 && (
-            <section className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/30 border-dashed">
-              <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-900/50">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-4 w-4 text-zinc-500 shrink-0" />
-                  <h2 className="font-semibold text-zinc-400">Ungrouped agents</h2>
-                </div>
+            <section style={{
+              border: `1px dashed ${C.border}`,
+              borderRadius: 10,
+              overflow: 'hidden',
+              background: C.surface,
+              boxShadow: C.cardShadow,
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '14px 20px',
+                borderBottom: `1px solid ${C.border}`,
+                background: C.bg,
+              }}>
+                <Bot style={{ width: 15, height: 15, color: C.muted, flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>Ungrouped agents</span>
               </div>
-              <ul className="divide-y divide-zinc-800">
-                {ungroupedAgents.map((agent) => (
-                  <li key={agent.id}>
-                    <Link href={`/dashboard/agents/${agent.id}`}
-                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-800/50 transition-colors">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
-                        <Bot className="h-4 w-4 text-zinc-400" />
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {ungroupedAgents.map((agent, i) => (
+                  <li key={agent.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : undefined }}>
+                    <Link
+                      href={`/dashboard/agents/${agent.id}`}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', textDecoration: 'none' }}
+                    >
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <Bot style={{ width: 15, height: 15, color: C.muted }} />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-zinc-100 truncate">{agent.name}</p>
-                        {agent.url && <p className="text-xs text-zinc-500 truncate">{agent.url}</p>}
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</p>
+                        {agent.url && <p style={{ fontSize: 12, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.url}</p>}
                       </div>
-                      <span className="text-xs text-zinc-500 shrink-0">{agent.status || '—'}</span>
-                      <ChevronRight className="h-4 w-4 text-zinc-500 shrink-0" />
+                      {agent.status && (
+                        <span style={{
+                          fontSize: 11, fontWeight: 500, color: C.muted,
+                          background: C.bg, border: `1px solid ${C.border}`,
+                          borderRadius: 30, padding: '2px 10px', flexShrink: 0,
+                        }}>
+                          {agent.status}
+                        </span>
+                      )}
+                      <ChevronRight style={{ width: 15, height: 15, color: C.border, flexShrink: 0 }} />
                     </Link>
                   </li>
                 ))}
