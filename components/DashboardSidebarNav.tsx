@@ -14,6 +14,7 @@ type ProductGroup = {
   id: string
   name: string
   agents: AgentStub[]
+  projectId?: string | null
 }
 
 type Props = {
@@ -154,7 +155,16 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
         <div key={product.id} className="mt-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
             <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="hidden text-xs font-medium text-muted-foreground truncate md:block">{product.name}</span>
+            {product.projectId ? (
+              <Link
+                href={`/products/${product.projectId}`}
+                className="hidden text-xs font-medium text-muted-foreground truncate md:block hover:text-foreground transition-colors"
+              >
+                {product.name}
+              </Link>
+            ) : (
+              <span className="hidden text-xs font-medium text-muted-foreground truncate md:block">{product.name}</span>
+            )}
           </div>
           <div className="mt-0.5 space-y-0.5">
             {product.agents.map((agent) => (

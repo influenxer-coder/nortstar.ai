@@ -22,7 +22,7 @@ export default async function DashboardLayout({
 
   if (profile && !profile.onboarding_completed) redirect('/onboarding')
 
-  const [{ data: products }, { data: agents }] = await Promise.all([
+  const [{ data: products }, { data: agents }, { data: completedProjects }] = await Promise.all([
     supabase
       .from('products')
       .select('id, name')
@@ -34,7 +34,19 @@ export default async function DashboardLayout({
       .eq('user_id', user.id)
       .neq('status', 'draft')
       .order('created_at', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('id, strategy_json')
+      .eq('user_id', user.id)
+      .eq('onboarding_completed', true),
   ])
+
+  const projectIdByProductId = new Map<string, string>()
+  for (const proj of completedProjects ?? []) {
+    const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
+    const cpid = ctx?.created_product_id
+    if (typeof cpid === 'string' && cpid) projectIdByProductId.set(cpid, proj.id)
+  }
 
   const productList = products ?? []
   const agentList = agents ?? []
@@ -56,6 +68,7 @@ export default async function DashboardLayout({
     id: p.id,
     name: p.name,
     agents: agentsByProduct.get(p.id) ?? [],
+    projectId: projectIdByProductId.get(p.id) ?? null,
   }))
 
   const displayName = profile?.full_name || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'
