@@ -45,9 +45,14 @@ type SavedData = {
   project_id?: string
   url: string
   product?: ProductInfo
+  subvertical_id?: string
   subvertical_name?: string
   vertical_name?: string
+  selected_competitors?: string[]
   analysis_result: AnalysisResult
+  north_star_metric?: string
+  goal?: string
+  onboarding_step?: number
   timestamp: number
 }
 
@@ -227,21 +232,39 @@ export default function ProductSetupPage() {
           north_star_current: currentValue ? parseFloat(currentValue) : null,
           north_star_target: targetValue ? parseFloat(targetValue) : null,
           icp: primaryCustomer.trim(),
-          onboarding_step: 5,
-          onboarding_completed: true,
+          strategy_json: {
+            ...(savedData?.analysis_result ?? {}),
+            onboarding_context: {
+              url: savedData?.url ?? '',
+              product: savedData?.product ?? null,
+              subvertical_id: savedData?.subvertical_id ?? null,
+              subvertical_name: savedData?.subvertical_name ?? null,
+              vertical_name: savedData?.vertical_name ?? null,
+              selected_competitors: savedData?.selected_competitors ?? [],
+              north_star_metric: northStarMetric,
+            },
+          },
+          onboarding_step: 2,
+          onboarding_completed: false,
         }),
       })
 
       if (!patchRes.ok) throw new Error('Failed to save product details')
 
-      // Step 3 — Clean up
-      localStorage.removeItem('northstar_onboarding')
+      // Step 3 — Save onboarding state for next step
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('northstar_current_project_id', id)
+        localStorage.setItem('northstar_onboarding', JSON.stringify({
+          ...(savedData ?? {}),
+          project_id: id,
+          north_star_metric: northStarMetric,
+          onboarding_step: 2,
+          timestamp: Date.now(),
+        }))
       }
 
-      // Step 4 — Go to dashboard
-      router.push('/dashboard')
+      // Step 4 — Go to Goal step
+      router.push('/onboarding/goal')
     } catch (err: unknown) {
       setSubmitError((err as Error)?.message || 'Something went wrong. Please try again.')
       setSubmitting(false)
