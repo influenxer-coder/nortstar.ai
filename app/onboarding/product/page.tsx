@@ -56,16 +56,6 @@ type SavedData = {
   timestamp: number
 }
 
-const NS_CHIPS = ['ARR', 'MRR', 'DAU', 'MAU', 'Activation Rate', 'Retention Rate', 'NPS', 'Revenue', 'Signups']
-
-function getMetricUnit(metric: string): { prefix?: string; suffix?: string } {
-  const m = metric.toLowerCase()
-  if (m === 'arr' || m === 'mrr' || m === 'revenue') return { prefix: '$' }
-  if (m === 'dau' || m === 'mau' || m === 'signups') return { prefix: '#' }
-  if (m.includes('rate') || m === 'nps') return { suffix: '%' }
-  return {}
-}
-
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
   return (
@@ -111,9 +101,7 @@ export default function ProductSetupPage() {
   const [productName, setProductName] = useState('')
   const [description, setDescription] = useState('')
   const [primaryCustomer, setPrimaryCustomer] = useState('')
-  const [northStarMetric, setNorthStarMetric] = useState('')
-  const [currentValue, setCurrentValue] = useState('')
-  const [targetValue, setTargetValue] = useState('')
+  const [additionalIcps, setAdditionalIcps] = useState<string[]>([])
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -145,6 +133,14 @@ export default function ProductSetupPage() {
       setDescription(p.one_liner ?? '')
       setPrimaryCustomer(p.target_customer ?? '')
     }
+    const onboardingContext = (parsed.analysis_result as unknown as { onboarding_context?: { icps?: unknown } })?.onboarding_context
+    if (Array.isArray(onboardingContext?.icps)) {
+      const icps = onboardingContext.icps.filter((item): item is string => typeof item === 'string')
+      if (icps.length > 0) {
+        setPrimaryCustomer(icps[0] ?? p?.target_customer ?? '')
+        setAdditionalIcps(icps.slice(1))
+      }
+    }
     setLoading(false)
   }, [router])
 
@@ -156,10 +152,6 @@ export default function ProductSetupPage() {
       e.description = 'Please describe your product (at least 20 characters)'
     if (!primaryCustomer || primaryCustomer.trim().length < 10)
       e.primaryCustomer = 'Please describe your primary customer'
-    if (!northStarMetric)
-      e.northStarMetric = 'Please select or enter your North Star metric'
-    if (currentValue && targetValue && parseFloat(targetValue) <= parseFloat(currentValue))
-      e.targetValue = 'Target should be greater than current value'
     return e
   }
 
@@ -182,13 +174,12 @@ export default function ProductSetupPage() {
       productName,
       description,
       primaryCustomer,
-      northStarMetric,
     }[field]
   }
 
   async function handleSubmit() {
     // Mark all required fields as touched
-    setTouched({ productName: true, description: true, primaryCustomer: true, northStarMetric: true, targetValue: true })
+    setTouched({ productName: true, description: true, primaryCustomer: true })
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
@@ -241,7 +232,8 @@ export default function ProductSetupPage() {
               subvertical_name: savedData?.subvertical_name ?? null,
               vertical_name: savedData?.vertical_name ?? null,
               selected_competitors: savedData?.selected_competitors ?? [],
-              north_star_metric: northStarMetric,
+              north_star_metric: savedData?.north_star_metric ?? null,
+              icps: [primaryCustomer.trim(), ...additionalIcps.map((icp) => icp.trim()).filter(Boolean)],
             },
           },
           onboarding_step: 2,
@@ -257,7 +249,7 @@ export default function ProductSetupPage() {
         localStorage.setItem('northstar_onboarding', JSON.stringify({
           ...(savedData ?? {}),
           project_id: id,
-          north_star_metric: northStarMetric,
+          north_star_metric: savedData?.north_star_metric,
           onboarding_step: 2,
           timestamp: Date.now(),
         }))
@@ -271,9 +263,9 @@ export default function ProductSetupPage() {
     }
   }
 
-  const metricUnit = getMetricUnit(northStarMetric)
   const match = savedData?.analysis_result?.match
   const isHighConfidence = (match?.confidence ?? 0) > 0.7
+  const completedStep = Math.max(1, savedData?.onboarding_step ?? 1)
 
   if (loading) {
     return (
@@ -301,6 +293,42 @@ export default function ProductSetupPage() {
 
         {/* Progress indicator */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 14 }}>
+            {[
+              { label: 'Product', route: '/onboarding/product', step: 1 },
+              { label: 'Goal', route: '/onboarding/goal', step: 2 },
+              { label: 'Ideas', route: '/onboarding/wow', step: 3 },
+            ].map((item, i) => {
+              const isCurrent = item.step === 1
+              const isEnabled = item.step <= completedStep
+              return (
+                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    disabled={!isEnabled || submitting}
+                    onClick={() => {
+                      if (!isEnabled) return
+                      router.push(item.route)
+                    }}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: isCurrent ? C.blue : C.muted,
+                      padding: '3px 10px',
+                      borderRadius: 24,
+                      border: `1px solid ${isCurrent ? '#b8d0f7' : C.border}`,
+                      background: isCurrent ? '#eef4ff' : C.surface,
+                      cursor: !isEnabled || submitting ? 'not-allowed' : 'pointer',
+                      opacity: isEnabled ? 1 : 0.5,
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                  {i < 2 && <span style={{ color: C.border }}>→</span>}
+                </div>
+              )
+            })}
+          </div>
           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>
             Setting up your product
           </p>
@@ -411,127 +439,66 @@ export default function ProductSetupPage() {
               )}
             </div>
             <FieldError message={errors.primaryCustomer} />
-          </div>
 
-          {/* Field 4 — North Star metric */}
-          <div style={{ marginBottom: 24 }}>
-            <Label helper="The single number that defines success for your product">
-              What&apos;s your most important growth metric? <span style={{ color: '#e53e3e' }}>*</span>
-            </Label>
-            {/* Chips */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-              {NS_CHIPS.map((chip) => {
-                const selected = northStarMetric === chip
-                return (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+              {additionalIcps.map((icp, idx) => (
+                <div key={`icp-${idx}`} style={{ position: 'relative', minWidth: 250, flex: '1 1 250px' }}>
+                  <input
+                    type="text"
+                    value={icp}
+                    onChange={(e) => {
+                      const next = [...additionalIcps]
+                      next[idx] = e.target.value
+                      setAdditionalIcps(next)
+                    }}
+                    placeholder="Additional ICP (optional)"
+                    style={{ ...inputStyle(false), paddingRight: 34 }}
+                  />
                   <button
-                    key={chip}
                     type="button"
-                    onClick={() => { setNorthStarMetric(chip); if (errors.northStarMetric) setErrors(prev => { const n = { ...prev }; delete n.northStarMetric; return n }) }}
+                    aria-label={`Remove ICP ${idx + 1}`}
+                    onClick={() => setAdditionalIcps((prev) => prev.filter((_, i) => i !== idx))}
                     style={{
-                      padding: '5px 14px', borderRadius: 30, fontSize: 13, fontWeight: 500,
-                      border: `1px solid ${selected ? C.blue : C.border}`,
-                      background: selected ? '#e8f0fd' : C.surface,
-                      color: selected ? C.blue : C.muted,
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      border: 'none',
+                      background: 'none',
+                      color: C.muted,
+                      fontSize: 14,
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      transition: 'all 0.1s',
+                      lineHeight: 1,
                     }}
                   >
-                    {chip}
+                    ×
                   </button>
-                )
-              })}
-            </div>
-            {/* Free text input */}
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                value={northStarMetric}
-                onChange={(e) => { setNorthStarMetric(e.target.value); if (errors.northStarMetric) setErrors(prev => { const n = { ...prev }; delete n.northStarMetric; return n }) }}
-                onBlur={() => onBlur('northStarMetric')}
-                placeholder="Or type your own metric"
-                style={inputStyle(!!errors.northStarMetric, isValid('northStarMetric'))}
-              />
-              {isValid('northStarMetric') && (
-                <CheckCircle2 style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#2e7d32' }} />
-              )}
-            </div>
-            <FieldError message={errors.northStarMetric} />
-          </div>
+                </div>
+              ))}
 
-          {/* Fields 5 & 6 — Current and Target values */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
-            {/* Field 5 — Current value */}
-            <div>
-              <Label helper="What is this metric at today? (optional)">
-                Current value
-              </Label>
-              <div style={{ position: 'relative' }}>
-                {metricUnit.prefix && (
-                  <span style={{
-                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 13, color: C.muted, pointerEvents: 'none',
-                  }}>
-                    {metricUnit.prefix}
-                  </span>
-                )}
-                <input
-                  type="number"
-                  value={currentValue}
-                  onChange={(e) => { setCurrentValue(e.target.value); if (errors.targetValue) validateField('targetValue') }}
-                  placeholder="e.g. 50000"
-                  style={{
-                    ...inputStyle(false),
-                    paddingLeft: metricUnit.prefix ? 26 : 14,
-                    paddingRight: metricUnit.suffix ? 26 : 14,
-                  }}
-                />
-                {metricUnit.suffix && (
-                  <span style={{
-                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 13, color: C.muted, pointerEvents: 'none',
-                  }}>
-                    {metricUnit.suffix}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Field 6 — Target value */}
-            <div>
-              <Label helper="What do you want to reach? (optional)">
-                Target value
-              </Label>
-              <div style={{ position: 'relative' }}>
-                {metricUnit.prefix && (
-                  <span style={{
-                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 13, color: C.muted, pointerEvents: 'none',
-                  }}>
-                    {metricUnit.prefix}
-                  </span>
-                )}
-                <input
-                  type="number"
-                  value={targetValue}
-                  onChange={(e) => { setTargetValue(e.target.value); if (errors.targetValue) validateField('targetValue') }}
-                  onBlur={() => { if (currentValue && targetValue) validateField('targetValue') }}
-                  placeholder="e.g. 100000"
-                  style={{
-                    ...inputStyle(!!errors.targetValue),
-                    paddingLeft: metricUnit.prefix ? 26 : 14,
-                    paddingRight: metricUnit.suffix ? 26 : 14,
-                  }}
-                />
-                {metricUnit.suffix && (
-                  <span style={{
-                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                    fontSize: 13, color: C.muted, pointerEvents: 'none',
-                  }}>
-                    {metricUnit.suffix}
-                  </span>
-                )}
-              </div>
-              <FieldError message={errors.targetValue} />
+              <button
+                type="button"
+                aria-label="Add another ICP"
+                onClick={() => setAdditionalIcps((prev) => [...prev, ''])}
+                style={{
+                  width: 40,
+                  height: 40,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 999,
+                  background: C.surface,
+                  color: C.muted,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                +
+              </button>
             </div>
           </div>
 

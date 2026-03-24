@@ -99,26 +99,44 @@ export default function GoalPage() {
     setSelectedGoal((parsed.goal as GoalOption | undefined) ?? preselectGoal(parsed))
   }, [router])
 
+  const completedStep = Math.max(1, saved?.onboarding_step ?? 2)
+
   const progress = useMemo(() => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 18 }}>
-      {['Product', 'Goal', 'Ideas'].map((step, i) => (
-        <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
+      {[
+        { label: 'Product', route: '/onboarding/product', step: 1 },
+        { label: 'Goal', route: '/onboarding/goal', step: 2 },
+        { label: 'Ideas', route: '/onboarding/wow', step: 3 },
+      ].map((item, i) => {
+        const isCurrent = item.step === 2
+        const isEnabled = item.step <= completedStep
+        return (
+        <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            disabled={!isEnabled || submitting}
+            onClick={() => {
+              if (!isEnabled) return
+              router.push(item.route)
+            }}
+            style={{
             fontSize: 12,
             fontWeight: 600,
-            color: i === 1 ? C.blue : C.muted,
+            color: isCurrent ? C.blue : C.muted,
             padding: '3px 10px',
             borderRadius: 24,
-            border: `1px solid ${i === 1 ? '#b8d0f7' : C.border}`,
-            background: i === 1 ? '#eef4ff' : C.surface,
+            border: `1px solid ${isCurrent ? '#b8d0f7' : C.border}`,
+            background: isCurrent ? '#eef4ff' : C.surface,
+            cursor: !isEnabled || submitting ? 'not-allowed' : 'pointer',
+            opacity: isEnabled ? 1 : 0.5,
           }}>
-            {step}
-          </span>
+            {item.label}
+          </button>
           {i < 2 && <span style={{ color: C.border }}>→</span>}
         </div>
-      ))}
+      )})}
     </div>
-  ), [])
+  ), [completedStep, router, submitting])
 
   async function onContinue() {
     if (!saved?.project_id || !selectedGoal) return

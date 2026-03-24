@@ -29,9 +29,11 @@ type SavedData = {
   goal?: string
   subvertical_id?: string
   subvertical_name?: string
+  url?: string
   selected_competitors?: string[]
   analysis_result?: AnalysisResult
   selected_idea?: unknown
+  created_product_id?: string
 }
 
 type WowIdea = {
@@ -119,11 +121,60 @@ export default function WowPage() {
   }, [router])
 
   const intensity = (wow?.competitive_intensity || '').toLowerCase()
+  const completedStep = Math.max(1, (saved?.selected_idea ? 5 : 4))
   const intensityBadge = useMemo(() => {
     if (intensity === 'high') return { text: 'Highly competitive', bg: '#fff1f2', color: '#be123c', border: '#fda4af' }
     if (intensity === 'medium') return { text: 'Moderately competitive', bg: '#fffbeb', color: '#92600a', border: '#f0b429' }
     return { text: 'Low competition', bg: '#e8f5e9', color: '#2e7d32', border: '#a5d6a7' }
   }, [intensity])
+
+  async function ensureDashboardProduct(nextContext: Record<string, unknown>) {
+    if (!saved?.project_id) throw new Error('Missing project id')
+
+    const existingProductId = typeof saved.created_product_id === 'string' ? saved.created_product_id : ''
+    if (existingProductId) return existingProductId
+
+    const productName =
+      ((saved.analysis_result as unknown as { product?: { product_name?: string } })?.product?.product_name || '').trim()
+      || (saved.subvertical_name ? `${saved.subvertical_name} Product` : '')
+      || 'NorthStar Product'
+
+    const createRes = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: productName }),
+    })
+    if (!createRes.ok) {
+      const body = await createRes.json().catch(() => ({}))
+      throw new Error(body.error ?? 'Failed to create dashboard product')
+    }
+    const created = await createRes.json() as { id: string }
+
+    const projectPatchRes = await fetch(`/api/projects/${saved.project_id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        strategy_json: {
+          ...(saved.analysis_result ?? {}),
+          onboarding_context: {
+            ...nextContext,
+            created_product_id: created.id,
+          },
+        },
+      }),
+    })
+    if (!projectPatchRes.ok) {
+      const body = await projectPatchRes.json().catch(() => ({}))
+      throw new Error(body.error ?? 'Failed to link dashboard product to project')
+    }
+
+    localStorage.setItem('northstar_onboarding', JSON.stringify({
+      ...saved,
+      created_product_id: created.id,
+    }))
+
+    return created.id
+  }
 
   async function saveIdeaAndGo(idea: WowIdea) {
     if (!saved?.project_id) return
@@ -132,6 +183,13 @@ export default function WowPage() {
     const next = { ...saved, selected_idea: idea }
     localStorage.setItem('northstar_onboarding', JSON.stringify(next))
     try {
+      const nextContext = {
+        ...(saved as Record<string, unknown>),
+        selected_idea: idea,
+        onboarding_step: 5,
+      }
+      const dashboardProductId = await ensureDashboardProduct(nextContext)
+
       const res = await fetch(`/api/projects/${saved.project_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -139,9 +197,8 @@ export default function WowPage() {
           strategy_json: {
             ...(saved.analysis_result ?? {}),
             onboarding_context: {
-              ...(saved as Record<string, unknown>),
-              selected_idea: idea,
-              onboarding_step: 5,
+              ...nextContext,
+              created_product_id: dashboardProductId,
             },
           },
           onboarding_step: 5,
@@ -165,10 +222,23 @@ export default function WowPage() {
     setActionLoading(true)
     setError(null)
     try {
+      const nextContext = {
+        ...(saved as Record<string, unknown>),
+        onboarding_step: 5,
+      }
+      const dashboardProductId = await ensureDashboardProduct(nextContext)
+
       const res = await fetch(`/api/projects/${saved.project_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          strategy_json: {
+            ...(saved.analysis_result ?? {}),
+            onboarding_context: {
+              ...nextContext,
+              created_product_id: dashboardProductId,
+            },
+          },
           onboarding_completed: true,
           onboarding_step: 5,
         }),
@@ -207,6 +277,43 @@ export default function WowPage() {
   return (
     <div style={{ minHeight: '100vh', background: C.bg, padding: '32px 24px 120px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 18 }}>
+          {[
+            { label: 'Product', route: '/onboarding/product', step: 1 },
+            { label: 'Goal', route: '/onboarding/goal', step: 2 },
+            { label: 'Ideas', route: '/onboarding/wow', step: 3 },
+          ].map((item, i) => {
+            const isCurrent = item.step === 3
+            const isEnabled = item.step <= completedStep
+            return (
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  disabled={!isEnabled || actionLoading}
+                  onClick={() => {
+                    if (!isEnabled) return
+                    router.push(item.route)
+                  }}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: isCurrent ? C.blue : C.muted,
+                    padding: '3px 10px',
+                    borderRadius: 24,
+                    border: `1px solid ${isCurrent ? '#b8d0f7' : C.border}`,
+                    background: isCurrent ? '#eef4ff' : C.surface,
+                    cursor: !isEnabled || actionLoading ? 'not-allowed' : 'pointer',
+                    opacity: isEnabled ? 1 : 0.5,
+                  }}
+                >
+                  {item.label}
+                </button>
+                {i < 2 && <span style={{ color: C.border }}>→</span>}
+              </div>
+            )
+          })}
+        </div>
+
         {/* SECTION 1 — YOUR POSITION */}
         <section style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 30, color: C.text, letterSpacing: '-0.02em', marginBottom: 12 }}>Here&apos;s where you stand</h1>
