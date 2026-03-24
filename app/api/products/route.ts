@@ -42,9 +42,12 @@ export async function POST(request: Request) {
 
   // Ensure a profiles row exists — products.user_id references profiles(id),
   // and the trigger that creates it can silently miss some signups.
-  await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
-    .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
+    .upsert({ id: user.id, email: user.email ?? '' }, { onConflict: 'id', ignoreDuplicates: true })
+  if (profileError) {
+    return NextResponse.json({ error: `Could not ensure profile: ${profileError.message}` }, { status: 500 })
+  }
 
   const { data, error } = await supabase
     .from('products')
