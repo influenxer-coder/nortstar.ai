@@ -42,6 +42,7 @@ type AnalysisResult = {
 }
 
 type SavedData = {
+  project_id?: string
   url: string
   product?: ProductInfo
   subvertical_name?: string
@@ -198,21 +199,23 @@ export default function ProductSetupPage() {
     setSubmitError(null)
 
     try {
-      // Step 1 — Create the project record
-      const createRes = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: productName.trim(),
-          url: savedData!.url,
-          onboarding_step: 1,
-          enrichment_status: 'running',
-        }),
-      })
-
-      if (!createRes.ok) throw new Error('Failed to create product')
-
-      const { id } = await createRes.json() as { id: string }
+      // Step 1 — Use existing analyzed project when available, else create one.
+      let id = savedData?.project_id ?? ''
+      if (!id) {
+        const createRes = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: productName.trim(),
+            url: savedData!.url,
+            onboarding_step: 1,
+            enrichment_status: 'running',
+          }),
+        })
+        if (!createRes.ok) throw new Error('Failed to create product')
+        const created = await createRes.json() as { id: string }
+        id = created.id
+      }
 
       // Step 2 — Save all collected fields
       const patchRes = await fetch(`/api/projects/${id}`, {
@@ -233,6 +236,9 @@ export default function ProductSetupPage() {
 
       // Step 3 — Clean up
       localStorage.removeItem('northstar_onboarding')
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('northstar_current_project_id', id)
+      }
 
       // Step 4 — Go to dashboard
       router.push('/dashboard')

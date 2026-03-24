@@ -50,6 +50,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   const [streamMessages, setStreamMessages] = useState<string[]>([])
   const [statusMessage, setStatusMessage] = useState('')
   const [analysisComplete, setAnalysisComplete] = useState(false)
+  const [analysisProjectId, setAnalysisProjectId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -105,6 +106,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
     setStreamMessages([])
     setStatusMessage('')
     setAnalysisComplete(false)
+    setAnalysisProjectId(null)
   }, [])
 
   useEffect(() => {
@@ -127,6 +129,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
     setStreamMessages([])
     setStatusMessage('')
     setAnalysisComplete(false)
+    setAnalysisProjectId(null)
     setModalOpen(true)
   }
 
@@ -214,7 +217,42 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
           } else if (event.type === 'result') {
             const data = event.data as Record<string, unknown>
             const competitors = (data.competitors as Array<{ id: string }>) ?? []
+            const product = (data.product as Record<string, unknown> | undefined) ?? {}
+            const inferredName =
+              (typeof product.product_name === 'string' && product.product_name.trim()) ||
+              (new URL(parsedUrl).hostname.replace(/^www\./, '').split('.')[0] || 'New Product')
+
+            // Persist a project immediately after analysis so user can resume later.
+            const createRes = await fetch('/api/projects', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: inferredName,
+                url: parsedUrl,
+                description: typeof product.one_liner === 'string' ? product.one_liner : '',
+                strategy_json: data,
+                onboarding_step: 1,
+                onboarding_completed: false,
+              }),
+            })
+            if (!createRes.ok) throw new Error('Failed to save analyzed product')
+            const created = await createRes.json() as { id: string; name?: string | null; onboarding_step?: number | null }
+            setAnalysisProjectId(created.id)
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('northstar_current_project_id', created.id)
+            }
+            setInProgressProjects((prev) => {
+              const next = [{ id: created.id, name: created.name ?? inferredName, onboarding_step: created.onboarding_step ?? 1 }, ...prev]
+              const seen = new Set<string>()
+              return next.filter((p) => {
+                if (seen.has(p.id)) return false
+                seen.add(p.id)
+                return true
+              })
+            })
+
             localStorage.setItem('northstar_onboarding', JSON.stringify({
+              project_id: created.id,
               url: parsedUrl,
               product: data.product,
               subvertical_id: (data.match as Record<string, unknown>)?.subvertical_id,
@@ -717,7 +755,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   {analysisComplete && (
                     <button
                       type="button"
-                      onClick={() => router.push('/onboarding/product')}
+                      onClick={() => router.push(analysisProjectId ? `/onboarding/product?projectId=${analysisProjectId}&step=1` : '/onboarding/product')}
                       style={{
                         width: '100%',
                         padding: '11px 20px', borderRadius: 30,
