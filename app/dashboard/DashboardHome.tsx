@@ -328,7 +328,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '11px 24px', borderRadius: 30,
-                background: C.blue, color: '#fff',
+                background: C.text, color: '#fff',
                 fontSize: 14, fontWeight: 600,
                 border: 'none', cursor: 'pointer',
               }}
