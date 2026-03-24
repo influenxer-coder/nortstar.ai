@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
-import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2 } from 'lucide-react'
+import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2, CheckCircle2 } from 'lucide-react'
 
 export type ProductWithAgents = {
   id: string
@@ -47,9 +47,10 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   const [modalState, setModalState] = useState<'url_input' | 'analyzing'>('url_input')
   const [urlInput, setUrlInput] = useState('')
   const [urlError, setUrlError] = useState('')
-  const [logs, setLogs] = useState<string[]>([])
-  const [analyzing, setAnalyzing] = useState(false)
-  const logsEndRef = useRef<HTMLDivElement>(null)
+  const [streamMessages, setStreamMessages] = useState<string[]>([])
+  const [statusMessage, setStatusMessage] = useState('')
+  const [analysisComplete, setAnalysisComplete] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -86,10 +87,10 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inProgressChecked])
 
-  // Scroll logs to bottom
+  // Scroll messages to bottom
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [logs])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [streamMessages])
 
   // ESC to close modal
   const closeModal = useCallback(() => {
@@ -101,8 +102,9 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
     setModalState('url_input')
     setUrlInput('')
     setUrlError('')
-    setLogs([])
-    setAnalyzing(false)
+    setStreamMessages([])
+    setStatusMessage('')
+    setAnalysisComplete(false)
   }, [])
 
   useEffect(() => {
@@ -122,31 +124,33 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
     setModalState('url_input')
     setUrlInput('')
     setUrlError('')
-    setLogs([])
-    setAnalyzing(false)
+    setStreamMessages([])
+    setStatusMessage('')
+    setAnalysisComplete(false)
     setModalOpen(true)
   }
 
   async function analyzeUrl() {
     const trimmed = urlInput.trim()
     if (!trimmed) { setUrlError('Please enter a URL'); return }
-    let url: URL
+    let parsedUrl: string
     try {
-      url = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`)
+      parsedUrl = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`).toString()
     } catch {
       setUrlError('Please enter a valid URL')
       return
     }
 
     setUrlError('')
-    setAnalyzing(true)
     setModalState('analyzing')
-    setLogs([])
+    setStatusMessage('Starting analysis...')
+    setStreamMessages([])
+    setAnalysisComplete(false)
 
     const endpoint = process.env.NEXT_PUBLIC_ANALYZE_URL_ENDPOINT
     if (!endpoint) {
-      setLogs(['Error: NEXT_PUBLIC_ANALYZE_URL_ENDPOINT is not configured.'])
-      setAnalyzing(false)
+      setUrlError('Analysis endpoint is not configured.')
+      setModalState('url_input')
       return
     }
 
@@ -157,61 +161,66 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.toString() }),
+        body: JSON.stringify({ url: parsedUrl }),
         signal: abort.signal,
       })
 
       if (!res.ok || !res.body) {
-        const text = await res.text().catch(() => `HTTP ${res.status}`)
-        setLogs([`Error: ${text}`])
-        setAnalyzing(false)
-        return
+        throw new Error('Could not reach analysis server')
       }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let analysisResult: Record<string, unknown> | null = null
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
+        buffer = lines.pop() || ''
+
         for (const line of lines) {
           const trimmedLine = line.trim()
           if (!trimmedLine) continue
+
           try {
-            const parsed = JSON.parse(trimmedLine) as Record<string, unknown>
-            if (parsed.log && typeof parsed.log === 'string') {
-              setLogs((prev) => [...prev, parsed.log as string])
-            } else if (parsed.result) {
-              analysisResult = parsed.result as Record<string, unknown>
-            } else if (parsed.error && typeof parsed.error === 'string') {
-              setLogs((prev) => [...prev, `Error: ${parsed.error}`])
+            const event = JSON.parse(trimmedLine) as Record<string, unknown>
+
+            if (event.type === 'log') {
+              const msg = event.message as string
+              setStatusMessage(msg)
+              setStreamMessages(prev => [...prev, msg])
+            } else if (event.type === 'result') {
+              const data = event.data as Record<string, unknown>
+              const competitors = (data.competitors as Array<{ id: string }>) ?? []
+              localStorage.setItem('northstar_onboarding', JSON.stringify({
+                url: parsedUrl,
+                product: data.product,
+                subvertical_id: (data.match as Record<string, unknown>)?.subvertical_id,
+                subvertical_name: (data.match as Record<string, unknown>)?.subvertical_name,
+                vertical_name: (data.match as Record<string, unknown>)?.vertical_name,
+                selected_competitors: competitors.map((c) => c.id),
+                analysis_result: data,
+                onboarding_step: 1,
+                timestamp: Date.now(),
+              }))
+              setAnalysisComplete(true)
+              setStatusMessage('Analysis complete!')
+              setStreamMessages(prev => [...prev, '✓ Analysis complete'])
+            } else if (event.type === 'error') {
+              throw new Error(event.message as string)
             }
           } catch {
-            // Non-JSON line, treat as log
-            setLogs((prev) => [...prev, trimmedLine])
+            // Skip malformed JSON lines silently
           }
         }
       }
-
-      // Store result in localStorage and navigate
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('northstar_onboarding', JSON.stringify({
-          url: url.toString(),
-          analysis_result: analysisResult,
-          timestamp: Date.now(),
-        }))
-      }
-
-      setAnalyzing(false)
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') return
-      setLogs((prev) => [...prev, `Error: ${(err as Error)?.message ?? 'Unknown error'}`])
-      setAnalyzing(false)
+      setUrlError((err as Error)?.message || 'Something went wrong. Try again.')
+      setModalState('url_input')
     }
   }
 
@@ -271,7 +280,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 )}
               </div>
               <Link
-                href="/dashboard"
+                href="/onboarding/product"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   fontSize: 13, fontWeight: 600, color: C.blue,
@@ -498,14 +507,14 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             padding: 24,
             animation: 'fadeIn 0.15s ease',
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}
+          onClick={(e) => { if (e.target === e.currentTarget && modalState === 'url_input') closeModal() }}
         >
           <div
             style={{
               background: C.surface,
               borderRadius: 16,
               width: '100%',
-              maxWidth: 540,
+              maxWidth: 520,
               boxShadow: '0 8px 40px rgba(27,37,40,0.18)',
               overflow: 'hidden',
               animation: 'slideUp 0.18s ease',
@@ -514,28 +523,30 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             {/* Modal header */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '20px 24px',
+              padding: '18px 24px',
               borderBottom: `1px solid ${C.border}`,
               background: C.bg,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Logo size={24} color="purple" />
                 <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
-                  {modalState === 'url_input' ? 'Create a product' : 'Analyzing your product…'}
+                  {modalState === 'url_input' ? 'Create a product' : 'Analyzing your product'}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 28, height: 28, borderRadius: 6,
-                  border: `1px solid ${C.border}`, background: C.surface,
-                  cursor: 'pointer', color: C.muted,
-                }}
-              >
-                <X style={{ width: 14, height: 14 }} />
-              </button>
+              {modalState === 'url_input' && (
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 28, height: 28, borderRadius: 6,
+                    border: `1px solid ${C.border}`, background: C.surface,
+                    cursor: 'pointer', color: C.muted,
+                  }}
+                >
+                  <X style={{ width: 14, height: 14 }} />
+                </button>
+              )}
             </div>
 
             {/* Modal body */}
@@ -604,58 +615,96 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 </>
               ) : (
                 <>
+                  {/* URL chip */}
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '5px 12px', borderRadius: 30,
+                    background: C.bg, border: `1px solid ${C.border}`,
+                    fontSize: 12, color: C.muted,
+                    marginBottom: 24, maxWidth: '100%',
+                    overflow: 'hidden',
                   }}>
-                    <Loader2 style={{ width: 16, height: 16, color: C.blue, animation: 'spin 1s linear infinite' }} />
-                    <p style={{ fontSize: 14, color: C.muted }}>
-                      {analyzing ? 'Running analysis — this takes about 30 seconds…' : 'Analysis complete. Redirecting…'}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {urlInput}
+                    </span>
+                  </div>
+
+                  {/* Spinner or checkmark */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+                    {analysisComplete ? (
+                      <div style={{
+                        width: 48, height: 48, borderRadius: '50%',
+                        background: '#e8f5e9', border: '1px solid #a5d6a7',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        marginBottom: 12, animation: 'popIn 0.2s ease',
+                      }}>
+                        <CheckCircle2 style={{ width: 24, height: 24, color: '#2e7d32' }} />
+                      </div>
+                    ) : (
+                      <Loader2 style={{
+                        width: 32, height: 32, color: C.blue,
+                        marginBottom: 12,
+                        animation: 'spin 1s linear infinite',
+                      }} />
+                    )}
+
+                    {/* Current status — fades in/out on change */}
+                    <p
+                      key={statusMessage}
+                      style={{
+                        fontSize: 14, fontWeight: 500,
+                        color: analysisComplete ? '#2e7d32' : C.text,
+                        textAlign: 'center',
+                        animation: 'fadeIn 0.2s ease',
+                      }}
+                    >
+                      {statusMessage}
                     </p>
                   </div>
-                  <div style={{
-                    background: '#0d1117',
-                    borderRadius: 8,
-                    padding: '14px 16px',
-                    minHeight: 200,
-                    maxHeight: 280,
-                    overflowY: 'auto',
-                    fontFamily: 'ui-monospace, monospace',
-                    fontSize: 12,
-                    lineHeight: 1.7,
-                    color: '#7ee787',
-                    border: `1px solid #30363d`,
-                  }}>
-                    {logs.length === 0 ? (
-                      <span style={{ color: '#8b949e' }}>Starting analysis…</span>
-                    ) : (
-                      logs.map((log, i) => (
+
+                  {/* Message history */}
+                  {streamMessages.length > 1 && (
+                    <div style={{
+                      maxHeight: 160,
+                      overflowY: 'auto',
+                      marginBottom: 20,
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      background: C.bg,
+                      border: `1px solid ${C.border}`,
+                    }}>
+                      {streamMessages.slice(0, -1).map((msg, i) => (
                         <div key={i} style={{
-                          color: log.startsWith('Error:') ? '#f85149' : '#7ee787',
+                          fontSize: 12, color: C.muted,
+                          lineHeight: 1.7,
+                          display: 'flex', alignItems: 'flex-start', gap: 6,
                         }}>
-                          <span style={{ color: '#8b949e', marginRight: 8 }}>{'>'}</span>
-                          {log}
+                          <span style={{ color: '#2e7d32', flexShrink: 0 }}>✓</span>
+                          <span>{msg}</span>
                         </div>
-                      ))
-                    )}
-                    <div ref={logsEndRef} />
-                  </div>
-                  {!analyzing && (
-                    <div style={{ marginTop: 16, textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        style={{
-                          padding: '9px 20px', borderRadius: 30,
-                          border: 'none', background: C.blue, color: '#fff',
-                          fontSize: 13, fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'inline-flex', alignItems: 'center', gap: 6,
-                        }}
-                      >
-                        Continue setup
-                        <ArrowRight style={{ width: 14, height: 14 }} />
-                      </button>
+                      ))}
+                      <div ref={messagesEndRef} />
                     </div>
+                  )}
+
+                  {/* Continue button when done */}
+                  {analysisComplete && (
+                    <button
+                      type="button"
+                      onClick={() => router.push('/onboarding/product')}
+                      style={{
+                        width: '100%',
+                        padding: '11px 20px', borderRadius: 30,
+                        border: 'none', background: C.text, color: '#fff',
+                        fontSize: 14, fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        animation: 'fadeIn 0.3s ease',
+                      }}
+                    >
+                      Continue
+                      <ArrowRight style={{ width: 15, height: 15 }} />
+                    </button>
                   )}
                 </>
               )}
@@ -668,6 +717,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
         @keyframes slideUp { from { transform: translateY(12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
         @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+        @keyframes popIn { from { transform: scale(0.7); opacity: 0 } to { transform: scale(1); opacity: 1 } }
       `}</style>
     </>
   )
