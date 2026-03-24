@@ -40,6 +40,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   const router = useRouter()
   const [inProgressProjects, setInProgressProjects] = useState<InProgressProject[]>(dbInProgressProjects)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [inProgressChecked, setInProgressChecked] = useState(dbInProgressProjects.length > 0 || products.length > 0)
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -54,10 +55,11 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   useEffect(() => {
     if (dbInProgressProjects.length > 0) {
       setInProgressProjects(dbInProgressProjects)
+      setInProgressChecked(true)
       return
     }
     const id = typeof localStorage !== 'undefined' ? localStorage.getItem('northstar_current_project_id') : null
-    if (!id) { setInProgressProjects([]); return }
+    if (!id) { setInProgressProjects([]); setInProgressChecked(true); return }
     const supabase = createClient()
     void supabase
       .from('projects')
@@ -68,11 +70,21 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
         if (error || !data || data.onboarding_completed) {
           if (typeof localStorage !== 'undefined') localStorage.removeItem('northstar_current_project_id')
           setInProgressProjects([])
-          return
+        } else {
+          setInProgressProjects([{ id: data.id, name: data.name, onboarding_step: data.onboarding_step }])
         }
-        setInProgressProjects([{ id: data.id, name: data.name, onboarding_step: data.onboarding_step }])
+        setInProgressChecked(true)
       })
   }, [dbInProgressProjects])
+
+  // Auto-open modal when user has no products and no in-progress setup
+  useEffect(() => {
+    if (!inProgressChecked) return
+    if (products.length === 0 && ungroupedAgents.length === 0 && inProgressProjects.length === 0) {
+      openModal()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inProgressChecked])
 
   // Scroll logs to bottom
   useEffect(() => {
