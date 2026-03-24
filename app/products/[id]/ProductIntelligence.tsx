@@ -33,14 +33,17 @@ type MatchInfo = {
   confidence?: number
 }
 
+type IcpEntry = { role?: string; company_stage?: string; why_they_lose?: string; why_they_win?: string } | string | null | undefined
+
 type Competitor = {
   id?: string
   name?: string
   one_liner?: string
   funding_stage?: string
   icp_signals?: {
-    who_they_win_with?: string
-    who_they_lose_with?: string
+    who_they_win_with?: IcpEntry
+    who_they_lose_with?: IcpEntry
+    underserved_icp?: { who?: string; pain?: string; workaround?: string } | string
   }
   changelog_signals?: {
     features_90d?: string[]
@@ -117,6 +120,12 @@ type Props = {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function icpText(entry: IcpEntry): string {
+  if (!entry) return ''
+  if (typeof entry === 'string') return entry
+  return [entry.role, entry.company_stage, entry.why_they_lose ?? entry.why_they_win].filter(Boolean).join(' · ')
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -233,7 +242,7 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
         {competitor.icp_signals?.who_they_lose_with && (
           <p style={{ fontSize: 12, color: C.text }}>
             <span style={{ color: C.muted }}>Loses with: </span>
-            {competitor.icp_signals.who_they_lose_with}
+            {icpText(competitor.icp_signals.who_they_lose_with)}
           </p>
         )}
       </div>
@@ -262,7 +271,7 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
           {competitor.icp_signals?.who_they_win_with && (
             <div style={{ marginBottom: 8 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 3 }}>WINS WITH</p>
-              <p style={{ fontSize: 12, color: C.text }}>{competitor.icp_signals.who_they_win_with}</p>
+              <p style={{ fontSize: 12, color: C.text }}>{icpText(competitor.icp_signals.who_they_win_with)}</p>
             </div>
           )}
           {(competitor.changelog_signals?.features_90d ?? []).length > 0 && (
@@ -460,7 +469,7 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
                   <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {competitors.filter(c => c.icp_signals?.who_they_lose_with).slice(0, 4).map((c, i) => (
                       <p key={i} style={{ fontSize: 12, color: C.muted }}>
-                        <strong style={{ color: C.text }}>{c.name}</strong> → {c.icp_signals?.who_they_lose_with}
+                        <strong style={{ color: C.text }}>{c.name}</strong> → {icpText(c.icp_signals?.who_they_lose_with)}
                       </p>
                     ))}
                   </div>
