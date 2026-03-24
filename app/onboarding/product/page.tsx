@@ -219,9 +219,6 @@ export default function ProductSetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: description.trim(),
-          north_star_metric: northStarMetric,
-          north_star_current: currentValue ? parseFloat(currentValue) : null,
-          north_star_target: targetValue ? parseFloat(targetValue) : null,
           icp: primaryCustomer.trim(),
           strategy_json: {
             ...(savedData?.analysis_result ?? {}),
