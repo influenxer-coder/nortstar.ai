@@ -174,16 +174,16 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
           <div className="mt-0.5 space-y-0.5">
             {product.projectId && product.goal && (
               <Link
-                href={`/products/${product.projectId}`}
+                href={`/products/${product.projectId}/opportunities`}
                 className={`flex items-center gap-2 pl-5 pr-2 rounded-md transition-colors ${
-                  pathname === `/products/${product.projectId}` ? 'bg-accent' : 'hover:bg-muted'
+                  pathname === `/products/${product.projectId}/opportunities` ? 'bg-accent' : 'hover:bg-muted'
                 }`}
                 style={{ height: 28 }}
               >
                 <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
                 <span
                   className="hidden md:block truncate"
-                  style={{ fontSize: 13, fontWeight: 500, color: pathname === `/products/${product.projectId}` ? '#1f2328' : '#535963' }}
+                  style={{ fontSize: 13, fontWeight: 500, color: pathname === `/products/${product.projectId}/opportunities` ? '#1f2328' : '#535963' }}
                 >
                   {product.goal}
                 </span>
