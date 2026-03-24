@@ -153,11 +153,8 @@ function NewOnboardingFlow() {
   }, [urlInput])
 
   function handleContinueToProduct() {
-    if (onboardingData?.url) {
-      router.push(`/onboarding/product?url=${encodeURIComponent(onboardingData.url)}`)
-    } else {
-      router.push('/onboarding/product')
-    }
+    // TODO: navigate to rebuilt product onboarding UI
+    router.push('/dashboard')
   }
 
   return (

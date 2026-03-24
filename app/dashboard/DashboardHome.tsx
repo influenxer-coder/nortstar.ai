@@ -260,7 +260,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 )}
               </div>
               <Link
-                href={`/onboarding/product?projectId=${project.id}&step=${project.onboarding_step ?? 1}`}
+                href={`/onboarding/new?projectId=${project.id}`}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   fontSize: 13, fontWeight: 600, color: C.blue,
