@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -190,8 +191,12 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
 
             if (event.type === 'log') {
               const msg = event.message as string
-              setStatusMessage(msg)
-              setStreamMessages(prev => [...prev, msg])
+              flushSync(() => {
+                setStatusMessage(msg)
+                setStreamMessages(prev => [...prev, msg])
+              })
+              // Yield to browser so each message paints immediately
+              await new Promise<void>(r => setTimeout(r, 0))
             } else if (event.type === 'result') {
               const data = event.data as Record<string, unknown>
               const competitors = (data.competitors as Array<{ id: string }>) ?? []
@@ -206,9 +211,12 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 onboarding_step: 1,
                 timestamp: Date.now(),
               }))
-              setAnalysisComplete(true)
-              setStatusMessage('Analysis complete!')
-              setStreamMessages(prev => [...prev, '✓ Analysis complete'])
+              flushSync(() => {
+                setAnalysisComplete(true)
+                setStatusMessage('Analysis complete!')
+                setStreamMessages(prev => [...prev, '✓ Analysis complete'])
+              })
+              await new Promise<void>(r => setTimeout(r, 0))
             } else if (event.type === 'error') {
               throw new Error(event.message as string)
             }
@@ -663,7 +671,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   </div>
 
                   {/* Message history */}
-                  {streamMessages.length > 1 && (
+                  {streamMessages.length > 0 && (
                     <div style={{
                       maxHeight: 160,
                       overflowY: 'auto',
@@ -673,16 +681,23 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       background: C.bg,
                       border: `1px solid ${C.border}`,
                     }}>
-                      {streamMessages.slice(0, -1).map((msg, i) => (
-                        <div key={i} style={{
-                          fontSize: 12, color: C.muted,
-                          lineHeight: 1.7,
-                          display: 'flex', alignItems: 'flex-start', gap: 6,
-                        }}>
-                          <span style={{ color: '#2e7d32', flexShrink: 0 }}>✓</span>
-                          <span>{msg}</span>
-                        </div>
-                      ))}
+                      {streamMessages.map((msg, i) => {
+                        const isActive = i === streamMessages.length - 1 && !analysisComplete
+                        return (
+                          <div key={i} style={{
+                            fontSize: 12,
+                            lineHeight: 1.8,
+                            display: 'flex', alignItems: 'flex-start', gap: 7,
+                            color: isActive ? C.text : C.muted,
+                            fontWeight: isActive ? 500 : 400,
+                          }}>
+                            <span style={{ flexShrink: 0, color: isActive ? C.blue : '#2e7d32' }}>
+                              {isActive ? '›' : '✓'}
+                            </span>
+                            <span>{msg}</span>
+                          </div>
+                        )
+                      })}
                       <div ref={messagesEndRef} />
                     </div>
                   )}
