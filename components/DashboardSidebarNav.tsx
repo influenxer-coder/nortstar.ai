@@ -154,11 +154,15 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       {products.map((product) => (
         <div key={product.id} className="mt-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <FolderOpen className={`h-3.5 w-3.5 shrink-0 ${product.projectId && pathname === `/products/${product.projectId}` ? 'text-primary' : 'text-muted-foreground'}`} />
             {product.projectId ? (
               <Link
                 href={`/products/${product.projectId}`}
-                className="hidden text-xs font-medium text-muted-foreground truncate md:block hover:text-foreground transition-colors"
+                className={`hidden text-xs font-semibold truncate md:block transition-colors ${
+                  pathname === `/products/${product.projectId}`
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
                 {product.name}
               </Link>

@@ -2,18 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppShell } from '@/components/AppShell'
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function ProductsLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?next=/dashboard')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('onboarding_completed')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile && !profile.onboarding_completed) redirect('/onboarding')
 
   return (
     <AppShell adminEmail={process.env.ADMIN_EMAIL}>
