@@ -678,23 +678,40 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
         </div>
 
         {/* ICP */}
-        {(project.icp || product.target_customer) && (
-          <div style={{
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 10,
-            padding: '14px 16px',
-            boxShadow: C.cardShadow,
-          }}>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: C.muted, marginBottom: 8 }}>YOUR ICP</p>
-            <p style={{ fontSize: 12, color: C.text, lineHeight: 1.55 }}>{project.icp}</p>
-            {product.target_customer && project.icp !== product.target_customer && (
-              <p style={{ fontSize: 11, color: C.muted, marginTop: 6, fontStyle: 'italic' }}>
-                NorthStar inferred: {product.target_customer}
-              </p>
-            )}
-          </div>
-        )}
+        {(() => {
+          const icpArray: string[] = Array.isArray(ctx.icps) && ctx.icps.length > 0
+            ? ctx.icps.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+            : project.icp ? [project.icp] : []
+          if (icpArray.length === 0 && !product.target_customer) return null
+          return (
+            <div style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              padding: '14px 16px',
+              boxShadow: C.cardShadow,
+            }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: C.muted, marginBottom: 10 }}>YOUR ICP</p>
+              {icpArray.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {icpArray.map((icp, i) => (
+                    <div key={i} style={{
+                      fontSize: 12, color: C.text, lineHeight: 1.55,
+                      padding: '6px 10px', borderRadius: 6,
+                      background: C.bg, border: `1px solid ${C.border}`,
+                    }}>
+                      {icp}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>
+                  NorthStar inferred: {product.target_customer}
+                </p>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
     </div>
