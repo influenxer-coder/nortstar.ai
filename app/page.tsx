@@ -127,7 +127,7 @@ export default function LandingPage() {
             border: `1px solid rgba(54,126,237,0.3)`,
             padding: '5px 14px', marginBottom: 32, borderRadius: 30,
           }}>
-            AUTONOMOUS GROWTH INTELLIGENCE
+            AUTONOMOUS PRODUCT BUILDING
           </div>
 
           {/* Headline */}
