@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap } from 'lucide-react'
+import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 
@@ -51,6 +51,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [launchesOpen, setLaunchesOpen] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const hasFetched = useRef(false)
 
@@ -198,13 +199,18 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
         {/* Recent launches */}
         {recentCommits.length > 0 && (
           <div style={{ marginBottom: 32 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => setLaunchesOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: launchesOpen ? 12 : 0, background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%' }}
+            >
               <GitCommit style={{ width: 14, height: 14, color: C.muted, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase', flex: 1, textAlign: 'left' }}>
                 Recent launches
               </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              <ChevronRight style={{ width: 12, height: 12, color: C.muted, transition: 'transform 0.15s', transform: launchesOpen ? 'rotate(90deg)' : 'none' }} />
+            </button>
+            {launchesOpen && <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {recentCommits.map((c, i) => (
                 <a
                   key={c.sha}
@@ -229,7 +235,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                   </span>
                 </a>
               ))}
-            </div>
+            </div>}
           </div>
         )}
 
