@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp } from 'lucide-react'
+import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 
 const C = {
@@ -37,6 +37,10 @@ const SIGNAL_SOURCES = [
   { icon: MessageSquare, label: 'Slack signals' },
   { icon: Globe,         label: 'Competitor intel' },
   { icon: TrendingUp,    label: 'Market data' },
+  { icon: Megaphone,     label: 'PMM Inbounds' },
+  { icon: Star,          label: 'Leadership priority' },
+  { icon: FlaskConical,  label: 'UX Research' },
+  { icon: Zap,           label: 'Rage Shakes' },
 ]
 
 export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId }: Props) {
