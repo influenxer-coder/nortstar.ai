@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
+import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 
 const C = {
   bg: '#f6f6f6',
@@ -15,13 +16,7 @@ const C = {
   cardShadow: '0 1px 3px rgba(0,0,0,0.06)',
 }
 
-type Idea = {
-  title: string
-  goal: string
-  effort: 'low' | 'medium' | 'high'
-  evidence: string
-  winning_pattern: string
-}
+type Idea = IdeaWithImpact
 
 type CommitRow = { sha: string; message: string; date: string; url: string }
 
@@ -218,51 +213,29 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {ideas.map((idea, idx) => {
-              const effort = idea.effort.toLowerCase()
-              const effortStyle =
-                effort === 'low'  ? { color: '#2e7d32', bg: '#e8f5e9', border: '#a5d6a7' } :
-                effort === 'high' ? { color: '#be123c', bg: '#fff1f2', border: '#fda4af' } :
-                                    { color: '#92600a', bg: '#fffbeb', border: '#f0b429' }
-              return (
-                <div key={idx} style={{
-                  background: C.surface, border: `1px solid ${C.border}`,
-                  borderRadius: 12, padding: '20px', boxShadow: C.cardShadow,
-                }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 10 }}>{idea.title}</h3>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, letterSpacing: '0.05em',
-                      padding: '3px 8px', borderRadius: 20,
-                      color: effortStyle.color, background: effortStyle.bg, border: `1px solid ${effortStyle.border}`,
+            {ideas.map((idea, idx) => (
+              <div key={idx}>
+                <OpportunityCard idea={idea} />
+                {/* Sourced from row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, textTransform: 'uppercase', marginRight: 2 }}>Sourced from</span>
+                  {[
+                    { icon: Globe,     label: 'Competitor intel' },
+                    { icon: Megaphone, label: 'PMM Inbounds' },
+                  ].map(({ icon: Icon, label }) => (
+                    <span key={label} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: 11, fontWeight: 500, color: '#166534',
+                      background: '#dcfce7', border: '1px solid #86efac',
+                      borderRadius: 20, padding: '2px 8px',
                     }}>
-                      {effort.toUpperCase()} EFFORT
+                      <Icon style={{ width: 10, height: 10, flexShrink: 0 }} />
+                      {label}
                     </span>
-                  </div>
-                  <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 10 }}>{idea.evidence}</p>
-                  <p style={{ fontSize: 13, color: C.text, lineHeight: 1.6, borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 10 }}>
-                    {idea.winning_pattern}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, textTransform: 'uppercase', marginRight: 2 }}>Sourced from</span>
-                    {[
-                      { icon: Globe,     label: 'Competitor intel' },
-                      { icon: Megaphone, label: 'PMM Inbounds' },
-                    ].map(({ icon: Icon, label }) => (
-                      <span key={label} style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11, fontWeight: 500, color: '#166534',
-                        background: '#dcfce7', border: '1px solid #86efac',
-                        borderRadius: 20, padding: '2px 8px',
-                      }}>
-                        <Icon style={{ width: 10, height: 10, flexShrink: 0 }} />
-                        {label}
-                      </span>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>

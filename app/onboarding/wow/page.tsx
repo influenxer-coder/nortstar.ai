@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
+import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 
 const C = {
   bg: '#f6f6f6',
@@ -36,13 +37,7 @@ type SavedData = {
   created_product_id?: string
 }
 
-type WowIdea = {
-  title: string
-  goal: string
-  effort: 'low' | 'medium' | 'high'
-  evidence: string
-  winning_pattern: string
-}
+type WowIdea = IdeaWithImpact
 
 type WowResponse = {
   evolutionary_niches?: Array<{
@@ -58,11 +53,6 @@ type WowResponse = {
   ideas?: WowIdea[]
 }
 
-function effortTagColor(effort: string) {
-  if (effort === 'low') return { bg: '#e8f5e9', color: '#2e7d32', border: '#a5d6a7' }
-  if (effort === 'medium') return { bg: '#fffbeb', color: '#92600a', border: '#f0b429' }
-  return { bg: '#fff1f2', color: '#be123c', border: '#fda4af' }
-}
 
 export default function WowPage() {
   const router = useRouter()
@@ -115,7 +105,17 @@ export default function WowPage() {
         }
         return r.json() as Promise<WowResponse>
       })
-      .then((d) => setWow(d))
+      .then((d) => {
+        setWow(d)
+        // Persist ideas to opportunities table (fire-and-forget)
+        if (parsed.project_id && Array.isArray(d.ideas) && d.ideas.length > 0) {
+          fetch('/api/opportunities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: parsed.project_id, ideas: d.ideas }),
+          }).catch(() => { /* non-critical */ })
+        }
+      })
       .catch((e) => setError((e as Error).message || 'Could not load wow data'))
       .finally(() => setLoading(false))
   }, [router])
@@ -382,44 +382,15 @@ export default function WowPage() {
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-            {ideas.slice(0, 3).map((idea, idx) => {
-              const effort = effortTagColor(idea.effort)
-              return (
-                <div key={`${idea.title}-${idx}`} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: C.cardShadow, padding: 16 }}>
-                  <h4 style={{ fontSize: 17, color: C.text, marginBottom: 8 }}>{idea.title}</h4>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 30, padding: '3px 10px', color: C.muted, background: C.bg }}>
-                      {idea.goal}
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, border: `1px solid ${effort.border}`, borderRadius: 30, padding: '3px 10px', color: effort.color, background: effort.bg }}>
-                      {idea.effort.toUpperCase()} effort
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, marginBottom: 8 }}>{idea.evidence}</p>
-                  <p style={{ fontSize: 12, color: C.text, marginBottom: 12 }}>
-                    {idea.winning_pattern}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void saveIdeaAndGo(idea)}
-                    disabled={actionLoading}
-                    style={{
-                      borderRadius: 30,
-                      border: `1px solid ${C.border}`,
-                      background: C.surface,
-                      color: C.text,
-                      padding: '8px 14px',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: actionLoading ? 'not-allowed' : 'pointer',
-                      opacity: actionLoading ? 0.65 : 1,
-                    }}
-                  >
-                    Generate Spec →
-                  </button>
-                </div>
-              )
-            })}
+            {ideas.slice(0, 3).map((idea, idx) => (
+              <OpportunityCard
+                key={`${idea.title}-${idx}`}
+                idea={idea}
+                onAction={() => void saveIdeaAndGo(idea)}
+                actionLabel="Generate Spec →"
+                actionLoading={actionLoading}
+              />
+            ))}
           </div>
         </section>
       </div>
