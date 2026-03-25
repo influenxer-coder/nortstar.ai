@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 const C = {
   text:       '#1f2328',
   muted:      '#535963',
@@ -64,6 +66,7 @@ type Props = {
 }
 
 export default function OpportunityCard({ idea, onAction, actionLabel, actionLoading }: Props) {
+  const [expanded, setExpanded] = useState(false)
   const badge   = idea.decision_badge ? BADGE[idea.decision_badge] : null
   const effort  = EFFORT[idea.effort] ?? EFFORT.medium
   const impactPct = idea.impact_score != null
@@ -79,7 +82,11 @@ export default function OpportunityCard({ idea, onAction, actionLabel, actionLoa
       boxShadow:    C.cardShadow,
       overflow:     'hidden',
     }}>
-      <div style={{ padding: '16px' }}>
+      {/* Always-visible: title + metrics + impact bar */}
+      <div
+        onClick={() => setExpanded(o => !o)}
+        style={{ padding: '16px', cursor: 'pointer' }}
+      >
         <h4 style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 10 }}>{idea.title}</h4>
 
         {/* Metrics row */}
@@ -106,54 +113,55 @@ export default function OpportunityCard({ idea, onAction, actionLabel, actionLoa
 
         {/* Impact bar */}
         {impactPct != null && (
-          <div style={{ marginBottom: 12 }}>
+          <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Impact</span>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{Number(idea.impact_score).toFixed(1)}/10</span>
             </div>
             <div style={{ height: 5, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${impactPct}%`, borderRadius: 99,
-                background: badge?.bar ?? '#9ca3af',
-              }} />
+              <div style={{ height: '100%', width: `${impactPct}%`, borderRadius: 99, background: badge?.bar ?? '#9ca3af' }} />
             </div>
           </div>
         )}
-
-        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 8 }}>{idea.evidence}</p>
-        <p style={{ fontSize: 13, color: C.text, lineHeight: 1.6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-          {idea.winning_pattern}
-        </p>
-
-        {/* Human number */}
-        {idea.human_number && (
-          <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-            {idea.human_number}
-          </p>
-        )}
-
-        {onAction && (
-          <button
-            type="button"
-            onClick={onAction}
-            disabled={actionLoading}
-            style={{
-              marginTop: 12,
-              borderRadius: 30,
-              border: `1px solid ${C.border}`,
-              background: C.surface,
-              color: C.text,
-              padding: '8px 14px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: actionLoading ? 'not-allowed' : 'pointer',
-              opacity: actionLoading ? 0.65 : 1,
-            }}
-          >
-            {actionLabel ?? 'Select →'}
-          </button>
-        )}
       </div>
+
+      {/* Collapsed content */}
+      {expanded && (
+        <div style={{ padding: '0 16px 16px', borderTop: `1px solid ${C.border}` }}>
+          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 8, marginTop: 12 }}>{idea.evidence}</p>
+          <p style={{ fontSize: 13, color: C.text, lineHeight: 1.6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+            {idea.winning_pattern}
+          </p>
+
+          {idea.human_number && (
+            <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
+              {idea.human_number}
+            </p>
+          )}
+
+          {onAction && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onAction() }}
+              disabled={actionLoading}
+              style={{
+                marginTop: 12,
+                borderRadius: 30,
+                border: `1px solid ${C.border}`,
+                background: C.surface,
+                color: C.text,
+                padding: '8px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: actionLoading ? 'not-allowed' : 'pointer',
+                opacity: actionLoading ? 0.65 : 1,
+              }}
+            >
+              {actionLabel ?? 'Select →'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
