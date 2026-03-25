@@ -525,28 +525,24 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                     <li style={{ padding: '20px 24px' }}>
                       {(() => {
                         const goalMeta = getProductMeta(product.name)
-                        if (goalMeta) {
-                          return (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
-                              <div>
-                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalMeta.label}</p>
-                                <p style={{ fontSize: 12, color: C.muted }}>
-                                  Shipped so far: <strong style={{ color: '#2e7d32' }}>{goalMeta.reach} improvement</strong>
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        }
                         const goalLabel = getGoalLabel(product.goal)
-                        if (goalLabel) {
+                        const resolved = goalMeta ?? goalLabel
+                        const oppHref = product.projectId ? `/products/${product.projectId}/opportunities` : null
+                        if (resolved) {
                           return (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
                               <div>
-                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalLabel.label}</p>
+                                {oppHref ? (
+                                  <Link href={oppHref} style={{ fontSize: 13, fontWeight: 600, color: C.text, textDecoration: 'none', display: 'block', marginBottom: 4 }}
+                                    className="hover:underline">
+                                    {resolved.label}
+                                  </Link>
+                                ) : (
+                                  <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{resolved.label}</p>
+                                )}
                                 <p style={{ fontSize: 12, color: C.muted }}>
-                                  Shipped so far: <strong style={{ color: '#2e7d32' }}>{goalLabel.reach} improvement</strong>
+                                  Shipped so far: <strong style={{ color: '#2e7d32' }}>{resolved.reach} improvement</strong>
                                 </p>
                               </div>
                             </div>
@@ -556,7 +552,13 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                           return (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.border, flexShrink: 0, marginTop: 5 }} />
-                              <p style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{product.goal}</p>
+                              {oppHref ? (
+                                <Link href={oppHref} style={{ fontSize: 13, fontWeight: 600, color: C.text, textDecoration: 'none' }} className="hover:underline">
+                                  {product.goal}
+                                </Link>
+                              ) : (
+                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{product.goal}</p>
+                              )}
                             </div>
                           )
                         }

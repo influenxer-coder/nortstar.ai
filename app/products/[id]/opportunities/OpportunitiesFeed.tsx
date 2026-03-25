@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { RefreshCw, Loader2, ArrowLeft, Lightbulb } from 'lucide-react'
+import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp } from 'lucide-react'
+import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 
 const C = {
   bg: '#f6f6f6',
@@ -25,11 +26,23 @@ type Idea = {
 type Props = {
   projectId: string
   projectName: string
+  productName: string
   goal: string | null
   subverticalId: string | null
 }
 
-export default function OpportunitiesFeed({ projectId, projectName, goal, subverticalId }: Props) {
+const SIGNAL_SOURCES = [
+  { icon: GitCommit,     label: 'GitHub commits' },
+  { icon: Activity,      label: 'PostHog behavior' },
+  { icon: MessageSquare, label: 'Slack signals' },
+  { icon: Globe,         label: 'Competitor intel' },
+  { icon: TrendingUp,    label: 'Market data' },
+]
+
+export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId }: Props) {
+  const productMeta = getProductMeta(productName)
+  const goalMeta = getGoalLabel(goal)
+  const friendlyLabel = (productMeta ?? goalMeta)?.label ?? goal ?? 'Opportunities'
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,7 +92,7 @@ export default function OpportunitiesFeed({ projectId, projectName, goal, subver
               <Lightbulb style={{ width: 20, height: 20, color: '#f59e0b', flexShrink: 0 }} />
               <div>
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 2 }}>
-                  {goal ?? 'Opportunities'}
+                  {friendlyLabel}
                 </h1>
                 <p style={{ fontSize: 13, color: C.muted }}>Ideas ranked by impact and effort</p>
               </div>
@@ -103,6 +116,27 @@ export default function OpportunitiesFeed({ projectId, projectName, goal, subver
               Refresh
             </button>
           </div>
+        </div>
+
+        {/* Signal Sources */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase', marginRight: 4 }}>
+            Signal sources
+          </span>
+          {SIGNAL_SOURCES.map(({ icon: Icon, label }) => (
+            <div
+              key={label}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 12, fontWeight: 500, color: C.muted,
+                background: C.surface, border: `1px solid ${C.border}`,
+                borderRadius: 20, padding: '4px 10px',
+              }}
+            >
+              <Icon style={{ width: 11, height: 11, flexShrink: 0 }} />
+              {label}
+            </div>
+          ))}
         </div>
 
         {/* Feed */}
