@@ -78,7 +78,7 @@ const GOAL_LABELS: Record<string, { label: string; reach: string }> = {
     reach: '12% to 18%',
   },
   'beat_competitor': {
-    label: 'Continue to be the platform to find younger population most effectively, measured by MMM',
+    label: 'Increase Reels monetization efficiency by 20%',
     reach: '10% to 16%',
   },
 }

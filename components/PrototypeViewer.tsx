@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 const C = {
   surface: '#ffffff',
@@ -10,59 +10,37 @@ const C = {
   cardShadow: '0 1px 3px rgba(0,0,0,0.06)',
 }
 
-class PrototypeErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props)
-    this.state = { error: null }
-  }
+function buildSrcDoc(code: string): string {
+  const cleaned = code
+    .replace(/^```[a-z]*\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim()
 
-  static getDerivedStateFromError(err: unknown) {
-    const message = err instanceof Error ? err.message : 'Prototype render failed'
-    return { error: message }
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <div style={{ fontSize: 13, color: '#b91c1c' }}>
-          {this.state.error}
-        </div>
-      )
-    }
-    return this.props.children
-  }
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+try {
+${cleaned}
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(React.createElement(BeforeAfterPrototype));
+} catch(e) {
+  document.getElementById('root').innerHTML = '<div style="color:#b91c1c;padding:12px;font-size:13px">' + e.message + '</div>';
 }
-
-function compileComponent(code: string): { Component: React.ComponentType | null; error: string | null } {
-  try {
-    const cleaned = code
-      .replace(/^```[a-z]*\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim()
-
-    // Remove any import/export keywords so we can evaluate in a plain function scope.
-    const withoutImports = cleaned.replace(/^import[^\n]*\n/gm, '')
-    const withoutExports = withoutImports
-      .replace(/export\s+default\s+/g, '')
-      .replace(/export\s+\{[\s\S]*?\};?/g, '')
-      .replace(/^\s*export\s+(?=function|const|let|var)\s+/gm, '')
-
-    // eslint-disable-next-line no-new-func
-    const fn = new Function(
-      'React',
-      `
-      const { useState, useEffect, useMemo, useRef, useCallback } = React;
-      ${withoutExports}
-      return (typeof BeforeAfterPrototype !== 'undefined') ? BeforeAfterPrototype : null;
-    `.trim(),
-    )
-
-    const Component = fn(React) as unknown as React.ComponentType | null
-    if (!Component) return { Component: null, error: 'Prototype code did not define BeforeAfterPrototype.' }
-    return { Component, error: null }
-  } catch (e) {
-    return { Component: null, error: (e as Error).message || 'Failed to compile prototype.' }
-  }
+</script>
+</body>
+</html>`
 }
 
 export function PrototypeViewer({
@@ -78,9 +56,8 @@ export function PrototypeViewer({
   onSubmitEdit: (instruction: string) => void
   editing: boolean
 }) {
-  const compiled = useMemo(() => compileComponent(code), [code])
   const [instruction, setInstruction] = useState('')
-  const Comp = compiled.Component
+  const srcDoc = buildSrcDoc(code)
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -119,18 +96,16 @@ export function PrototypeViewer({
         background: C.surface,
         border: `1px solid ${C.border}`,
         borderRadius: 12,
-        padding: 14,
+        overflow: 'hidden',
         boxShadow: C.cardShadow,
       }}>
-        {compiled.error ? (
-          <div style={{ fontSize: 13, color: '#b91c1c' }}>
-            {compiled.error}
-          </div>
-        ) : Comp ? (
-          <PrototypeErrorBoundary key={code}>
-            <Comp />
-          </PrototypeErrorBoundary>
-        ) : null}
+        <iframe
+          key={code}
+          srcDoc={srcDoc}
+          style={{ width: '100%', height: 520, border: 'none', display: 'block' }}
+          sandbox="allow-scripts"
+          title="Prototype preview"
+        />
       </div>
 
       <div style={{ marginTop: 12 }}>
@@ -175,4 +150,3 @@ export function PrototypeViewer({
     </div>
   )
 }
-
