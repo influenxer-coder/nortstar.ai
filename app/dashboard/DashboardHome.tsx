@@ -89,6 +89,8 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
   const router = useRouter()
   const [inProgressProjects, setInProgressProjects] = useState<InProgressProject[]>(dbInProgressProjects)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [removingProductId, setRemovingProductId] = useState<string | null>(null)
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
   const [inProgressChecked, setInProgressChecked] = useState(dbInProgressProjects.length > 0 || products.length > 0)
 
   // Modal state
@@ -347,6 +349,22 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
     router.refresh()
   }
 
+  async function removeProduct(id: string) {
+    setRemovingProductId(id)
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Remove failed')
+    } catch {
+      alert('Failed to remove product — please try again.')
+      setRemovingProductId(null)
+      setConfirmRemoveId(null)
+      return
+    }
+    setRemovingProductId(null)
+    setConfirmRemoveId(null)
+    router.refresh()
+  }
+
   const hasAny = products.length > 0 || ungroupedAgents.length > 0
 
   return (
@@ -505,37 +523,57 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{displayName}</span>
                     )}
                   </div>
-                  <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`} style={{ textDecoration: 'none' }}>
+                  {/* Remove product — confirm inline */}
+                  {confirmRemoveId === product.id ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, color: C.muted }}>Remove product?</span>
+                      <button
+                        type="button"
+                        onClick={() => void removeProduct(product.id)}
+                        disabled={removingProductId === product.id}
+                        style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        {removingProductId === product.id ? 'Removing…' : 'Yes, remove'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemoveId(null)}
+                        style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
+                      onClick={() => setConfirmRemoveId(product.id)}
                       style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '7px 14px', borderRadius: 30,
-                        background: btnColor, color: '#fff',
-                        fontSize: 12, fontWeight: 600,
-                        border: 'none', cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        fontSize: 12, fontWeight: 500, color: C.muted,
+                        background: 'none', border: `1px solid ${C.border}`,
+                        borderRadius: 30, padding: '5px 12px', cursor: 'pointer',
                       }}
                     >
-                      <Plus style={{ width: 12, height: 12 }} />
-                      Track new goal
+                      <Trash2 style={{ width: 11, height: 11 }} />
+                      Remove
                     </button>
-                  </Link>
+                  )}
                 </div>
 
-                {/* Agent list */}
+                {/* Goal / agent list */}
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {product.agents.length === 0 ? (
                     <li style={{ padding: '20px 24px' }}>
                       {(() => {
-                        const meta = getProductMeta(product.name)
-                        if (meta) {
+                        const goalMeta = getProductMeta(product.name)
+                        if (goalMeta) {
                           return (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
                               <div>
-                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{meta.label}</p>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalMeta.label}</p>
                                 <p style={{ fontSize: 12, color: C.muted }}>
-                                  Potential reach: <strong style={{ color: '#2e7d32' }}>{meta.reach} improvement</strong>
+                                  Potential reach: <strong style={{ color: '#2e7d32' }}>{goalMeta.reach} improvement</strong>
                                 </p>
                               </div>
                             </div>
@@ -549,7 +587,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                             </div>
                           )
                         }
-                        return <p style={{ textAlign: 'center', fontSize: 13, color: C.muted }}>No goals tracked yet. Add one to get started.</p>
+                        return <p style={{ textAlign: 'center', fontSize: 13, color: C.muted }}>No goals tracked yet.</p>
                       })()}
                     </li>
                   ) : (
@@ -586,6 +624,29 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                     ))
                   )}
                 </ul>
+
+                {/* Track new goal footer */}
+                <div style={{
+                  borderTop: `1px solid ${borderColor}`,
+                  padding: '12px 20px',
+                  background: headerBg,
+                }}>
+                  <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`} style={{ textDecoration: 'none' }}>
+                    <button
+                      type="button"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '7px 14px', borderRadius: 30,
+                        background: btnColor, color: '#fff',
+                        fontSize: 12, fontWeight: 600,
+                        border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      <Plus style={{ width: 12, height: 12 }} />
+                      Track new goal
+                    </button>
+                  </Link>
+                </div>
               </section>
               )
             })}
