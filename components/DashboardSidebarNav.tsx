@@ -207,7 +207,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
               className="flex items-center gap-2.5 rounded-md pl-6 pr-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden md:block">Add agent</span>
+              <span className="hidden md:block">Track new goal</span>
             </Link>
           </div>
         </div>
