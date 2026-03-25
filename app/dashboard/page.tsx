@@ -21,7 +21,7 @@ export default async function DashboardPage() {
       .from('products')
       .select('id, name, created_at')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: true }),
     supabase
       .from('agents')
       .select('id, name, status, url, product_id')
