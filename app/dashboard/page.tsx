@@ -36,7 +36,7 @@ export default async function DashboardPage() {
       .order('updated_at', { ascending: false }),
     supabase
       .from('projects')
-      .select('id, strategy_json')
+      .select('id, url, strategy_json')
       .eq('user_id', user.id)
       .eq('onboarding_completed', true),
   ])
@@ -66,12 +66,14 @@ export default async function DashboardPage() {
   // Build map: products.id → projects.id (via strategy_json.onboarding_context.created_product_id)
   const projectIdByProductId = new Map<string, string>()
   const goalByProductId = new Map<string, string>()
+  const urlByProductId = new Map<string, string>()
   for (const proj of completedProjects ?? []) {
     const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
     const createdProductId = ctx?.created_product_id
     if (typeof createdProductId === 'string' && createdProductId) {
       projectIdByProductId.set(createdProductId, proj.id)
       if (typeof ctx?.goal === 'string' && ctx.goal) goalByProductId.set(createdProductId, ctx.goal)
+      if (typeof (proj as Record<string, unknown>).url === 'string') urlByProductId.set(createdProductId, (proj as Record<string, unknown>).url as string)
     }
   }
 
@@ -82,6 +84,7 @@ export default async function DashboardPage() {
     agents: agentsByProduct.get(p.id) ?? [],
     projectId: projectIdByProductId.get(p.id) ?? null,
     goal: goalByProductId.get(p.id) ?? null,
+    productUrl: urlByProductId.get(p.id) ?? null,
   }))
 
   return (

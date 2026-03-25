@@ -14,6 +14,7 @@ export type ProductWithAgents = {
   agents: { id: string; name: string; status: string | null; url: string | null }[]
   projectId?: string | null
   goal?: string | null
+  productUrl?: string | null
 }
 
 export type UngroupedAgents = { id: string; name: string; status: string | null; url: string | null }[]
@@ -27,16 +28,50 @@ type Props = {
   dbInProgressProjects?: InProgressProject[]
 }
 
-// Hardcoded goal descriptions per product — will be variable later
-const GOAL_META: Record<string, { label: string; reach: string }> = {
-  'reevo':           { label: 'Improve number of user activations measured by users sending their first email', reach: '12% to 18%' },
-  'pygent':          { label: 'Increase number of users who install the script for measuring LLM cost', reach: '8% to 14%' },
-  'agent northstar': { label: 'Increase number of users who draft their first feature', reach: '15% to 23%' },
-  'northstar':       { label: 'Increase number of users who draft their first feature', reach: '15% to 23%' },
+// Hardcoded per-product brand + goal meta — will be variable later
+const PRODUCT_META: Record<string, { officialName: string; brandColor: string; cardBg: string; label: string; reach: string }> = {
+  'reevo': {
+    officialName: 'Reevo',
+    brandColor: '#7C3AED',
+    cardBg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+    label: 'Improve number of user activations measured by users sending their first email',
+    reach: '12% to 18%',
+  },
+  'pygent': {
+    officialName: 'Pygent',
+    brandColor: '#0EA5E9',
+    cardBg: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+    label: 'Increase number of users who install the script for measuring LLM cost',
+    reach: '8% to 14%',
+  },
+  'agent northstar': {
+    officialName: 'Agent NorthStar',
+    brandColor: '#8B5CF6',
+    cardBg: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)',
+    label: 'Increase number of users who draft their first feature',
+    reach: '15% to 23%',
+  },
+  'northstar': {
+    officialName: 'NorthStar',
+    brandColor: '#8B5CF6',
+    cardBg: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)',
+    label: 'Increase number of users who draft their first feature',
+    reach: '15% to 23%',
+  },
 }
 
-function getGoalMeta(productName: string): { label: string; reach: string } | null {
-  return GOAL_META[productName.toLowerCase().trim()] ?? null
+function getProductMeta(productName: string) {
+  return PRODUCT_META[productName.toLowerCase().trim()] ?? null
+}
+
+function faviconUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    const domain = new URL(url).hostname
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+  } catch {
+    return null
+  }
 }
 
 const C = {
@@ -430,11 +465,18 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {products.map((product) => (
+            {products.map((product) => {
+              const meta = getProductMeta(product.name)
+              const favicon = faviconUrl(product.productUrl)
+              const displayName = meta?.officialName ?? product.name
+              const headerBg = meta?.cardBg ?? C.bg
+              const borderColor = meta?.brandColor ? `${meta.brandColor}30` : C.border
+              const btnColor = meta?.brandColor ?? C.blue
+              return (
               <section
                 key={product.id}
                 style={{
-                  border: `1px solid ${C.border}`,
+                  border: `1px solid ${borderColor}`,
                   borderRadius: 10,
                   overflow: 'hidden',
                   background: C.surface,
@@ -445,17 +487,22 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '14px 20px',
-                  borderBottom: `1px solid ${C.border}`,
-                  background: C.bg,
+                  borderBottom: `1px solid ${borderColor}`,
+                  background: headerBg,
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <FolderOpen style={{ width: 15, height: 15, color: C.blue, flexShrink: 0 }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {favicon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={favicon} alt={displayName} width={20} height={20} style={{ borderRadius: 5, flexShrink: 0 }} />
+                    ) : (
+                      <FolderOpen style={{ width: 15, height: 15, color: btnColor, flexShrink: 0 }} />
+                    )}
                     {product.projectId ? (
-                      <Link href={`/products/${product.projectId}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>
-                        {product.name}
+                      <Link href={`/products/${product.projectId}`} style={{ fontSize: 14, fontWeight: 700, color: C.text, textDecoration: 'none' }}>
+                        {displayName}
                       </Link>
                     ) : (
-                      <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{product.name}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{displayName}</span>
                     )}
                   </div>
                   <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`} style={{ textDecoration: 'none' }}>
@@ -464,7 +511,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
                         padding: '7px 14px', borderRadius: 30,
-                        background: C.blue, color: '#fff',
+                        background: btnColor, color: '#fff',
                         fontSize: 12, fontWeight: 600,
                         border: 'none', cursor: 'pointer',
                       }}
@@ -480,7 +527,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   {product.agents.length === 0 ? (
                     <li style={{ padding: '20px 24px' }}>
                       {(() => {
-                        const meta = getGoalMeta(product.name)
+                        const meta = getProductMeta(product.name)
                         if (meta) {
                           return (
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -540,7 +587,8 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   )}
                 </ul>
               </section>
-            ))}
+              )
+            })}
 
             {/* Ungrouped agents */}
             {ungroupedAgents.length > 0 && (
