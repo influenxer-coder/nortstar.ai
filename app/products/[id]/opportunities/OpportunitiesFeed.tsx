@@ -58,18 +58,79 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [addOpen, setAddOpen] = useState(false)
   const hasFetched = useRef(false)
 
+  const goalKey = goal ?? 'no_goal'
+  const priorityStorageKey = `northstar_opportunities_priority_v1:${projectId}:${goalKey}`
+
+  function ideaKey(idea: Idea): string {
+    return [
+      idea.title,
+      String(idea.goal ?? ''),
+      idea.effort,
+      String(idea.impact_score ?? ''),
+      String(idea.expected_lift_low ?? ''),
+      String(idea.expected_lift_high ?? ''),
+    ].join('|')
+  }
+
+  function readPriorityState(): { rankedKeys: string[] } {
+    try {
+      const raw = localStorage.getItem(priorityStorageKey)
+      if (!raw) return { rankedKeys: [] }
+      const parsed = JSON.parse(raw) as unknown
+      const rankedKeys = Array.isArray((parsed as { rankedKeys?: unknown }).rankedKeys)
+        ? ((parsed as { rankedKeys: unknown[] }).rankedKeys as unknown[]).filter((k): k is string => typeof k === 'string')
+        : []
+      return { rankedKeys }
+    } catch {
+      return { rankedKeys: [] }
+    }
+  }
+
+  function writePriorityState(ranked: Idea[]) {
+    try {
+      const rankedKeys = ranked.map(ideaKey)
+      localStorage.setItem(priorityStorageKey, JSON.stringify({ rankedKeys }))
+    } catch {
+      // non-critical
+    }
+  }
+
+  function applyStoredPriority(ideas: Idea[]): { ranked: Idea[]; backlog: Idea[] } {
+    const { rankedKeys } = readPriorityState()
+    if (!rankedKeys.length) return { ranked: [], backlog: ideas }
+
+    const byKey = new Map<string, Idea>()
+    for (const idea of ideas) byKey.set(ideaKey(idea), idea)
+
+    const ranked: Idea[] = []
+    const used = new Set<string>()
+    for (const k of rankedKeys) {
+      const found = byKey.get(k)
+      if (found) {
+        ranked.push(found)
+        used.add(k)
+      }
+    }
+
+    const backlog = ideas.filter((idea) => !used.has(ideaKey(idea)))
+    return { ranked, backlog }
+  }
+
   const moveToBacklog = (idx: number) => {
     const idea = rankedIdeas[idx]
-    setRankedIdeas(prev => prev.filter((_, i) => i !== idx))
+    const nextRanked = rankedIdeas.filter((_, i) => i !== idx)
+    setRankedIdeas(nextRanked)
     setBacklogIdeas(prev => [...prev, idea])
+    writePriorityState(nextRanked)
   }
 
   const prioritize = (idx: number) => {
     const idea = backlogIdeas[idx]
-    setBacklogIdeas(prev => prev.filter((_, i) => i !== idx))
-    setRankedIdeas(prev =>
-      [...prev, idea].sort((a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0))
-    )
+    const nextBacklog = backlogIdeas.filter((_, i) => i !== idx)
+    const nextRanked = [...rankedIdeas, idea].sort((a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0))
+    setBacklogIdeas(nextBacklog)
+    setRankedIdeas(nextRanked)
+    writePriorityState(nextRanked)
   }
 
   // Save freshly-generated ideas to DB
@@ -92,7 +153,9 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       const data = await res.json() as { ideas?: Idea[] }
       const saved = data.ideas ?? []
       if (saved.length > 0) {
-        setBacklogIdeas(saved)
+        const { ranked, backlog } = applyStoredPriority(saved)
+        setRankedIdeas(ranked)
+        setBacklogIdeas(backlog)
         return
       }
       // No saved rows → generate fresh
@@ -114,7 +177,9 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       if (!res.ok) throw new Error('Failed to generate opportunities')
       const data = await res.json() as { ideas?: Idea[] }
       const fresh = data.ideas ?? []
-      setBacklogIdeas(fresh)
+      const { ranked, backlog } = applyStoredPriority(fresh)
+      setRankedIdeas(ranked)
+      setBacklogIdeas(backlog)
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
       await saveIdeas(fresh)
     } catch (e) {
