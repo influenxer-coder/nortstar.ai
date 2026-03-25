@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2, CheckCircle2 } from 'lucide-react'
-import { getProductMeta, faviconUrl, getGoalLabel } from '@/lib/product-meta'
+import { getProductMeta, faviconUrl, getGoalLabel, isLightColor } from '@/lib/product-meta'
 
 export type ProductWithAgents = {
   id: string
@@ -447,6 +447,8 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               const headerBg = meta?.cardBg ?? C.bg
               const borderColor = meta?.brandColor ? `${meta.brandColor}30` : C.border
               const btnColor = meta?.brandColor ?? C.blue
+              // Use dark text on light brand colors (e.g. Snapchat yellow)
+              const btnTextColor = meta?.brandColor && isLightColor(meta.brandColor) ? '#1f2328' : '#fff'
               return (
               <section
                 key={product.id}
@@ -608,7 +610,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
                         padding: '7px 14px', borderRadius: 30,
-                        background: btnColor, color: '#fff',
+                        background: btnColor, color: btnTextColor,
                         fontSize: 12, fontWeight: 600,
                         border: 'none', cursor: 'pointer',
                       }}

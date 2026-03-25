@@ -51,6 +51,20 @@ const PRODUCT_META: Record<string, ProductMeta> = {
     label: 'Increase reels monetization efficiency by 20%',
     reach: '10% to 16%',
   },
+  'snapchat': {
+    officialName: 'Snapchat for Business',
+    brandColor: '#FFFC00',
+    cardBg: 'linear-gradient(135deg, #fffde7 0%, #fff9c4 100%)',
+    label: 'Continue to be the platform to find younger population most effectively, measured by MMM',
+    reach: '10% to 16%',
+  },
+  'snapchat for business': {
+    officialName: 'Snapchat for Business',
+    brandColor: '#FFFC00',
+    cardBg: 'linear-gradient(135deg, #fffde7 0%, #fff9c4 100%)',
+    label: 'Continue to be the platform to find younger population most effectively, measured by MMM',
+    reach: '10% to 16%',
+  },
 }
 
 export function getProductMeta(name: string): ProductMeta | null {
@@ -72,6 +86,15 @@ const GOAL_LABELS: Record<string, { label: string; reach: string }> = {
 export function getGoalLabel(goal: string | null | undefined): { label: string; reach: string } | null {
   if (!goal) return null
   return GOAL_LABELS[goal.toLowerCase().trim()] ?? null
+}
+
+/** Returns true for colors that need dark text (luminance > 0.6) */
+export function isLightColor(hex: string): boolean {
+  const c = hex.replace('#', '')
+  const r = parseInt(c.slice(0, 2), 16) / 255
+  const g = parseInt(c.slice(2, 4), 16) / 255
+  const b = parseInt(c.slice(4, 6), 16) / 255
+  return 0.299 * r + 0.587 * g + 0.114 * b > 0.6
 }
 
 export function faviconUrl(url: string | null | undefined): string | null {
