@@ -65,6 +65,11 @@ export async function POST(req: NextRequest, { params }: Params) {
 Return ONLY a single self-contained React component named BeforeAfterPrototype.
 No imports. No markdown. No explanations.
 
+Hard constraints (important):
+- Render validity: return a top-level single <div> only. Avoid invalid HTML nesting (no <table>/<tr>/<tbody>/<thead>/<tfoot>, no <html>/<body>/<head>).
+- Determinism: do NOT use Math.random() or Date.now() during render. Any non-deterministic values must be avoided entirely.
+- Use only safe, common elements: div, button, span, p, h3/h4, input, textarea.
+
 Constraints:
 - The component MUST render side-by-side BEFORE and AFTER states on desktop.
 - On mobile, include a simple toggle to switch between BEFORE and AFTER.

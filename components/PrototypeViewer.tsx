@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
 const C = {
   surface: '#ffffff',
@@ -10,6 +10,29 @@ const C = {
   cardShadow: '0 1px 3px rgba(0,0,0,0.06)',
 }
 
+class PrototypeErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(err: unknown) {
+    const message = err instanceof Error ? err.message : 'Prototype render failed'
+    return { error: message }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ fontSize: 13, color: '#b91c1c' }}>
+          {this.state.error}
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function compileComponent(code: string): { Component: React.ComponentType | null; error: string | null } {
   try {
     const cleaned = code
@@ -17,15 +40,24 @@ function compileComponent(code: string): { Component: React.ComponentType | null
       .replace(/\s*```$/i, '')
       .trim()
 
-    // Expect a global component named BeforeAfterPrototype.
-    // Disallow exports to keep eval simple.
-    const withoutExports = cleaned
+    // Remove any import/export keywords so we can evaluate in a plain function scope.
+    const withoutImports = cleaned.replace(/^import[^\n]*\n/gm, '')
+    const withoutExports = withoutImports
       .replace(/export\s+default\s+/g, '')
       .replace(/export\s+\{[\s\S]*?\};?/g, '')
+      .replace(/^\s*export\s+(?=function|const|let|var)\s+/gm, '')
 
     // eslint-disable-next-line no-new-func
-    const fn = new Function('React', `${withoutExports}\nreturn (typeof BeforeAfterPrototype !== 'undefined') ? BeforeAfterPrototype : null;`)
-    const Component = fn(require('react')) as unknown as React.ComponentType | null
+    const fn = new Function(
+      'React',
+      `
+      const { useState, useEffect, useMemo, useRef, useCallback } = React;
+      ${withoutExports}
+      return (typeof BeforeAfterPrototype !== 'undefined') ? BeforeAfterPrototype : null;
+    `.trim(),
+    )
+
+    const Component = fn(React) as unknown as React.ComponentType | null
     if (!Component) return { Component: null, error: 'Prototype code did not define BeforeAfterPrototype.' }
     return { Component, error: null }
   } catch (e) {
@@ -48,6 +80,7 @@ export function PrototypeViewer({
 }) {
   const compiled = useMemo(() => compileComponent(code), [code])
   const [instruction, setInstruction] = useState('')
+  const Comp = compiled.Component
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -93,8 +126,10 @@ export function PrototypeViewer({
           <div style={{ fontSize: 13, color: '#b91c1c' }}>
             {compiled.error}
           </div>
-        ) : compiled.Component ? (
-          <compiled.Component />
+        ) : Comp ? (
+          <PrototypeErrorBoundary key={code}>
+            <Comp />
+          </PrototypeErrorBoundary>
         ) : null}
       </div>
 
