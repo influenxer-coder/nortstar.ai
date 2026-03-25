@@ -32,15 +32,15 @@ type Props = {
 }
 
 const SIGNAL_SOURCES = [
-  { icon: GitCommit,     label: 'Past experiments' },
-  { icon: Activity,      label: 'PostHog behavior' },
-  { icon: MessageSquare, label: 'Slack signals' },
-  { icon: Globe,         label: 'Competitor intel' },
-  { icon: TrendingUp,    label: 'Market data' },
-  { icon: Megaphone,     label: 'PMM Inbounds' },
-  { icon: Star,          label: 'Leadership priority' },
-  { icon: FlaskConical,  label: 'UX Research' },
-  { icon: Zap,           label: 'Rage Shakes' },
+  { icon: GitCommit,     label: 'Past experiments',          active: false },
+  { icon: Activity,      label: 'Page analytics (Posthog)',  active: false },
+  { icon: MessageSquare, label: 'Slack signals',             active: false },
+  { icon: Globe,         label: 'Competitor intel',          active: true  },
+  { icon: TrendingUp,    label: 'Market data',               active: true  },
+  { icon: Megaphone,     label: 'PMM Inbounds',              active: true  },
+  { icon: Star,          label: 'Leadership priority',       active: false },
+  { icon: FlaskConical,  label: 'UX Research',               active: false },
+  { icon: Zap,           label: 'Rage Shakes',               active: false },
 ]
 
 export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId }: Props) {
@@ -127,13 +127,15 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase', marginRight: 4 }}>
             Signal sources
           </span>
-          {SIGNAL_SOURCES.map(({ icon: Icon, label }) => (
+          {SIGNAL_SOURCES.map(({ icon: Icon, label, active }) => (
             <div
               key={label}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
-                fontSize: 12, fontWeight: 500, color: C.muted,
-                background: C.surface, border: `1px solid ${C.border}`,
+                fontSize: 12, fontWeight: 500,
+                color:      active ? '#166534' : C.muted,
+                background: active ? '#dcfce7'  : C.surface,
+                border:     `1px solid ${active ? '#86efac' : C.border}`,
                 borderRadius: 20, padding: '4px 10px',
               }}
             >
