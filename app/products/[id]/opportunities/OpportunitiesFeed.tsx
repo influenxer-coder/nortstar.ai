@@ -1,12 +1,17 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 import AddOpportunityDialog from '@/components/AddOpportunityDialog'
-import { InvestigatePanel } from '@/components/InvestigatePanel'
+
+const InvestigatePanel = dynamic(
+  () => import('@/components/InvestigatePanel').then(m => m.InvestigatePanel),
+  { ssr: false },
+)
 
 const C = {
   bg: '#f6f6f6',
