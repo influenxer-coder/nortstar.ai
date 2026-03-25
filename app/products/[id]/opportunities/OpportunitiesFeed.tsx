@@ -46,7 +46,9 @@ const SIGNAL_SOURCES = [
 export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId }: Props) {
   const productMeta = getProductMeta(productName)
   const goalMeta = getGoalLabel(goal)
-  const friendlyLabel = (productMeta ?? goalMeta)?.label ?? goal ?? 'Opportunities'
+  const resolved = productMeta ?? goalMeta
+  const friendlyLabel = resolved?.label ?? goal ?? 'Opportunities'
+  const reach = resolved?.reach ?? null
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,7 +100,12 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 2 }}>
                   {friendlyLabel}
                 </h1>
-                <p style={{ fontSize: 13, color: C.muted }}>Ideas ranked by impact and effort</p>
+                <p style={{ fontSize: 13, color: C.muted }}>
+                  Ideas ranked by impact and effort
+                  {reach && (
+                    <> &nbsp;·&nbsp; Shipped so far: <strong style={{ color: '#2e7d32' }}>{reach} improvement</strong></>
+                  )}
+                </p>
               </div>
             </div>
 
