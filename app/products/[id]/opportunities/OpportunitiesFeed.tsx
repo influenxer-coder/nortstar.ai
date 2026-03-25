@@ -49,20 +49,36 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const reach = resolved?.reach ?? null
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const hasFetched = useRef(false)
 
-  const fetchIdeas = async () => {
-    if (!subverticalId || !goal) return
+  // Save freshly-generated ideas to DB
+  const saveIdeas = async (freshIdeas: Idea[]) => {
+    if (!freshIdeas.length) return
+    await fetch('/api/opportunities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId, ideas: freshIdeas }),
+    }).catch(() => { /* non-critical */ })
+  }
+
+  // On mount: load from DB (instant, no Claude call)
+  const loadFromDB = async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(
-        `/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(subverticalId)}&goal=${encodeURIComponent(goal)}`
-      )
-      if (!res.ok) throw new Error('Failed to load opportunities')
+      const res = await fetch(`/api/opportunities?project_id=${encodeURIComponent(projectId)}`)
+      if (!res.ok) throw new Error('Failed to load saved opportunities')
       const data = await res.json() as { ideas?: Idea[] }
-      setIdeas(data.ideas ?? [])
+      const saved = data.ideas ?? []
+      if (saved.length > 0) {
+        setIdeas(saved)
+        return
+      }
+      // No saved rows → generate fresh
+      await generateAndSave()
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -70,11 +86,36 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
     }
   }
 
-  // Fetch once on mount
+  // Regenerate via Claude, score, and persist
+  const generateAndSave = async () => {
+    if (!subverticalId || !goal) return
+    try {
+      const res = await fetch(
+        `/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(subverticalId)}&goal=${encodeURIComponent(goal)}`
+      )
+      if (!res.ok) throw new Error('Failed to generate opportunities')
+      const data = await res.json() as { ideas?: Idea[] }
+      const fresh = data.ideas ?? []
+      setIdeas(fresh)
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+      await saveIdeas(fresh)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  // Manual refresh: regenerate + save
+  const fetchIdeas = async () => {
+    setRefreshing(true)
+    setError(null)
+    await generateAndSave()
+    setRefreshing(false)
+  }
+
   useEffect(() => {
     if (hasFetched.current) return
     hasFetched.current = true
-    void fetchIdeas()
+    void loadFromDB()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -106,23 +147,28 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void fetchIdeas()}
-              disabled={loading}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                fontSize: 13, fontWeight: 500, color: C.blue,
-                background: C.surface, border: `1px solid ${C.border}`,
-                borderRadius: 8, padding: '7px 14px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.5 : 1,
-                boxShadow: C.cardShadow,
-              }}
-            >
-              <RefreshCw style={{ width: 13, height: 13 }} />
-              Refresh
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => void fetchIdeas()}
+                disabled={loading || refreshing}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 13, fontWeight: 500, color: C.blue,
+                  background: C.surface, border: `1px solid ${C.border}`,
+                  borderRadius: 8, padding: '7px 14px',
+                  cursor: (loading || refreshing) ? 'not-allowed' : 'pointer',
+                  opacity: (loading || refreshing) ? 0.5 : 1,
+                  boxShadow: C.cardShadow,
+                }}
+              >
+                <RefreshCw style={{ width: 13, height: 13, animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+                {refreshing ? 'Scoring…' : 'Refresh'}
+              </button>
+              {lastUpdated && (
+                <span style={{ fontSize: 11, color: C.muted }}>Updated {lastUpdated}</span>
+              )}
+            </div>
           </div>
         </div>
 
