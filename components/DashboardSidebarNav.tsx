@@ -139,6 +139,38 @@ function AgentTreeNode({ agent, isActive }: { agent: AgentStub; isActive: boolea
 
 export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function startGoalSelection(product: ProductGroup) {
+    if (!product.projectId) return
+    try {
+      const res = await fetch(`/api/projects/${product.projectId}`)
+      if (!res.ok) throw new Error('Could not load project')
+      const project = await res.json() as { id: string; strategy_json?: Record<string, unknown> }
+      const strategy = (project.strategy_json ?? {}) as Record<string, unknown>
+      const match = (strategy.match as Record<string, unknown> | undefined) ?? {}
+      const ctx = (strategy.onboarding_context as Record<string, unknown> | undefined) ?? {}
+
+      localStorage.setItem('northstar_onboarding', JSON.stringify({
+        project_id: product.projectId,
+        url: product.productUrl ?? ctx.url ?? null,
+        subvertical_id: ctx.subvertical_id ?? match.subvertical_id ?? null,
+        subvertical_name: ctx.subvertical_name ?? product.name ?? null,
+        vertical_name: ctx.vertical_name ?? match.vertical_name ?? null,
+        selected_competitors: ctx.selected_competitors ?? [],
+        analysis_result: {
+          ...(strategy as Record<string, unknown>),
+        },
+        goal: product.goal ?? ctx.goal ?? null,
+        onboarding_step: 3,
+        timestamp: Date.now(),
+      }))
+
+      router.push('/onboarding/goal')
+    } catch {
+      router.push('/dashboard')
+    }
+  }
 
   return (
     <div className="space-y-1">
@@ -202,13 +234,15 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
             {product.agents.map((agent) => (
               <AgentTreeNode key={agent.id} agent={agent} isActive={pathname.includes(agent.id)} />
             ))}
-            <Link
-              href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`}
-              className="flex items-center gap-2.5 rounded-md pl-6 pr-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            <button
+              type="button"
+              onClick={() => void startGoalSelection(product)}
+              className="flex items-center gap-2.5 rounded-md pl-6 pr-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors w-full text-left"
+              disabled={!product.projectId}
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden md:block">Track new goal</span>
-            </Link>
+            </button>
           </div>
         </div>
         )
@@ -236,7 +270,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
           className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" />
-          <span className="hidden md:block">New agent</span>
+          <span className="hidden md:block">Improve</span>
         </Link>
       </div>
     </div>

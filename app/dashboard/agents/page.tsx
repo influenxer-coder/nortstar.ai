@@ -25,7 +25,7 @@ export default async function AgentsPage() {
         <Link href="/dashboard/agents/new">
           <Button className="bg-violet-600 hover:bg-violet-500 text-white gap-2">
             <Plus className="h-4 w-4" />
-            Create agent
+            Improve
           </Button>
         </Link>
       </div>
@@ -40,7 +40,7 @@ export default async function AgentsPage() {
           <Link href="/dashboard/agents/new">
             <Button className="bg-violet-600 hover:bg-violet-500 text-white gap-2">
               <Plus className="h-4 w-4" />
-              Create your first agent
+              Improve
             </Button>
           </Link>
         </div>

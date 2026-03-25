@@ -44,6 +44,33 @@ const C = {
 
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName, dbInProgressProjects = [] }: Props) {
   const router = useRouter()
+  async function startGoalSelection(projectId: string) {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`)
+      if (!res.ok) throw new Error('Could not load project')
+      const project = await res.json() as { id: string; strategy_json?: Record<string, unknown> }
+      const strategy = (project.strategy_json ?? {}) as Record<string, unknown>
+      const match = (strategy.match as Record<string, unknown> | undefined) ?? {}
+      const ctx = (strategy.onboarding_context as Record<string, unknown> | undefined) ?? {}
+
+      localStorage.setItem('northstar_onboarding', JSON.stringify({
+        project_id: projectId,
+        url: (ctx.url as string) ?? null,
+        subvertical_id: ctx.subvertical_id ?? match.subvertical_id ?? null,
+        subvertical_name: ctx.subvertical_name ?? match.subvertical_name ?? null,
+        vertical_name: ctx.vertical_name ?? match.vertical_name ?? null,
+        selected_competitors: ctx.selected_competitors ?? [],
+        analysis_result: { ...(strategy as Record<string, unknown>) },
+        goal: (ctx.goal as string) ?? null,
+        onboarding_step: 3,
+        timestamp: Date.now(),
+      }))
+
+      router.push('/onboarding/goal')
+    } catch {
+      router.push('/dashboard')
+    }
+  }
   const [inProgressProjects, setInProgressProjects] = useState<InProgressProject[]>(dbInProgressProjects)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [removingProductId, setRemovingProductId] = useState<string | null>(null)
@@ -606,21 +633,23 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   padding: '12px 20px',
                   background: headerBg,
                 }}>
-                  <Link href={`/dashboard/agents/new?product_id=${encodeURIComponent(product.id)}`} style={{ textDecoration: 'none' }}>
-                    <button
-                      type="button"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '7px 14px', borderRadius: 30,
-                        background: btnColor, color: btnTextColor,
-                        fontSize: 12, fontWeight: 600,
-                        border: 'none', cursor: 'pointer',
-                      }}
-                    >
-                      <Plus style={{ width: 12, height: 12 }} />
-                      Track new goal
-                    </button>
-                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const projectId = product.projectId || product.id
+                      void startGoalSelection(projectId)
+                    }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 14px', borderRadius: 30,
+                      background: btnColor, color: btnTextColor,
+                      fontSize: 12, fontWeight: 600,
+                      border: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    <Plus style={{ width: 12, height: 12 }} />
+                    Track new goal
+                  </button>
                 </div>
               </section>
               )

@@ -140,6 +140,7 @@ export default function GoalPage() {
 
   async function onContinue() {
     if (!saved?.project_id || !selectedGoal) return
+    if (saved.goal && selectedGoal === saved.goal) return
     setSubmitting(true)
     setError(null)
     try {
@@ -201,22 +202,41 @@ export default function GoalPage() {
         <div className="goal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
           {GOAL_OPTIONS.map(({ id, title, description, Icon }) => {
             const selected = selectedGoal === id
+            const isCurrentGoal = !!saved.goal && saved.goal === id
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => setSelectedGoal(id)}
+                onClick={() => { if (!isCurrentGoal) setSelectedGoal(id) }}
+                disabled={isCurrentGoal}
                 style={{
                   textAlign: 'left',
                   border: `1px solid ${selected ? C.blue : C.border}`,
                   background: selected ? '#eef4ff' : C.surface,
                   borderRadius: 12,
                   padding: 14,
-                  cursor: 'pointer',
+                  cursor: isCurrentGoal ? 'not-allowed' : 'pointer',
+                  opacity: isCurrentGoal ? 0.55 : 1,
                   boxShadow: C.cardShadow,
                 }}
               >
-                <Icon style={{ width: 18, height: 18, color: selected ? C.blue : C.muted, marginBottom: 8 }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <Icon style={{ width: 18, height: 18, color: selected ? C.blue : C.muted, marginBottom: 0 }} />
+                  {isCurrentGoal && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: C.muted,
+                      border: `1px solid ${C.border}`,
+                      background: C.bg,
+                      borderRadius: 30,
+                      padding: '2px 8px',
+                      flexShrink: 0,
+                    }}>
+                      Current
+                    </span>
+                  )}
+                </div>
                 <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>{title}</p>
                 <p style={{ fontSize: 12, lineHeight: 1.5, color: C.muted }}>{description}</p>
               </button>
@@ -232,7 +252,7 @@ export default function GoalPage() {
 
         <button
           type="button"
-          disabled={!selectedGoal || submitting}
+          disabled={!selectedGoal || submitting || (!!saved.goal && selectedGoal === saved.goal)}
           onClick={() => void onContinue()}
           style={{
             width: '100%',

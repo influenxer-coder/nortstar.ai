@@ -48,7 +48,8 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const resolved = productMeta ?? goalMeta
   const friendlyLabel = resolved?.label ?? goal ?? 'Opportunities'
   const reach = resolved?.reach ?? null
-  const [ideas, setIdeas] = useState<Idea[]>([])
+  const [rankedIdeas, setRankedIdeas] = useState<Idea[]>([])
+  const [backlogIdeas, setBacklogIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +57,20 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const hasFetched = useRef(false)
+
+  const moveToBacklog = (idx: number) => {
+    const idea = rankedIdeas[idx]
+    setRankedIdeas(prev => prev.filter((_, i) => i !== idx))
+    setBacklogIdeas(prev => [...prev, idea])
+  }
+
+  const prioritize = (idx: number) => {
+    const idea = backlogIdeas[idx]
+    setBacklogIdeas(prev => prev.filter((_, i) => i !== idx))
+    setRankedIdeas(prev =>
+      [...prev, idea].sort((a, b) => (b.impact_score ?? 0) - (a.impact_score ?? 0))
+    )
+  }
 
   // Save freshly-generated ideas to DB
   const saveIdeas = async (freshIdeas: Idea[]) => {
@@ -77,7 +92,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       const data = await res.json() as { ideas?: Idea[] }
       const saved = data.ideas ?? []
       if (saved.length > 0) {
-        setIdeas(saved)
+        setBacklogIdeas(saved)
         return
       }
       // No saved rows → generate fresh
@@ -99,7 +114,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       if (!res.ok) throw new Error('Failed to generate opportunities')
       const data = await res.json() as { ideas?: Idea[] }
       const fresh = data.ideas ?? []
-      setIdeas(fresh)
+      setBacklogIdeas(fresh)
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
       await saveIdeas(fresh)
     } catch (e) {
@@ -242,58 +257,97 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           </div>
         )}
 
-        {/* Feed label */}
-        <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
-
-        {/* Feed */}
+        {/* Loading / error */}
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '80px 0', color: C.muted }}>
             <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
             <span style={{ fontSize: 14 }}>Generating opportunities…</span>
           </div>
         ) : error ? (
-          <div style={{ padding: 20, borderRadius: 10, background: '#fff5f5', border: '1px solid #fed7d7' }}>
+          <div style={{ padding: 20, borderRadius: 10, background: '#fff5f5', border: '1px solid #fed7d7', marginBottom: 24 }}>
             <p style={{ fontSize: 13, color: '#c53030', marginBottom: 8 }}>{error}</p>
-            <button
-              type="button"
-              onClick={() => void fetchIdeas()}
-              style={{ fontSize: 13, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
+            <button type="button" onClick={() => void fetchIdeas()}
+              style={{ fontSize: 13, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               Try again
             </button>
           </div>
-        ) : ideas.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', borderRadius: 12, border: `1px dashed ${C.border}`, background: C.surface }}>
-            <p style={{ fontSize: 14, color: C.muted }}>No opportunities yet</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {ideas.map((idea, idx) => (
-              <OpportunityCard key={idx} idea={idea} featured={idx === 0} />
-            ))}
-            <button
-              type="button"
-              onClick={() => setAddOpen(true)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '14px', borderRadius: 20,
-                border: `1px dashed ${C.border}`, background: 'transparent',
-                fontSize: 14, fontWeight: 600, color: C.muted,
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.surface; (e.currentTarget as HTMLButtonElement).style.color = C.text }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = C.muted }}
-            >
-              + Add new idea
-            </button>
-          </div>
+        ) : null}
+
+        {/* Ranked section */}
+        {!loading && (
+          <>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 48 }}>
+              {rankedIdeas.length === 0 ? (
+                <div style={{ padding: 32, textAlign: 'center', borderRadius: 20, border: `1px dashed ${C.border}`, background: C.surface }}>
+                  <p style={{ fontSize: 14, color: C.muted }}>No prioritized ideas yet — promote from the backlog below</p>
+                </div>
+              ) : (
+                rankedIdeas.map((idea, idx) => (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <OpportunityCard idea={idea} featured={idx === 0} />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => moveToBacklog(idx)}
+                        style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+                        Move to backlog →
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+              <button
+                type="button" onClick={() => setAddOpen(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '14px', borderRadius: 20,
+                  border: `1px dashed ${C.border}`, background: 'transparent',
+                  fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.surface; (e.currentTarget as HTMLButtonElement).style.color = C.text }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = C.muted }}
+              >
+                + Add new idea
+              </button>
+            </div>
+
+            {/* Backlog section */}
+            {backlogIdeas.length > 0 && (
+              <div style={{ marginBottom: 48 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase' }}>Backlog</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, color: C.muted,
+                    background: C.surface, border: `1px solid ${C.border}`,
+                    borderRadius: 30, padding: '1px 8px',
+                  }}>{backlogIdeas.length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {backlogIdeas.map((idea, idx) => (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <OpportunityCard idea={idea} featured={false} />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button type="button" onClick={() => prioritize(idx)}
+                          style={{
+                            fontSize: 12, fontWeight: 600, color: '#1d1d1f',
+                            background: C.surface, border: `1px solid ${C.border}`,
+                            borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                          }}>
+                          ↑ Prioritize
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {addOpen && (
           <AddOpportunityDialog
             projectId={projectId}
             onClose={() => setAddOpen(false)}
-            onSaved={(idea) => setIdeas(prev => [...prev, idea])}
+            onSaved={(idea) => setBacklogIdeas(prev => [...prev, idea])}
           />
         )}
       </div>

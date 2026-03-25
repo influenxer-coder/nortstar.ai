@@ -31,7 +31,7 @@ export function AgentNavList({ agents }: { agents: AgentStub[] }) {
         className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
       >
         <Plus className="h-3.5 w-3.5 shrink-0" />
-        <span className="hidden md:block">New agent</span>
+        <span className="hidden md:block">Improve</span>
       </Link>
       {agents.map(agent => {
         const isActive = pathname.includes(agent.id)
