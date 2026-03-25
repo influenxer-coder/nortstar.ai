@@ -254,7 +254,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
         <div className="mt-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
             <Bot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="hidden text-xs font-medium text-muted-foreground md:block">Ungrouped</span>
+            <span className="hidden text-xs font-medium text-muted-foreground md:block">Screen Optimization Agents</span>
           </div>
           <div className="mt-0.5 space-y-0.5">
             {ungroupedAgents.map((agent) => (

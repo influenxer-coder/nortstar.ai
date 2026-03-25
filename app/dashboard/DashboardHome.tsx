@@ -674,7 +674,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   background: C.bg,
                 }}>
                   <Bot style={{ width: 15, height: 15, color: C.muted, flexShrink: 0 }} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>Ungrouped agents</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>Screen Optimization Agents</span>
                 </div>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {ungroupedAgents.map((agent, i) => (
