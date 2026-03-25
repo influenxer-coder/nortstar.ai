@@ -100,12 +100,11 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 2 }}>
                   {friendlyLabel}
                 </h1>
-                <p style={{ fontSize: 13, color: C.muted }}>
-                  Ideas ranked by impact and effort
-                  {reach && (
-                    <> &nbsp;·&nbsp; Shipped so far: <strong style={{ color: '#2e7d32' }}>{reach} improvement</strong></>
-                  )}
-                </p>
+                {reach && (
+                  <p style={{ fontSize: 13, color: C.muted }}>
+                    Shipped so far: <strong style={{ color: '#2e7d32' }}>{reach} improvement</strong>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -151,6 +150,9 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
             </div>
           ))}
         </div>
+
+        {/* Feed label */}
+        <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
 
         {/* Feed */}
         {loading ? (
