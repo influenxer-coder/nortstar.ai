@@ -44,7 +44,7 @@ const C = {
 
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName, dbInProgressProjects = [] }: Props) {
   const router = useRouter()
-  async function startGoalSelection(projectId: string) {
+  async function startGoalSelection(projectId: string, createdProductId: string | null) {
     try {
       const res = await fetch(`/api/projects/${projectId}`)
       if (!res.ok) throw new Error('Could not load project')
@@ -55,6 +55,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
 
       localStorage.setItem('northstar_onboarding', JSON.stringify({
         project_id: projectId,
+        created_product_id: createdProductId,
         url: (ctx.url as string) ?? null,
         subvertical_id: ctx.subvertical_id ?? match.subvertical_id ?? null,
         subvertical_name: ctx.subvertical_name ?? match.subvertical_name ?? null,
@@ -636,8 +637,10 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   <button
                     type="button"
                     onClick={() => {
-                      const projectId = product.projectId || product.id
-                      void startGoalSelection(projectId)
+                      const projectId = product.projectId
+                      const createdProductId = product.id
+                      if (!projectId) return
+                      void startGoalSelection(projectId, createdProductId)
                     }}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 6,

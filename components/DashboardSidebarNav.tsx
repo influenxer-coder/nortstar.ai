@@ -153,6 +153,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
 
       localStorage.setItem('northstar_onboarding', JSON.stringify({
         project_id: product.projectId,
+        created_product_id: product.id,
         url: product.productUrl ?? ctx.url ?? null,
         subvertical_id: ctx.subvertical_id ?? match.subvertical_id ?? null,
         subvertical_name: ctx.subvertical_name ?? product.name ?? null,
