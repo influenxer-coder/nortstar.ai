@@ -6,6 +6,7 @@ import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageS
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 import AddOpportunityDialog from '@/components/AddOpportunityDialog'
+import { InvestigatePanel } from '@/components/InvestigatePanel'
 
 const C = {
   bg: '#f6f6f6',
@@ -56,7 +57,16 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [launchesOpen, setLaunchesOpen] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [investigateOpenKey, setInvestigateOpenKey] = useState<string | null>(null)
   const hasFetched = useRef(false)
+  function canInvestigate(idea: Idea): boolean {
+    return typeof (idea as unknown as { id?: unknown }).id === 'string'
+  }
+
+  function opportunityId(idea: Idea): string | null {
+    const id = (idea as unknown as { id?: unknown }).id
+    return typeof id === 'string' ? id : null
+  }
 
   const goalKey = goal ?? 'no_goal'
   const priorityStorageKey = `northstar_opportunities_priority_v1:${projectId}:${goalKey}`
@@ -350,7 +360,27 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
               ) : (
                 rankedIdeas.map((idea, idx) => (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <OpportunityCard idea={idea} featured={idx === 0} />
+                    <OpportunityCard
+                      idea={idea}
+                      featured={idx === 0}
+                      onInvestigate={() => {
+                        const id = opportunityId(idea)
+                        if (!id) return
+                        setInvestigateOpenKey((prev) => (prev === id ? null : id))
+                      }}
+                      investigateDisabled={!canInvestigate(idea)}
+                      investigateLabel="Investigate"
+                    />
+                    {(() => {
+                      const id = opportunityId(idea)
+                      if (!id || investigateOpenKey !== id) return null
+                      return (
+                        <InvestigatePanel
+                          opportunityId={id}
+                          onClose={() => setInvestigateOpenKey(null)}
+                        />
+                      )
+                    })()}
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button type="button" onClick={() => moveToBacklog(idx)}
                         style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
@@ -389,7 +419,27 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {backlogIdeas.map((idea, idx) => (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <OpportunityCard idea={idea} featured={false} />
+                      <OpportunityCard
+                        idea={idea}
+                        featured={false}
+                        onInvestigate={() => {
+                          const id = opportunityId(idea)
+                          if (!id) return
+                          setInvestigateOpenKey((prev) => (prev === id ? null : id))
+                        }}
+                        investigateDisabled={!canInvestigate(idea)}
+                        investigateLabel="Investigate"
+                      />
+                      {(() => {
+                        const id = opportunityId(idea)
+                        if (!id || investigateOpenKey !== id) return null
+                        return (
+                          <InvestigatePanel
+                            opportunityId={id}
+                            onClose={() => setInvestigateOpenKey(null)}
+                          />
+                        )
+                      })()}
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button type="button" onClick={() => prioritize(idx)}
                           style={{

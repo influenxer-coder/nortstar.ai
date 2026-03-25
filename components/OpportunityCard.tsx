@@ -37,9 +37,21 @@ type Props = {
   onAction?:      () => void
   actionLabel?:   string
   actionLoading?: boolean
+  onInvestigate?: () => void
+  investigateLabel?: string
+  investigateDisabled?: boolean
 }
 
-export default function OpportunityCard({ idea, featured = false, onAction, actionLabel, actionLoading }: Props) {
+export default function OpportunityCard({
+  idea,
+  featured = false,
+  onAction,
+  actionLabel,
+  actionLoading,
+  onInvestigate,
+  investigateLabel,
+  investigateDisabled,
+}: Props) {
   const [expanded, setExpanded] = useState(false)
 
   const barColor   = BADGE_BAR[idea.decision_badge ?? ''] ?? '#9ca3af'
@@ -185,6 +197,28 @@ export default function OpportunityCard({ idea, featured = false, onAction, acti
               }}
             >
               {actionLabel ?? 'Select →'}
+            </button>
+          )}
+
+          {onInvestigate && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onInvestigate() }}
+              disabled={investigateDisabled}
+              style={{
+                marginTop: 10,
+                borderRadius: 30,
+                border: `1px solid ${borderColor}`,
+                background: featured ? 'rgba(52,211,153,0.14)' : '#dcfce7',
+                color: featured ? '#34d399' : '#166534',
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: investigateDisabled ? 'not-allowed' : 'pointer',
+                opacity: investigateDisabled ? 0.55 : 1,
+              }}
+            >
+              {investigateLabel ?? 'Investigate →'}
             </button>
           )}
         </div>
