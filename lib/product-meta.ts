@@ -37,6 +37,20 @@ const PRODUCT_META: Record<string, ProductMeta> = {
     label: 'Increase number of users who draft their first feature',
     reach: '15% to 23%',
   },
+  'facebook': {
+    officialName: 'Facebook / Meta Reels Ads',
+    brandColor: '#1877F2',
+    cardBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+    label: 'Increase reels monetization efficiency by 20%',
+    reach: '10% to 16%',
+  },
+  'meta': {
+    officialName: 'Facebook / Meta Reels Ads',
+    brandColor: '#1877F2',
+    cardBg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+    label: 'Increase reels monetization efficiency by 20%',
+    reach: '10% to 16%',
+  },
 }
 
 export function getProductMeta(name: string): ProductMeta | null {
@@ -50,7 +64,7 @@ const GOAL_LABELS: Record<string, { label: string; reach: string }> = {
     reach: '12% to 18%',
   },
   'beat_competitor': {
-    label: 'Continue to be the platform to find younger population most effectively, measured by MMM',
+    label: 'Increase reels monetization efficiency by 20%',
     reach: '10% to 16%',
   },
 }
