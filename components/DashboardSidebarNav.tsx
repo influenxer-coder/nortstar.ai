@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight, Lightbulb } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import { getProductMeta, faviconUrl } from '@/lib/product-meta'
 
 const AgentNavSection = dynamic(() => import('./AgentNavSection'), { ssr: false })
 
@@ -16,6 +17,7 @@ type ProductGroup = {
   agents: AgentStub[]
   projectId?: string | null
   goal?: string | null
+  productUrl?: string | null
 }
 
 type Props = {
@@ -152,23 +154,31 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       </Link>
 
       {/* Products */}
-      {products.map((product) => (
+      {products.map((product) => {
+        const meta = getProductMeta(product.name)
+        const favicon = faviconUrl(product.productUrl)
+        const displayName = meta?.officialName ?? product.name
+        const isActive = !!product.projectId && pathname === `/products/${product.projectId}`
+        return (
         <div key={product.id} className="mt-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <FolderOpen className={`h-3.5 w-3.5 shrink-0 ${product.projectId && pathname === `/products/${product.projectId}` ? 'text-primary' : 'text-muted-foreground'}`} />
+            {favicon ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={favicon} alt={displayName} width={14} height={14} style={{ borderRadius: 3, flexShrink: 0 }} />
+            ) : (
+              <FolderOpen className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+            )}
             {product.projectId ? (
               <Link
                 href={`/products/${product.projectId}`}
                 className={`hidden text-xs font-semibold truncate md:block transition-colors ${
-                  pathname === `/products/${product.projectId}`
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+                  isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {product.name}
+                {displayName}
               </Link>
             ) : (
-              <span className="hidden text-xs font-medium text-muted-foreground truncate md:block">{product.name}</span>
+              <span className="hidden text-xs font-medium text-muted-foreground truncate md:block">{displayName}</span>
             )}
           </div>
           <div className="mt-0.5 space-y-0.5">
@@ -201,7 +211,8 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
             </Link>
           </div>
         </div>
-      ))}
+        )
+      })}
 
       {/* Ungrouped agents */}
       {ungroupedAgents.length > 0 && (

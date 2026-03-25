@@ -22,7 +22,7 @@ export async function AppShell({
   const [{ data: products }, { data: agents }, { data: completedProjects }] = await Promise.all([
     supabase.from('products').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
     supabase.from('agents').select('id, name, status, product_id').eq('user_id', user.id).neq('status', 'draft').order('created_at', { ascending: false }),
-    supabase.from('projects').select('id, strategy_json').eq('user_id', user.id).eq('onboarding_completed', true),
+    supabase.from('projects').select('id, url, strategy_json').eq('user_id', user.id).eq('onboarding_completed', true),
   ])
 
   const projectIdByProductId = new Map<string, string>()
@@ -49,12 +49,23 @@ export async function AppShell({
     }
   }
 
+  const urlByProductId = new Map<string, string>()
+  for (const proj of completedProjects ?? []) {
+    const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
+    const cpid = ctx?.created_product_id
+    const projUrl = (proj as Record<string, unknown>).url
+    if (typeof cpid === 'string' && cpid && typeof projUrl === 'string' && projUrl) {
+      urlByProductId.set(cpid, projUrl)
+    }
+  }
+
   const productGroups = (products ?? []).map((p) => ({
     id: p.id,
     name: p.name,
     agents: agentsByProduct.get(p.id) ?? [],
     projectId: projectIdByProductId.get(p.id) ?? null,
     goal: goalByProductId.get(p.id) ?? null,
+    productUrl: urlByProductId.get(p.id) ?? null,
   }))
 
   const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()
