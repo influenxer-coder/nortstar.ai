@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Globe, Megaphone } from 'lucide-react'
 
 export type IdeaWithImpact = {
   title:              string
@@ -75,7 +76,7 @@ export default function OpportunityCard({ idea, featured = false, onAction, acti
         style={{ padding: '28px 28px 24px', cursor: 'pointer', flex: 1 }}
       >
         {/* Top label row */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
           <span style={{
             fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
             padding: '3px 10px', borderRadius: 30,
@@ -84,6 +85,22 @@ export default function OpportunityCard({ idea, featured = false, onAction, acti
           }}>
             {idea.effort} effort
           </span>
+          {[
+            { icon: Globe,     label: 'Competitor intel' },
+            { icon: Megaphone, label: 'PMM Inbounds' },
+          ].map(({ icon: Icon, label }) => (
+            <span key={label} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 500,
+              color: featured ? '#34d399' : '#166534',
+              background: featured ? 'rgba(52,211,153,0.12)' : '#dcfce7',
+              border: `1px solid ${featured ? 'rgba(52,211,153,0.3)' : '#86efac'}`,
+              borderRadius: 20, padding: '2px 8px',
+            }}>
+              <Icon style={{ width: 10, height: 10, flexShrink: 0 }} />
+              {label}
+            </span>
+          ))}
         </div>
 
         {/* Title */}

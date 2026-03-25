@@ -267,27 +267,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {ideas.map((idea, idx) => (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <OpportunityCard idea={idea} featured={idx === 0} />
-                {/* Sourced from row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 2 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, textTransform: 'uppercase', marginRight: 2 }}>Sourced from</span>
-                  {[
-                    { icon: Globe,     label: 'Competitor intel' },
-                    { icon: Megaphone, label: 'PMM Inbounds' },
-                  ].map(({ icon: Icon, label }) => (
-                    <span key={label} style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      fontSize: 11, fontWeight: 500, color: '#166534',
-                      background: '#dcfce7', border: '1px solid #86efac',
-                      borderRadius: 20, padding: '2px 8px',
-                    }}>
-                      <Icon style={{ width: 10, height: 10, flexShrink: 0 }} />
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <OpportunityCard key={idx} idea={idea} featured={idx === 0} />
             ))}
           </div>
         )}
