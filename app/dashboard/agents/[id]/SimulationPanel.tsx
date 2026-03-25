@@ -29,7 +29,7 @@ const PROGRESS_MESSAGES = [
 const CONFIDENCE_COLORS = {
   high: 'text-emerald-400',
   medium: 'text-amber-400',
-  low: 'text-zinc-500',
+  low: 'text-gray-500',
 }
 
 const RISK_COLORS = {
@@ -50,9 +50,9 @@ function PersonaDot({ result }: { result: PersonaResult }) {
         }`}
       />
       {hovered && (
-        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs shadow-xl pointer-events-none">
-          <p className="font-medium text-zinc-200">{result.role}</p>
-          <p className="text-zinc-400">{result.converts ? 'Converts' : 'Drops off'} · {result.conversion_probability}%</p>
+        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-2 text-xs shadow-xl pointer-events-none">
+          <p className="font-medium text-gray-800">{result.role}</p>
+          <p className="text-gray-500">{result.converts ? 'Converts' : 'Drops off'} · {result.conversion_probability}%</p>
         </div>
       )}
     </div>
@@ -71,8 +71,8 @@ function PersonaCard({ result }: { result: PersonaResult }) {
         <div className="flex items-center gap-2 min-w-0">
           <div className={`w-2 h-2 rounded-full shrink-0 mt-0.5 ${converts ? 'bg-[#16a34a]' : 'bg-[#dc2626]'}`} />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-zinc-100 truncate">{result.role}</p>
-            <p className="text-[11px] text-zinc-500">{result.company_stage} · {result.device}</p>
+            <p className="text-sm font-medium text-gray-900 truncate">{result.role}</p>
+            <p className="text-[11px] text-gray-500">{result.company_stage} · {result.device}</p>
           </div>
         </div>
         <div className={`text-[11px] font-semibold shrink-0 ${converts ? 'text-[#16a34a]' : 'text-[#dc2626]'}`}>
@@ -82,8 +82,8 @@ function PersonaCard({ result }: { result: PersonaResult }) {
 
       {!converts && result.dropoff_point && result.dropoff_point !== 'evaluation failed' && (
         <div>
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-0.5">Drops off at</p>
-          <p className="text-xs text-zinc-400 leading-relaxed">{result.dropoff_point}</p>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Drops off at</p>
+          <p className="text-xs text-gray-500 leading-relaxed">{result.dropoff_point}</p>
         </div>
       )}
 
@@ -136,12 +136,12 @@ function HypothesisCard({
 
   return (
     <div className={`rounded-xl border p-5 space-y-4 ${
-      isRecommended ? 'border-violet-600/50 bg-violet-500/5' : 'border-zinc-800 bg-zinc-900/40'
+      isRecommended ? 'border-violet-600/50 bg-violet-500/5' : 'border-gray-200 bg-gray-50'
     }`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            isRecommended ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-500'
+            isRecommended ? 'bg-violet-500/20 text-violet-400' : 'bg-gray-100 text-gray-500'
           }`}>#{hyp.rank}</span>
           {isRecommended && (
             <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Recommended</span>
@@ -157,32 +157,32 @@ function HypothesisCard({
         </div>
       </div>
 
-      <p className="text-sm font-medium text-zinc-100 leading-snug">{hyp.change}</p>
+      <p className="text-sm font-medium text-gray-900 leading-snug">{hyp.change}</p>
 
       {hyp.personas_unblocked.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-1">Unblocks</p>
-          <p className="text-xs text-zinc-400">{hyp.personas_unblocked.join(', ')}</p>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Unblocks</p>
+          <p className="text-xs text-gray-500">{hyp.personas_unblocked.join(', ')}</p>
         </div>
       )}
 
       <div className="flex items-center gap-4">
         <div>
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-0.5">Expected lift</p>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Expected lift</p>
           <p className="text-sm font-semibold text-emerald-400">{hyp.expected_lift}</p>
         </div>
         {targetText && (
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-0.5">Target</p>
-            <p className="text-xs text-zinc-400 truncate">{targetText}</p>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Target</p>
+            <p className="text-xs text-gray-500 truncate">{targetText}</p>
           </div>
         )}
       </div>
 
       {hyp.implementation && (
-        <div className="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2.5">
-          <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Implementation</p>
-          <p className="text-xs text-zinc-300 leading-relaxed">{hyp.implementation}</p>
+        <div className="rounded-lg bg-[#f6f6f6] border border-gray-200 px-3 py-2.5">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Implementation</p>
+          <p className="text-xs text-gray-700 leading-relaxed">{hyp.implementation}</p>
         </div>
       )}
 
@@ -274,17 +274,17 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
   const convertingCount = simulation?.converting_personas ?? 0
 
   return (
-    <div className="border-b border-zinc-800/60">
+    <div className="border-b border-gray-200">
       {/* Header row — always visible */}
       <div
-        className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
+        className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-gray-50 transition-colors"
         onClick={() => !simulating && setOpen(o => !o)}
       >
         <div className="flex items-center gap-2">
-          <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform duration-150 ${open ? 'rotate-90' : ''}`} />
-          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">ICP Simulation</p>
+          <ChevronRight className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-150 ${open ? 'rotate-90' : ''}`} />
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">ICP Simulation</p>
           {simulation && !simulating && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-500 font-medium ml-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium ml-1">
               {convertingCount}/{totalPersonas} convert
             </span>
           )}
@@ -312,18 +312,18 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
         <div className="px-6 pb-6">
           {/* Loading state — initial fetch */}
           {loading && (
-            <div className="flex items-center gap-2 text-zinc-500 text-xs py-4">
+            <div className="flex items-center gap-2 text-gray-500 text-xs py-4">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
             </div>
           )}
 
           {/* No simulation yet */}
           {!loading && !simulation && !simulating && !simError && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center space-y-3 mt-1">
-              <p className="text-sm text-zinc-300 font-medium">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center space-y-3 mt-1">
+              <p className="text-sm text-gray-700 font-medium">
                 See how 9 real-world personas respond to your page before real users arrive.
               </p>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
                 The agent uses simulation results as its first hypothesis — grounded in real user mental models, not guesswork.
               </p>
               <button
@@ -335,7 +335,7 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
                 Run Simulation
               </button>
               {!agentUrl && (
-                <p className="text-[11px] text-zinc-600">Add a URL to your agent to enable simulation.</p>
+                <p className="text-[11px] text-gray-400">Add a URL to your agent to enable simulation.</p>
               )}
             </div>
           )}
@@ -344,23 +344,23 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
           {simulating && (
             <div className="mt-1 space-y-4">
               {/* Progress */}
-              <div className="flex items-center gap-2.5 text-sm text-zinc-300">
+              <div className="flex items-center gap-2.5 text-sm text-gray-700">
                 <Loader2 className="h-4 w-4 animate-spin text-violet-400 shrink-0" />
                 <span>{PROGRESS_MESSAGES[progressIdx]}</span>
-                <span className="text-zinc-600 text-xs">{elapsed}s</span>
+                <span className="text-gray-400 text-xs">{elapsed}s</span>
               </div>
 
               {/* Skeleton persona cards */}
               <div className="grid grid-cols-3 gap-3">
                 {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 space-y-2 animate-pulse">
+                  <div key={i} className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2 animate-pulse">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-zinc-700 shrink-0" />
-                      <div className="h-3 bg-zinc-700 rounded w-24" />
+                      <div className="w-2 h-2 rounded-full bg-gray-200 shrink-0" />
+                      <div className="h-3 bg-gray-200 rounded w-24" />
                     </div>
-                    <div className="h-2.5 bg-zinc-800 rounded w-16" />
-                    <div className="h-2.5 bg-zinc-800 rounded w-full" />
-                    <div className="h-2.5 bg-zinc-800 rounded w-3/4" />
+                    <div className="h-2.5 bg-gray-100 rounded w-16" />
+                    <div className="h-2.5 bg-gray-100 rounded w-full" />
+                    <div className="h-2.5 bg-gray-100 rounded w-3/4" />
                   </div>
                 ))}
               </div>
@@ -368,11 +368,11 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
               {/* Skeleton hypothesis cards */}
               <div className="space-y-3 mt-2">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-3 animate-pulse">
-                    <div className="h-3 bg-zinc-700 rounded w-12" />
-                    <div className="h-4 bg-zinc-700 rounded w-3/4" />
-                    <div className="h-3 bg-zinc-800 rounded w-full" />
-                    <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                  <div key={i} className="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-3 animate-pulse">
+                    <div className="h-3 bg-gray-200 rounded w-12" />
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
                   </div>
                 ))}
               </div>
@@ -394,11 +394,11 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
               {/* Section A — Conversion overview */}
               <div className="space-y-3">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-zinc-100">
+                  <p className="text-3xl font-bold text-gray-900">
                     {simulation.converting_personas}
-                    <span className="text-zinc-600"> / {totalPersonas}</span>
+                    <span className="text-gray-400"> / {totalPersonas}</span>
                   </p>
-                  <p className="text-sm text-zinc-400 mt-1">
+                  <p className="text-sm text-gray-500 mt-1">
                     personas would click{targetText ? ` "${targetText}"` : ' your CTA'}
                   </p>
                 </div>
@@ -407,7 +407,7 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
                     <PersonaDot key={r.persona_id} result={r} />
                   ))}
                 </div>
-                <div className="flex items-center justify-center gap-4 text-xs text-zinc-500">
+                <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#16a34a] inline-block" /> Converts</span>
                   <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#dc2626] inline-block" /> Drops off</span>
                 </div>
@@ -415,7 +415,7 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
 
               {/* Section B — Persona cards */}
               <div>
-                <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-3">Persona breakdown</p>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Persona breakdown</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {simulation.persona_results.map(r => (
                     <PersonaCard key={r.persona_id} result={r} />
@@ -426,7 +426,7 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
               {/* Section C — Hypothesis cards */}
               {simulation.hypotheses.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-3">Top hypotheses</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Top hypotheses</p>
                   <div className="space-y-3">
                     {simulation.hypotheses.slice(0, 3).map(hyp => (
                       <HypothesisCard
@@ -442,16 +442,16 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
 
               {/* Section D — Reasoning (collapsible) */}
               {simulation.reasoning && (
-                <div className="border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <button
                     onClick={() => setReasoningOpen(o => !o)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-900/40 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
                   >
-                    <span className="text-xs font-medium text-zinc-500">Why these hypotheses?</span>
-                    <ChevronRight className={`h-3.5 w-3.5 text-zinc-600 transition-transform ${reasoningOpen ? 'rotate-90' : ''}`} />
+                    <span className="text-xs font-medium text-gray-500">Why these hypotheses?</span>
+                    <ChevronRight className={`h-3.5 w-3.5 text-gray-400 transition-transform ${reasoningOpen ? 'rotate-90' : ''}`} />
                   </button>
                   {reasoningOpen && (
-                    <div className="px-4 pb-4 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800 pt-3">
+                    <div className="px-4 pb-4 text-xs text-gray-500 leading-relaxed border-t border-gray-200 pt-3">
                       {simulation.reasoning}
                     </div>
                   )}
@@ -459,10 +459,10 @@ export default function SimulationPanel({ agentId, agentUrl, targetText }: Props
               )}
 
               {/* Metadata + re-run */}
-              <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                <p className="text-[11px] text-zinc-600">
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                <p className="text-[11px] text-gray-400">
                   {agentUrl && (
-                    <span>Simulated against <span className="text-zinc-500">{agentUrl}</span></span>
+                    <span>Simulated against <span className="text-gray-500">{agentUrl}</span></span>
                   )}
                 </p>
                 <div className="flex items-center gap-2">

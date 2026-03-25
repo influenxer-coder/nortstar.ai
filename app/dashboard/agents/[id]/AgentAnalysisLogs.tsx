@@ -26,12 +26,12 @@ function LogLine({ log }: { log: Log }) {
   const icon = STEP_ICONS[log.step_name] ?? '○'
   return (
     <div className="flex items-start gap-2.5 text-sm font-mono">
-      <span className="mt-0.5 shrink-0 text-zinc-500 text-xs">{icon}</span>
+      <span className="mt-0.5 shrink-0 text-gray-500 text-xs">{icon}</span>
       <div className="flex-1 flex items-start gap-2 min-w-0">
         <span className={`leading-snug ${
-          log.status === 'done' ? 'text-zinc-300' :
+          log.status === 'done' ? 'text-gray-700' :
           log.status === 'error' ? 'text-red-400' :
-          'text-zinc-400'
+          'text-gray-500'
         }`}>
           {log.message}
         </span>
@@ -111,15 +111,15 @@ export default function AgentAnalysisLogs({ agentId, hasGithubRepo }: Props) {
   const noLogs = logs !== null && logs.length === 0
 
   return (
-    <div className="border border-zinc-800 rounded-xl bg-zinc-900/50 overflow-hidden">
+    <div className="border border-gray-200 rounded-xl bg-gray-50 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-zinc-800/40 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-100 transition-colors"
       >
         <div className="flex items-center gap-2.5">
           <Sparkles className="h-4 w-4 text-violet-400" />
-          <span className="text-sm font-semibold text-zinc-200">Agent briefing</span>
+          <span className="text-sm font-semibold text-gray-800">Agent briefing</span>
           {isRunning && (
             <span className="text-xs text-violet-400 font-medium animate-pulse">Analyzing…</span>
           )}
@@ -130,13 +130,13 @@ export default function AgentAnalysisLogs({ agentId, hasGithubRepo }: Props) {
             <span className="text-xs text-amber-400 font-medium">Partial</span>
           )}
         </div>
-        <span className="text-xs text-zinc-600">{expanded ? '▲' : '▼'}</span>
+        <span className="text-xs text-gray-400">{expanded ? '▲' : '▼'}</span>
       </button>
 
       {expanded && (
         <div className="px-5 pb-5 space-y-4">
           {/* Description */}
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-gray-500">
             {noLogs
               ? `Analyzes GitHub commits, reads PostHog behavior data, and researches optimization frameworks — gives your agent deep context to answer questions intelligently.`
               : isRunning
@@ -147,7 +147,7 @@ export default function AgentAnalysisLogs({ agentId, hasGithubRepo }: Props) {
 
           {/* Log stream */}
           {logs && logs.length > 0 && (
-            <div className="bg-zinc-950 rounded-lg border border-zinc-800 px-4 py-3 space-y-2.5">
+            <div className="bg-[#f6f6f6] rounded-lg border border-gray-200 px-4 py-3 space-y-2.5">
               {logs.map(log => <LogLine key={log.id} log={log} />)}
             </div>
           )}
@@ -169,7 +169,7 @@ export default function AgentAnalysisLogs({ agentId, hasGithubRepo }: Props) {
             <button
               onClick={triggerAnalysis}
               disabled={triggering || isRunning}
-              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-40"
             >
               <RefreshCw className={`h-3 w-3 ${triggering ? 'animate-spin' : ''}`} />
               Re-analyze
@@ -177,7 +177,7 @@ export default function AgentAnalysisLogs({ agentId, hasGithubRepo }: Props) {
           )}
 
           {!hasGithubRepo && noLogs && (
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs text-gray-400">
               Tip: connect a GitHub repo in the agent setup to enable commit history analysis.
             </p>
           )}

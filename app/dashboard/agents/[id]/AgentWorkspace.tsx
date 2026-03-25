@@ -28,7 +28,7 @@ function ImpactDots({ score }: { score: number }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map(i => (
-        <div key={i} className={`w-2 h-2 rounded-full ${i <= score ? 'bg-violet-500' : 'bg-zinc-700'}`} />
+        <div key={i} className={`w-2 h-2 rounded-full ${i <= score ? 'bg-violet-500' : 'bg-gray-200'}`} />
       ))}
     </div>
   )
@@ -36,7 +36,7 @@ function ImpactDots({ score }: { score: number }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    proposed: 'bg-zinc-800 text-zinc-400',
+    proposed: 'bg-gray-100 text-gray-500',
     accepted: 'bg-emerald-500/20 text-emerald-400',
     rejected: 'bg-red-500/10 text-red-400',
     shipped: 'bg-violet-500/20 text-violet-400',
@@ -310,34 +310,34 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
   return (
     <>
-    <div className="flex h-screen overflow-hidden bg-[#09090B]">
+    <div className="flex h-screen overflow-hidden bg-[#f6f6f6]">
 
       {/* ── Main content (full width) ─────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="border-b border-zinc-800 h-14 px-6 flex items-center justify-between shrink-0">
+        <div className="border-b border-gray-200 h-14 px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-sm font-semibold text-zinc-100 shrink-0">{agent.name}</h1>
+            <h1 className="text-sm font-semibold text-gray-900 shrink-0">{agent.name}</h1>
             {agent.status && (
               <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                agent.status === 'Ready' || agent.status === 'Analyzing' ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-zinc-400'
+                agent.status === 'Ready' || agent.status === 'Analyzing' ? 'bg-violet-500/20 text-violet-400' : 'bg-gray-100 text-gray-500'
               }`}>{agent.status}</span>
             )}
             {targetDesc && (
-              <span className="text-xs text-zinc-500 hidden sm:block shrink-0">
-                → <span className="text-zinc-400">{targetDesc}</span>
+              <span className="text-xs text-gray-500 hidden sm:block shrink-0">
+                → <span className="text-gray-500">{targetDesc}</span>
               </span>
             )}
             {agent.url && (
               <a href={agent.url} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-zinc-600 hover:text-zinc-400 truncate max-w-[200px] hidden md:block">
+                className="text-xs text-gray-400 hover:text-gray-500 truncate max-w-[200px] hidden md:block">
                 {agent.url}
               </a>
             )}
           </div>
           <button onClick={handleReanalyze} disabled={reanalyzing}
-            className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40 shrink-0">
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-md px-3 py-1.5 transition-colors disabled:opacity-40 shrink-0">
             <RefreshCw className={`h-3 w-3 ${reanalyzing ? 'animate-spin' : ''}`} />
             {reanalyzing ? 'Analyzing…' : 'Re-analyze'}
           </button>
@@ -357,14 +357,14 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
           {/* ── Agent Briefing ───────────────────────────────────────────────── */}
           {view === 'briefing' && (
-            <div className="border-b border-zinc-800/60 px-6 py-5">
-              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Agent Briefing</p>
+            <div className="border-b border-gray-200/60 px-6 py-5">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">Agent Briefing</p>
               {agent.context_summary ? (
-                <div className="prose prose-xs prose-invert max-w-none mb-3 text-xs text-zinc-400 [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:text-zinc-400 [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-medium [&_h3]:text-zinc-300 [&_h3]:mt-2 [&_h3]:mb-0.5 [&_p]:leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium">
+                <div className="prose prose-xs prose-gray max-w-none mb-3 text-xs text-gray-500 [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:text-gray-500 [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-medium [&_h3]:text-gray-700 [&_h3]:mt-2 [&_h3]:mb-0.5 [&_p]:leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed [&_strong]:text-gray-700 [&_strong]:font-medium">
                   <ReactMarkdown>{agent.context_summary}</ReactMarkdown>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-600 italic mb-3">
+                <p className="text-xs text-gray-400 italic mb-3">
                   No briefing yet — run analysis to generate insights from your connected sources.
                 </p>
               )}
@@ -377,7 +377,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                   { label: 'Instructions', active: !!agent.system_instructions },
                 ].map(src => (
                   <span key={src.label} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-600'
+                    src.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-gray-100 text-gray-400'
                   }`}>{src.label}</span>
                 ))}
               </div>
@@ -387,17 +387,17 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
           {/* ── Analytics ────────────────────────────────────────────────────── */}
           {view === 'analytics' && (
-            <div className="p-6 border-b border-zinc-800/60">
+            <div className="p-6 border-b border-gray-200/60">
               {!phKey ? (
                 <div className="max-w-sm space-y-3">
-                  <p className="text-sm font-medium text-zinc-300">Connect PostHog</p>
-                  <p className="text-xs text-zinc-500">Find your keys in PostHog → Settings → Project.</p>
+                  <p className="text-sm font-medium text-gray-700">Connect PostHog</p>
+                  <p className="text-xs text-gray-500">Find your keys in PostHog → Settings → Project.</p>
                   <input value={phForm.api_key} onChange={e => setPhForm(f => ({ ...f, api_key: e.target.value }))}
                     placeholder="API Key (phx_...)"
-                    className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                    className="w-full rounded bg-white border border-gray-300 text-gray-700 text-xs px-3 py-2 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-500" />
                   <input value={phForm.project_id} onChange={e => setPhForm(f => ({ ...f, project_id: e.target.value }))}
                     placeholder="Project ID (e.g. 12345)"
-                    className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                    className="w-full rounded bg-white border border-gray-300 text-gray-700 text-xs px-3 py-2 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-500" />
                   {phError && <p className="text-xs text-red-400">{phError}</p>}
                   <button onClick={handlePhConnect} disabled={phSaving}
                     className="px-4 py-2 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium disabled:opacity-50 transition-colors">
@@ -412,16 +412,16 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
           {/* ── Codebase ─────────────────────────────────────────────────────── */}
           {view === 'codebase' && (
-            <div className="p-6 border-b border-zinc-800/60">
-              <p className="text-sm font-medium text-zinc-300 mb-2">Codebase</p>
+            <div className="p-6 border-b border-gray-200/60">
+              <p className="text-sm font-medium text-gray-700 mb-2">Codebase</p>
               {agent.github_repo ? (
-                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   {agent.github_repo}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-zinc-500">No GitHub repo connected.</p>
+                  <p className="text-xs text-gray-500">No GitHub repo connected.</p>
                   <a href="/dashboard/agents/new" className="text-xs text-violet-400 hover:text-violet-300">Connect a repo →</a>
                 </div>
               )}
@@ -430,10 +430,10 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
           {/* ── Slack ────────────────────────────────────────────────────────── */}
           {view === 'slack' && (
-            <div className="p-6 border-b border-zinc-800/60">
-              <p className="text-sm font-medium text-zinc-300 mb-2">Slack</p>
+            <div className="p-6 border-b border-gray-200/60">
+              <p className="text-sm font-medium text-gray-700 mb-2">Slack</p>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
                   {agent.slack_channel_id && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                   {agent.slack_channel_id ? 'Workspace connected' : 'Not connected'}
                 </div>
@@ -446,24 +446,24 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
           {/* ── Documents ────────────────────────────────────────────────────── */}
           {view === 'documents' && (
-            <div className="p-6 border-b border-zinc-800/60">
-              <p className="text-sm font-medium text-zinc-300 mb-3">Documents</p>
+            <div className="p-6 border-b border-gray-200/60">
+              <p className="text-sm font-medium text-gray-700 mb-3">Documents</p>
               {docsLoading ? (
-                <div className="flex items-center gap-2 text-zinc-500 text-xs"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
+                <div className="flex items-center gap-2 text-gray-500 text-xs"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
               ) : (
                 <div className="space-y-1 max-w-sm">
                   {(docs ?? []).map(doc => (
-                    <div key={doc.file_name} className="flex items-center gap-2 group py-1.5 px-2 rounded hover:bg-zinc-800/40">
-                      <FileText className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
-                      <span className="text-xs text-zinc-400 truncate flex-1">{doc.file_name}</span>
-                      <button onClick={() => handleDeleteDoc(doc.file_name)} className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 shrink-0">
+                    <div key={doc.file_name} className="flex items-center gap-2 group py-1.5 px-2 rounded hover:bg-gray-100/40">
+                      <FileText className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                      <span className="text-xs text-gray-500 truncate flex-1">{doc.file_name}</span>
+                      <button onClick={() => handleDeleteDoc(doc.file_name)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 shrink-0">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ))}
                   <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" id="ws-doc-upload" />
                   <label htmlFor="ws-doc-upload"
-                    className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded cursor-pointer transition-colors ${uploading ? 'text-zinc-600' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'}`}>
+                    className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded cursor-pointer transition-colors ${uploading ? 'text-gray-400' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/40'}`}>
                     {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</> : <><Upload className="h-3.5 w-3.5" /> Upload file</>}
                   </label>
                   {uploadError && <p className="text-xs text-red-400 mt-1">{uploadError}</p>}
@@ -474,15 +474,15 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
           {/* ── Instructions ─────────────────────────────────────────────────── */}
           {view === 'instructions' && (
-            <div className="p-6 border-b border-zinc-800/60">
-              <p className="text-sm font-medium text-zinc-300 mb-3">Instructions</p>
+            <div className="p-6 border-b border-gray-200/60">
+              <p className="text-sm font-medium text-gray-700 mb-3">Instructions</p>
               <div className="max-w-lg space-y-2">
                 <textarea
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
                   placeholder="e.g. Focus on sign-up rate. Be concise. Always suggest A/B ideas."
                   rows={6}
-                  className="w-full rounded bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm px-3 py-2 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+                  className="w-full rounded bg-white border border-gray-300 text-gray-700 text-sm px-3 py-2 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
                 />
                 <button onClick={saveInstructions} disabled={instructionsSaving}
                   className="px-4 py-2 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium disabled:opacity-50 transition-colors">
@@ -497,13 +497,13 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
             <div className="p-6">
               {!hasHypotheses ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <Sparkles className="h-6 w-6 text-zinc-700" />
-                  <p className="text-sm text-zinc-500 font-medium">No hypotheses yet</p>
-                  <p className="text-xs text-zinc-600 text-center max-w-xs">
-                    Click <span className="text-zinc-400">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
+                  <Sparkles className="h-6 w-6 text-gray-300" />
+                  <p className="text-sm text-gray-500 font-medium">No hypotheses yet</p>
+                  <p className="text-xs text-gray-400 text-center max-w-xs">
+                    Click <span className="text-gray-500">Re-analyze</span> above to generate improvement hypotheses from your connected sources.
                   </p>
                   {reanalyzing && (
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
                       Generating hypotheses — this takes about 60 seconds…
                     </div>
@@ -549,7 +549,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                     />
                   ))}
                   {reanalyzing && (
-                    <div className="flex items-center gap-2 py-4 text-zinc-500 text-xs">
+                    <div className="flex items-center gap-2 py-4 text-gray-500 text-xs">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
                       Generating fresh hypotheses…
                     </div>
@@ -565,26 +565,26 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
     {/* ── Full-screen preview modal (restored) ───────────────────────────── */}
     {(previewHtml !== null || previewLoading !== null || previewHypId !== null) && (
-      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+      <div className="fixed inset-0 z-50 flex flex-col bg-[#f6f6f6]">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Eye className="h-4 w-4 text-blue-400 shrink-0" />
-            <span className="text-sm font-medium text-zinc-200 shrink-0">Preview</span>
-            {previewTitle && <span className="text-xs text-zinc-500 truncate">— {previewTitle}</span>}
+            <span className="text-sm font-medium text-gray-800 shrink-0">Preview</span>
+            {previewTitle && <span className="text-xs text-gray-500 truncate">— {previewTitle}</span>}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => void handleRegeneratePreview()}
               disabled={previewRegenerating || previewLoading !== null}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40"
             >
               {previewRegenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
               Regenerate
             </button>
             <button
               onClick={() => { setPreviewHtml(null); setPreviewLoading(null); setPreviewHypId(null); setPreviewTitle(''); setPreviewChatInput('') }}
-              className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
               title="Close"
             >
               <X className="h-4 w-4" />
@@ -595,15 +595,15 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
         {/* Split pane */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left: iframe preview */}
-          <div className="flex-1 overflow-hidden border-r border-zinc-800">
+          <div className="flex-1 overflow-hidden border-r border-gray-200">
             {(previewLoading !== null || previewRegenerating) && previewHtml === null ? (
-              <div className="flex items-center justify-center h-full gap-3 text-zinc-500 text-sm">
+              <div className="flex items-center justify-center h-full gap-3 text-gray-500 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin text-violet-400" /> Generating preview…
               </div>
             ) : (previewRegenerating && previewHtml !== null) ? (
               <div className="relative w-full h-full">
                 <iframe srcDoc={previewHtml} className="w-full h-full border-0 opacity-40" sandbox="allow-scripts" title="Hypothesis UI Preview" />
-                <div className="absolute inset-0 flex items-center justify-center gap-3 text-zinc-500 text-sm">
+                <div className="absolute inset-0 flex items-center justify-center gap-3 text-gray-500 text-sm">
                   <Loader2 className="h-4 w-4 animate-spin text-violet-400" /> Regenerating…
                 </div>
               </div>
@@ -613,10 +613,10 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
           </div>
 
           {/* Right: hypothesis chat panel */}
-          <div className="w-[420px] shrink-0 flex flex-col bg-zinc-950">
-            <div className="px-4 py-3 border-b border-zinc-800 shrink-0">
+          <div className="w-[420px] shrink-0 flex flex-col bg-[#f6f6f6]">
+            <div className="px-4 py-3 border-b border-gray-200 shrink-0">
               <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Refine hypothesis</p>
-              <p className="text-xs text-zinc-500 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Push back, ask for evidence, or request a different approach. If it changes the hypothesis, the preview will refresh.
               </p>
             </div>
@@ -625,10 +625,10 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
               {(previewHypId ? (chatHistory[previewHypId] ?? []) : []).map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                    msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-900 border border-zinc-800 text-zinc-300'
+                    msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-white border border-gray-200 text-gray-700'
                   }`}>
                     {msg.role === 'assistant' && msg.tool_called && (
-                      <div className="mb-1.5 inline-flex items-center gap-1 bg-emerald-900/40 border border-emerald-700/40 rounded px-1.5 py-0.5 text-[10px] text-emerald-400">
+                      <div className="mb-1.5 inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] text-emerald-400">
                         <Check className="h-2.5 w-2.5" /> Saved: {msg.tool_called.replace(/_/g, ' ')}
                       </div>
                     )}
@@ -638,12 +638,12 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
                         ul: ({ children }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5">{children}</ul>,
                         ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5">{children}</ol>,
                         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                        strong: ({ children }) => <strong className="font-semibold text-zinc-100">{children}</strong>,
+                        strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
                         em: ({ children }) => <em className="italic">{children}</em>,
-                        code: ({ children }) => <code className="bg-zinc-950 rounded px-1 py-0.5 font-mono text-[10px] text-violet-300 border border-zinc-800">{children}</code>,
-                        h1: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
-                        h2: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
-                        h3: ({ children }) => <p className="font-semibold text-zinc-200 mb-0.5">{children}</p>,
+                        code: ({ children }) => <code className="bg-[#f6f6f6] rounded px-1 py-0.5 font-mono text-[10px] text-violet-300 border border-gray-200">{children}</code>,
+                        h1: ({ children }) => <p className="font-semibold text-gray-900 mb-1">{children}</p>,
+                        h2: ({ children }) => <p className="font-semibold text-gray-900 mb-1">{children}</p>,
+                        h3: ({ children }) => <p className="font-semibold text-gray-800 mb-0.5">{children}</p>,
                       }}>{msg.content}</ReactMarkdown>
                     ) : msg.content}
                   </div>
@@ -651,7 +651,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
               ))}
               {(previewChatLoading) && (
                 <div className="flex justify-start">
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
+                  <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500">
                     <Loader2 className="h-3 w-3 animate-spin inline mr-1" /> Thinking…
                   </div>
                 </div>
@@ -659,14 +659,14 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
               <div ref={previewChatEndRef} />
             </div>
 
-            <div className="p-4 border-t border-zinc-800 shrink-0">
+            <div className="p-4 border-t border-gray-200 shrink-0">
               <div className="flex gap-2">
                 <textarea
                   value={previewChatInput}
                   onChange={(e) => setPreviewChatInput(e.target.value)}
                   placeholder="e.g. Show a version that reduces friction at the first step…"
                   rows={3}
-                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 resize-none"
+                  className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-violet-500 resize-none"
                 />
                 <button
                   onClick={() => void handlePreviewChat()}
@@ -702,8 +702,8 @@ function impactInfo(score: number, kpi: string): { level: string; color: string;
   if (score >= 5) return { level: 'Very high', color: 'text-violet-400', reason: `Expected to move ${k} significantly. High-confidence change with strong supporting evidence from research and behaviour data.` }
   if (score >= 4) return { level: 'High', color: 'text-violet-300', reason: `Strong potential to improve ${k}. Backed by proven patterns in similar products and the data from your connected sources.` }
   if (score >= 3) return { level: 'Medium', color: 'text-amber-400', reason: `Moderate, validated pattern. Likely to produce a measurable lift on ${k} — worth prioritising in the next sprint.` }
-  if (score >= 2) return { level: 'Low', color: 'text-zinc-400', reason: `Incremental gain expected. May have a modest effect on ${k} — good for a quick experiment but not the highest leverage.` }
-  return { level: 'Very low', color: 'text-zinc-500', reason: `Minor improvement at best. Treat as an early assumption to validate before investing further effort.` }
+  if (score >= 2) return { level: 'Low', color: 'text-gray-500', reason: `Incremental gain expected. May have a modest effect on ${k} — good for a quick experiment but not the highest leverage.` }
+  return { level: 'Very low', color: 'text-gray-500', reason: `Minor improvement at best. Treat as an early assumption to validate before investing further effort.` }
 }
 
 // ─── Analytics view ───────────────────────────────────────────────────────────
@@ -731,7 +731,7 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
       .finally(() => setLoading(false))
   }, [agentId])
 
-  if (loading) return <div className="flex items-center justify-center h-64 gap-2 text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading PostHog data…</div>
+  if (loading) return <div className="flex items-center justify-center h-64 gap-2 text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading PostHog data…</div>
   if (error) return <div className="flex items-center justify-center h-64 text-red-400 text-sm">{error}</div>
   if (!data) return null
 
@@ -748,35 +748,35 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
           { label: 'Unique Users (90d)', value: data.unique_users.toLocaleString() },
           { label: 'Avg Sessions / Month', value: Math.round(data.sessions / 3).toLocaleString() },
         ].map(card => (
-          <div key={card.label} className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">{card.label}</p>
-            <p className="text-2xl font-bold text-zinc-100">{card.value}</p>
+          <div key={card.label} className="rounded-lg bg-white border border-gray-200 p-4">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{card.label}</p>
+            <p className="text-2xl font-bold text-gray-900">{card.value}</p>
           </div>
         ))}
       </div>
       {data.funnel && convRate !== null && (
-        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
-          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">KPI Funnel — {data.funnel.kpi_text}</p>
+        <div className="rounded-lg bg-white border border-gray-200 p-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">KPI Funnel — {data.funnel.kpi_text}</p>
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 w-36 shrink-0">All sessions</span>
-              <div className="flex-1 bg-zinc-800 rounded-full h-3"><div className="bg-zinc-500 h-3 rounded-full w-full" /></div>
-              <span className="text-xs text-zinc-300 w-16 text-right">{data.funnel.total_sessions.toLocaleString()}</span>
+              <span className="text-xs text-gray-500 w-36 shrink-0">All sessions</span>
+              <div className="flex-1 bg-gray-100 rounded-full h-3"><div className="bg-gray-400 h-3 rounded-full w-full" /></div>
+              <span className="text-xs text-gray-700 w-16 text-right">{data.funnel.total_sessions.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 w-36 shrink-0 truncate">&ldquo;{data.funnel.kpi_text}&rdquo; events</span>
-              <div className="flex-1 bg-zinc-800 rounded-full h-3">
+              <span className="text-xs text-gray-500 w-36 shrink-0 truncate">&ldquo;{data.funnel.kpi_text}&rdquo; events</span>
+              <div className="flex-1 bg-gray-100 rounded-full h-3">
                 <div className="bg-violet-500 h-3 rounded-full transition-all"
                   style={{ width: `${Math.min(100, (data.funnel.kpi_events / data.funnel.total_sessions) * 100)}%` }} />
               </div>
-              <span className="text-xs text-zinc-300 w-16 text-right">{data.funnel.kpi_events.toLocaleString()} <span className="text-zinc-500">({convRate}%)</span></span>
+              <span className="text-xs text-gray-700 w-16 text-right">{data.funnel.kpi_events.toLocaleString()} <span className="text-gray-500">({convRate}%)</span></span>
             </div>
           </div>
         </div>
       )}
       {data.daily_sessions.length > 0 && (
-        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
-          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Daily Sessions — Last 90 Days</p>
+        <div className="rounded-lg bg-white border border-gray-200 p-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">Daily Sessions — Last 90 Days</p>
           <div className="flex items-end gap-0.5 h-20">
             {data.daily_sessions.map(d => (
               <div key={d.day} title={`${d.day}: ${d.sessions} sessions`}
@@ -784,24 +784,24 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
                 style={{ height: `${Math.max(2, (d.sessions / maxSessions) * 100)}%` }} />
             ))}
           </div>
-          <div className="flex justify-between mt-1 text-[10px] text-zinc-600">
+          <div className="flex justify-between mt-1 text-[10px] text-gray-400">
             <span>{data.daily_sessions[0]?.day}</span>
             <span>{data.daily_sessions[data.daily_sessions.length - 1]?.day}</span>
           </div>
         </div>
       )}
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
-          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Events (90d)</p>
-          {data.top_events.length === 0 ? <p className="text-xs text-zinc-600">No custom events recorded yet.</p> : (
+        <div className="rounded-lg bg-white border border-gray-200 p-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">Top Events (90d)</p>
+          {data.top_events.length === 0 ? <p className="text-xs text-gray-400">No custom events recorded yet.</p> : (
             <div className="space-y-2">
               {data.top_events.slice(0, 8).map(ev => (
                 <div key={ev.event} className="space-y-0.5">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-zinc-300 truncate flex-1 pr-2">{ev.event}</span>
-                    <span className="text-xs text-zinc-500 shrink-0">{ev.count.toLocaleString()}</span>
+                    <span className="text-xs text-gray-700 truncate flex-1 pr-2">{ev.event}</span>
+                    <span className="text-xs text-gray-500 shrink-0">{ev.count.toLocaleString()}</span>
                   </div>
-                  <div className="bg-zinc-800 rounded-full h-1">
+                  <div className="bg-gray-100 rounded-full h-1">
                     <div className="bg-violet-500/70 h-1 rounded-full" style={{ width: `${(ev.count / maxEventCount) * 100}%` }} />
                   </div>
                 </div>
@@ -809,16 +809,16 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
             </div>
           )}
         </div>
-        <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4">
-          <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Pages (90d)</p>
-          {data.top_pages.length === 0 ? <p className="text-xs text-zinc-600">No pageview data yet.</p> : (
+        <div className="rounded-lg bg-white border border-gray-200 p-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">Top Pages (90d)</p>
+          {data.top_pages.length === 0 ? <p className="text-xs text-gray-400">No pageview data yet.</p> : (
             <div className="space-y-2">
               {data.top_pages.slice(0, 8).map((pg, i) => {
                 const path = (() => { try { return new URL(pg.url).pathname } catch { return pg.url } })()
                 return (
                   <div key={i} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-zinc-400 truncate flex-1" title={pg.url}>{path || '/'}</span>
-                    <span className="text-xs text-zinc-500 shrink-0">{pg.sessions.toLocaleString()} sess.</span>
+                    <span className="text-xs text-gray-500 truncate flex-1" title={pg.url}>{path || '/'}</span>
+                    <span className="text-xs text-gray-500 shrink-0">{pg.sessions.toLocaleString()} sess.</span>
                   </div>
                 )
               })}
@@ -853,7 +853,7 @@ function HypothesisCard({
   const impact = impactInfo(h.impact_score, agentKpi)
 
   return (
-    <div className={`rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/20 transition-opacity ${isRejected ? 'opacity-40' : ''}`}>
+    <div className={`rounded-xl border border-gray-200 overflow-hidden bg-white transition-opacity ${isRejected ? 'opacity-40' : ''}`}>
 
       {/* ── Card body: content only (preview opens full-screen modal) ───── */}
       <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
@@ -861,15 +861,15 @@ function HypothesisCard({
           {/* Title row */}
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">What we&apos;re improving</p>
-              <p className={`text-sm font-semibold leading-snug ${isRejected ? 'line-through text-zinc-500' : 'text-zinc-100'}`}>{h.title}</p>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">What we&apos;re improving</p>
+              <p className={`text-sm font-semibold leading-snug ${isRejected ? 'line-through text-gray-500' : 'text-gray-900'}`}>{h.title}</p>
             </div>
             <StatusBadge status={h.status} />
           </div>
 
           {/* Meta: source + impact */}
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 whitespace-nowrap truncate max-w-[120px]">{h.source}</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap truncate max-w-[120px]">{h.source}</span>
             <ImpactDots score={h.impact_score} />
             <span className={`text-[10px] font-semibold ${impact.color}`}>{impact.level} impact</span>
           </div>
@@ -878,49 +878,49 @@ function HypothesisCard({
           {h.suggested_change && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Suggested change</p>
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Suggested change</p>
                 <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change!) }}
-                  className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors">
+                  className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-700 transition-colors">
                   {copied === h.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                   {copied === h.id ? 'Copied' : 'Copy'}
                 </button>
               </div>
-              <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800 rounded-md px-3 py-2.5">{h.suggested_change}</p>
+              <p className="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">{h.suggested_change}</p>
             </div>
           )}
 
           {/* CTAs */}
-          <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t border-zinc-800/60">
+          <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t border-gray-200/60">
             <button onClick={e => { e.stopPropagation(); onToggleAsk() }}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-zinc-700 text-zinc-400 hover:border-violet-600 hover:text-violet-400'}`}>
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-gray-300 text-gray-500 hover:border-violet-600 hover:text-violet-400'}`}>
               <Sparkles className="h-3 w-3" /> Update
             </button>
             <button onClick={e => { e.stopPropagation(); onPreview() }} disabled={previewLoading}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
               {previewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
               {previewLoading ? 'Generating…' : 'Preview'}
             </button>
             {h.status === 'proposed' && (
               <button onClick={e => { e.stopPropagation(); onAccept() }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400 transition-colors">
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:border-emerald-600 hover:text-emerald-400 transition-colors">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Accept
               </button>
             )}
             {h.status !== 'rejected' && (
               <button onClick={e => { e.stopPropagation(); onReject() }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-500 hover:border-red-700 hover:text-red-400 transition-colors">
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:border-red-700 hover:text-red-400 transition-colors">
                 <XCircle className="h-3.5 w-3.5" /> Reject
               </button>
             )}
             {isAccepted && (
               <button onClick={e => { e.stopPropagation(); onCopy(h.suggested_change ?? '') }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors">
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
                 <GitBranch className="h-3 w-3" /> Create PR
               </button>
             )}
             {/* Expand: why we're proposing */}
             <button onClick={e => { e.stopPropagation(); onToggleExpand() }}
-              className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors ml-auto">
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors ml-auto">
               <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
               Why we&apos;re proposing this
             </button>
@@ -929,37 +929,37 @@ function HypothesisCard({
 
       {/* ── Expand: reasoning + chat ────────────────────────────────────── */}
       {isExpanded && (
-        <div className="border-t border-zinc-800/60 bg-zinc-950/40 px-5 py-4 space-y-4">
+        <div className="border-t border-gray-200/60 bg-gray-50/60 px-5 py-4 space-y-4">
           <div>
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Why we&apos;re proposing this</p>
-            <div className="text-xs text-zinc-400 leading-relaxed [&_strong]:text-zinc-300 [&_strong]:font-medium [&_ul]:mt-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Why we&apos;re proposing this</p>
+            <div className="text-xs text-gray-500 leading-relaxed [&_strong]:text-gray-700 [&_strong]:font-medium [&_ul]:mt-1 [&_ul]:space-y-0.5 [&_li]:leading-relaxed">
               <ReactMarkdown>{h.hypothesis}</ReactMarkdown>
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
               Expected impact{agentKpi ? ` on ${agentKpi}` : ''}
             </p>
             <div className="flex items-start gap-3">
               <ImpactDots score={h.impact_score} />
               <div>
                 <p className={`text-xs font-semibold ${impact.color}`}>{impact.level}</p>
-                <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{impact.reason}</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{impact.reason}</p>
               </div>
             </div>
           </div>
 
           {/* Inline chat (Ask / Update) */}
           {isAsking && (
-            <div className="border border-zinc-800 rounded-lg bg-zinc-950/60 p-4">
+            <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
               <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-3">Ask about this hypothesis</p>
               {chatMsgs.length > 0 && (
                 <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
                   {chatMsgs.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs leading-relaxed ${msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300'}`}>
+                      <div className={`max-w-[75%] rounded-lg px-3 py-2 text-xs leading-relaxed ${msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
                         {msg.role === 'assistant' && msg.tool_called && (
-                          <div className="mb-1.5 inline-flex items-center gap-1 bg-emerald-900/50 border border-emerald-700/50 rounded px-1.5 py-0.5 text-[10px] text-emerald-400">
+                          <div className="mb-1.5 inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] text-emerald-400">
                             <Check className="h-2.5 w-2.5" /> Saved: {msg.tool_called.replace(/_/g, ' ')}
                           </div>
                         )}
@@ -969,12 +969,12 @@ function HypothesisCard({
                             ul: ({ children }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5">{children}</ul>,
                             ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5">{children}</ol>,
                             li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                            strong: ({ children }) => <strong className="font-semibold text-zinc-100">{children}</strong>,
+                            strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
                             em: ({ children }) => <em className="italic">{children}</em>,
-                            code: ({ children }) => <code className="bg-zinc-900 rounded px-1 py-0.5 font-mono text-[10px] text-violet-300">{children}</code>,
-                            h1: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
-                            h2: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
-                            h3: ({ children }) => <p className="font-semibold text-zinc-200 mb-0.5">{children}</p>,
+                            code: ({ children }) => <code className="bg-white rounded px-1 py-0.5 font-mono text-[10px] text-violet-300">{children}</code>,
+                            h1: ({ children }) => <p className="font-semibold text-gray-900 mb-1">{children}</p>,
+                            h2: ({ children }) => <p className="font-semibold text-gray-900 mb-1">{children}</p>,
+                            h3: ({ children }) => <p className="font-semibold text-gray-800 mb-0.5">{children}</p>,
                           }}>{msg.content}</ReactMarkdown>
                         ) : msg.content}
                       </div>
@@ -982,7 +982,7 @@ function HypothesisCard({
                   ))}
                   {chatIsLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
+                      <div className="bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-500">
                         <Loader2 className="h-3 w-3 animate-spin inline mr-1" /> Thinking…
                       </div>
                     </div>
@@ -996,7 +996,7 @@ function HypothesisCard({
                   onChange={e => onChatInputChange(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && onAsk()}
                   placeholder={chatMsgs.length === 0 ? 'Debate this hypothesis or ask what data supports it…' : 'Push back, refine, or ask a follow-up…'}
-                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
+                  className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-violet-500"
                 />
                 <button onClick={onAsk} disabled={!chatInputVal.trim() || chatIsLoading}
                   className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-md disabled:opacity-40 transition-colors">
