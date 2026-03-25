@@ -13,6 +13,7 @@ export type ProductWithAgents = {
   created_at: string
   agents: { id: string; name: string; status: string | null; url: string | null }[]
   projectId?: string | null
+  goal?: string | null
 }
 
 export type UngroupedAgents = { id: string; name: string; status: string | null; url: string | null }[]
@@ -465,8 +466,18 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 {/* Agent list */}
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {product.agents.length === 0 ? (
-                    <li style={{ padding: '20px 24px', textAlign: 'center', fontSize: 13, color: C.muted }}>
-                      No goals tracked yet. Add one to get started.
+                    <li style={{ padding: '20px 24px' }}>
+                      {product.goal ? (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.border, flexShrink: 0, marginTop: 5 }} />
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{product.goal}</p>
+                            <p style={{ fontSize: 12, color: C.muted }}>Click &ldquo;Track new goal&rdquo; to start investigating</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p style={{ textAlign: 'center', fontSize: 13, color: C.muted }}>No goals tracked yet. Add one to get started.</p>
+                      )}
                     </li>
                   ) : (
                     product.agents.map((agent, i) => (
