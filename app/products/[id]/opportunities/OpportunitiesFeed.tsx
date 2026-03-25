@@ -140,11 +140,6 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 2 }}>
                   {friendlyLabel}
                 </h1>
-                {reach && (
-                  <p style={{ fontSize: 13, color: C.muted }}>
-                    Shipped so far: <strong style={{ color: '#2e7d32' }}>{reach} improvement</strong>
-                  </p>
-                )}
               </div>
             </div>
 
@@ -199,6 +194,11 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
         {/* Recent launches */}
         {recentCommits.length > 0 && (
           <div style={{ marginBottom: 32 }}>
+            {reach && (
+              <p style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>
+                Shipped so far: <strong style={{ color: '#2e7d32' }}>{reach} improvement</strong>
+              </p>
+            )}
             <button
               type="button"
               onClick={() => setLaunchesOpen(o => !o)}
@@ -208,6 +208,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
               <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase', flex: 1, textAlign: 'left' }}>
                 Recent launches
               </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginRight: 4 }}>{recentCommits.length}</span>
               <ChevronRight style={{ width: 12, height: 12, color: C.muted, transition: 'transform 0.15s', transform: launchesOpen ? 'rotate(90deg)' : 'none' }} />
             </button>
             {launchesOpen && <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
