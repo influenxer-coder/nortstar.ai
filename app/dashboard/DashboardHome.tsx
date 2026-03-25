@@ -532,7 +532,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                               <div>
                                 <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalMeta.label}</p>
                                 <p style={{ fontSize: 12, color: C.muted }}>
-                                  Potential reach: <strong style={{ color: '#2e7d32' }}>{goalMeta.reach} improvement</strong>
+                                  Shipped so far: <strong style={{ color: '#2e7d32' }}>{goalMeta.reach} improvement</strong>
                                 </p>
                               </div>
                             </div>
@@ -546,7 +546,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                               <div>
                                 <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalLabel.label}</p>
                                 <p style={{ fontSize: 12, color: C.muted }}>
-                                  Potential reach: <strong style={{ color: '#2e7d32' }}>{goalLabel.reach} improvement</strong>
+                                  Shipped so far: <strong style={{ color: '#2e7d32' }}>{goalLabel.reach} improvement</strong>
                                 </p>
                               </div>
                             </div>
