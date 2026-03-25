@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
+import AddOpportunityDialog from '@/components/AddOpportunityDialog'
 
 const C = {
   bg: '#f6f6f6',
@@ -53,6 +54,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [error, setError] = useState<string | null>(null)
   const [launchesOpen, setLaunchesOpen] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
   const hasFetched = useRef(false)
 
   // Save freshly-generated ideas to DB
@@ -269,7 +271,30 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
             {ideas.map((idea, idx) => (
               <OpportunityCard key={idx} idea={idea} featured={idx === 0} />
             ))}
+            <button
+              type="button"
+              onClick={() => setAddOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '14px', borderRadius: 20,
+                border: `1px dashed ${C.border}`, background: 'transparent',
+                fontSize: 14, fontWeight: 600, color: C.muted,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.surface; (e.currentTarget as HTMLButtonElement).style.color = C.text }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = C.muted }}
+            >
+              + Add new idea
+            </button>
           </div>
+        )}
+
+        {addOpen && (
+          <AddOpportunityDialog
+            projectId={projectId}
+            onClose={() => setAddOpen(false)}
+            onSaved={(idea) => setIdeas(prev => [...prev, idea])}
+          />
         )}
       </div>
 

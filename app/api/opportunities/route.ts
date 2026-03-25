@@ -27,14 +27,42 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json() as { project_id: string; ideas: NormalizedIdea[] }
-  const { project_id, ideas } = body
+  const body = await req.json() as { project_id: string; ideas?: NormalizedIdea[]; idea?: NormalizedIdea & { pdf_url?: string }; append?: boolean }
+  const { project_id, append } = body
 
-  if (!project_id || !Array.isArray(ideas) || ideas.length === 0) {
-    return NextResponse.json({ error: 'project_id and ideas[] are required' }, { status: 400 })
+  if (!project_id) {
+    return NextResponse.json({ error: 'project_id is required' }, { status: 400 })
   }
 
-  // Delete existing opportunities for this project before re-inserting
+  // Single append — add one idea without clearing existing rows
+  if (append && body.idea) {
+    const idea = body.idea
+    const { error } = await supabase.from('opportunities').insert({
+      user_id:            user.id,
+      project_id,
+      title:              idea.title,
+      goal:               idea.goal,
+      effort:             idea.effort,
+      evidence:           idea.evidence ?? null,
+      winning_pattern:    idea.winning_pattern ?? null,
+      expected_lift_low:  idea.expected_lift_low ?? null,
+      expected_lift_high: idea.expected_lift_high ?? null,
+      confidence:         idea.confidence ?? null,
+      confidence_reason:  idea.confidence_reason ?? null,
+      impact_score:       idea.impact_score ?? null,
+      decision_badge:     idea.decision_badge ?? null,
+      human_number:       idea.human_number ?? null,
+    })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  const ideas = body.ideas
+  if (!Array.isArray(ideas) || ideas.length === 0) {
+    return NextResponse.json({ error: 'ideas[] or { idea, append: true } required' }, { status: 400 })
+  }
+
+  // Replace all — delete existing and re-insert
   await supabase.from('opportunities').delete().eq('project_id', project_id).eq('user_id', user.id)
 
   const rows = ideas.map((idea) => ({
