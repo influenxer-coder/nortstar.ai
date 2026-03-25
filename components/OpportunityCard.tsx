@@ -2,14 +2,6 @@
 
 import { useState } from 'react'
 
-const C = {
-  text:       '#1f2328',
-  muted:      '#535963',
-  border:     '#d4d7dc',
-  surface:    '#ffffff',
-  cardShadow: '0 1px 4px rgba(27,37,40,0.06)',
-}
-
 export type IdeaWithImpact = {
   title:              string
   goal:               string
@@ -25,119 +17,146 @@ export type IdeaWithImpact = {
   human_number:       string | null | undefined
 }
 
-const BADGE: Record<string, { label: string; color: string; bg: string; border: string; bar: string; left: string }> = {
-  do_first:    { label: 'DO THIS FIRST',   color: '#166534', bg: '#dcfce7', border: '#86efac', bar: '#22c55e', left: '#22c55e' },
-  worth_bet:   { label: 'WORTH THE BET',   color: '#1e40af', bg: '#dbeafe', border: '#93c5fd', bar: '#3b82f6', left: '#3b82f6' },
-  quick_win:   { label: 'QUICK WIN',       color: '#92600a', bg: '#fffbeb', border: '#f0b429', bar: '#f59e0b', left: '#f59e0b' },
-  plan_sprint: { label: 'PLAN FOR SPRINT', color: '#374151', bg: '#f3f4f6', border: '#d1d5db', bar: '#9ca3af', left: '#9ca3af' },
+const BADGE_BAR: Record<string, string> = {
+  do_first:    '#22c55e',
+  worth_bet:   '#3b82f6',
+  quick_win:   '#f59e0b',
+  plan_sprint: '#9ca3af',
 }
 
-const EFFORT: Record<string, { color: string; bg: string; border: string }> = {
-  low:    { color: '#2e7d32', bg: '#e8f5e9', border: '#a5d6a7' },
-  medium: { color: '#92600a', bg: '#fffbeb', border: '#f0b429' },
-  high:   { color: '#be123c', bg: '#fff1f2', border: '#fda4af' },
-}
-
-const CONF_DOT: Record<string, { filled: boolean[]; color: string }> = {
-  high:   { filled: [true, true, true],   color: '#22c55e' },
-  medium: { filled: [true, true, false],  color: '#f59e0b' },
-  low:    { filled: [true, false, false], color: '#9ca3af' },
-}
-
-function ConfidenceDots({ level }: { level: 'high' | 'medium' | 'low' }) {
-  const cfg = CONF_DOT[level] ?? CONF_DOT.medium
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-      {cfg.filled.map((f, i) => (
-        <span
-          key={i}
-          style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: f ? cfg.color : '#e5e7eb' }}
-        />
-      ))}
-    </span>
-  )
+const EFFORT_LABEL: Record<string, { color: string; bg: string }> = {
+  low:    { color: '#166534', bg: 'rgba(220,252,231,0.7)' },
+  medium: { color: '#92600a', bg: 'rgba(255,251,235,0.7)' },
+  high:   { color: '#be123c', bg: 'rgba(255,241,242,0.7)' },
 }
 
 type Props = {
-  idea:          IdeaWithImpact
-  onAction?:     () => void
-  actionLabel?:  string
+  idea:           IdeaWithImpact
+  featured?:      boolean
+  onAction?:      () => void
+  actionLabel?:   string
   actionLoading?: boolean
 }
 
-export default function OpportunityCard({ idea, onAction, actionLabel, actionLoading }: Props) {
+export default function OpportunityCard({ idea, featured = false, onAction, actionLabel, actionLoading }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const badge   = idea.decision_badge ? BADGE[idea.decision_badge] : null
-  const effort  = EFFORT[idea.effort] ?? EFFORT.medium
-  const impactPct = idea.impact_score != null
+
+  const barColor   = BADGE_BAR[idea.decision_badge ?? ''] ?? '#9ca3af'
+  const effort     = EFFORT_LABEL[idea.effort] ?? EFFORT_LABEL.medium
+  const impactPct  = idea.impact_score != null
     ? Math.min(100, Math.round((idea.impact_score / 10) * 100))
     : null
 
+  const bg          = featured ? '#1d1d1f' : '#ffffff'
+  const titleColor  = featured ? '#f5f5f7' : '#1d1d1f'
+  const mutedColor  = featured ? 'rgba(245,245,247,0.6)' : '#6e6e73'
+  const liftColor   = featured ? '#34d399' : '#166534'
+  const borderColor = featured ? 'rgba(255,255,255,0.08)' : '#e5e5ea'
+  const barTrack    = featured ? 'rgba(255,255,255,0.12)' : '#e5e7eb'
+  const tagBg       = featured ? 'rgba(255,255,255,0.1)' : '#f5f5f7'
+  const tagColor    = featured ? 'rgba(245,245,247,0.8)' : '#6e6e73'
+
   return (
     <div style={{
-      background:   C.surface,
-      border:       `1px solid ${C.border}`,
-      borderLeft:   `4px solid ${badge?.left ?? C.border}`,
-      borderRadius: 12,
-      boxShadow:    C.cardShadow,
+      background:   bg,
+      borderRadius: 20,
+      boxShadow:    featured
+        ? '0 8px 32px rgba(0,0,0,0.22)'
+        : '0 2px 12px rgba(0,0,0,0.06)',
       overflow:     'hidden',
+      border:       featured ? 'none' : '1px solid #e5e5ea',
+      height:       '100%',
+      display:      'flex',
+      flexDirection:'column',
     }}>
-      {/* Always-visible: title + metrics + impact bar */}
+      {/* Always-visible summary */}
       <div
         onClick={() => setExpanded(o => !o)}
-        style={{ padding: '16px', cursor: 'pointer' }}
+        style={{ padding: '28px 28px 24px', cursor: 'pointer', flex: 1 }}
       >
-        <h4 style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 10 }}>{idea.title}</h4>
-
-        {/* Metrics row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-          {idea.expected_lift_low != null && idea.expected_lift_high != null && (
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>
-              +{idea.expected_lift_low}–{idea.expected_lift_high}%
-            </span>
-          )}
-          {idea.confidence && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.muted }}>
-              <ConfidenceDots level={idea.confidence} />
-              {idea.confidence}
+        {/* Top label row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          {idea.confidence === 'high' && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+              color: featured ? '#34d399' : '#f97316',
+              textTransform: 'uppercase',
+            }}>
+              Top opportunity
             </span>
           )}
           <span style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
-            padding: '2px 8px', borderRadius: 20,
-            color: effort.color, background: effort.bg, border: `1px solid ${effort.border}`,
+            fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+            padding: '3px 10px', borderRadius: 30,
+            color: featured ? tagColor : effort.color,
+            background: featured ? tagBg : effort.bg,
           }}>
-            {idea.effort.toUpperCase()} EFFORT
+            {idea.effort} effort
           </span>
         </div>
 
-        {/* Impact bar */}
-        {impactPct != null && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Impact</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{Number(idea.impact_score).toFixed(1)}/10</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${impactPct}%`, borderRadius: 99, background: badge?.bar ?? '#9ca3af' }} />
-            </div>
-          </div>
+        {/* Title */}
+        <h4 style={{
+          fontSize: featured ? 26 : 22,
+          fontWeight: 700,
+          color: titleColor,
+          lineHeight: 1.2,
+          letterSpacing: '-0.02em',
+          marginBottom: 10,
+        }}>
+          {idea.title}
+        </h4>
+
+        {/* Tagline — human number */}
+        {idea.human_number && (
+          <p style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: featured ? 'rgba(245,245,247,0.85)' : '#1d1d1f',
+            lineHeight: 1.4,
+            marginBottom: 6,
+          }}>
+            {idea.human_number}
+          </p>
+        )}
+
+        {/* Lift range */}
+        {idea.expected_lift_low != null && idea.expected_lift_high != null && (
+          <p style={{ fontSize: 14, color: mutedColor, marginBottom: 0 }}>
+            Expected lift: <strong style={{ color: liftColor }}>+{idea.expected_lift_low}–{idea.expected_lift_high}%</strong>
+          </p>
         )}
       </div>
 
-      {/* Collapsed content */}
+      {/* Impact bar */}
+      {impactPct != null && (
+        <div style={{ padding: '0 28px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: mutedColor, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Impact</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: titleColor }}>{Number(idea.impact_score).toFixed(1)}/10</span>
+          </div>
+          <div style={{ height: 4, borderRadius: 99, background: barTrack, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${impactPct}%`, borderRadius: 99, background: barColor }} />
+          </div>
+        </div>
+      )}
+
+      {/* Expanded detail */}
       {expanded && (
-        <div style={{ padding: '0 16px 16px', borderTop: `1px solid ${C.border}` }}>
-          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 8, marginTop: 12 }}>{idea.evidence}</p>
-          <p style={{ fontSize: 13, color: C.text, lineHeight: 1.6, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <div style={{
+          padding: '20px 28px 24px',
+          borderTop: `1px solid ${borderColor}`,
+        }}>
+          <p style={{ fontSize: 13, color: mutedColor, lineHeight: 1.7, marginBottom: 12 }}>
+            {idea.evidence}
+          </p>
+          <p style={{
+            fontSize: 13, color: featured ? 'rgba(245,245,247,0.75)' : '#3a3a3c',
+            lineHeight: 1.65,
+            paddingTop: 12, borderTop: `1px solid ${borderColor}`,
+          }}>
             {idea.winning_pattern}
           </p>
-
-          {idea.human_number && (
-            <p style={{ fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-              {idea.human_number}
-            </p>
-          )}
 
           {onAction && (
             <button
@@ -145,16 +164,16 @@ export default function OpportunityCard({ idea, onAction, actionLabel, actionLoa
               onClick={(e) => { e.stopPropagation(); onAction() }}
               disabled={actionLoading}
               style={{
-                marginTop: 12,
+                marginTop: 16,
                 borderRadius: 30,
-                border: `1px solid ${C.border}`,
-                background: C.surface,
-                color: C.text,
-                padding: '8px 14px',
+                border: `1px solid ${borderColor}`,
+                background: featured ? 'rgba(255,255,255,0.1)' : '#f5f5f7',
+                color: titleColor,
+                padding: '9px 18px',
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: actionLoading ? 'not-allowed' : 'pointer',
-                opacity: actionLoading ? 0.65 : 1,
+                opacity: actionLoading ? 0.6 : 1,
               }}
             >
               {actionLabel ?? 'Select →'}

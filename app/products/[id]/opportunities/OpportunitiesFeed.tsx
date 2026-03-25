@@ -265,12 +265,12 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
             <p style={{ fontSize: 14, color: C.muted }}>No opportunities yet</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="opp-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'start' }}>
             {ideas.map((idea, idx) => (
-              <div key={idx}>
-                <OpportunityCard idea={idea} />
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <OpportunityCard idea={idea} featured={idx === 0} />
                 {/* Sourced from row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 2 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, textTransform: 'uppercase', marginRight: 2 }}>Sourced from</span>
                   {[
                     { icon: Globe,     label: 'Competitor intel' },
@@ -296,6 +296,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .hover-row:hover { background: #f0f4ff !important; }
+        @media (max-width: 720px) { .opp-grid { grid-template-columns: 1fr !important; } }
       `}</style>
     </div>
   )
