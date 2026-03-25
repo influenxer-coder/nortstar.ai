@@ -265,7 +265,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
             <p style={{ fontSize: 14, color: C.muted }}>No opportunities yet</p>
           </div>
         ) : (
-          <div className="opp-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {ideas.map((idea, idx) => (
               <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <OpportunityCard idea={idea} featured={idx === 0} />
@@ -296,7 +296,6 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .hover-row:hover { background: #f0f4ff !important; }
-        @media (max-width: 720px) { .opp-grid { grid-template-columns: 1fr !important; } }
       `}</style>
     </div>
   )

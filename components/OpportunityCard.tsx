@@ -75,16 +75,7 @@ export default function OpportunityCard({ idea, featured = false, onAction, acti
         style={{ padding: '28px 28px 24px', cursor: 'pointer', flex: 1 }}
       >
         {/* Top label row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          {idea.confidence === 'high' && (
-            <span style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-              color: featured ? '#34d399' : '#f97316',
-              textTransform: 'uppercase',
-            }}>
-              Top opportunity
-            </span>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
           <span style={{
             fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
             padding: '3px 10px', borderRadius: 30,
