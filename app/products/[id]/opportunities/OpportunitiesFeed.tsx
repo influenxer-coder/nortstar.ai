@@ -32,7 +32,7 @@ type Props = {
 }
 
 const SIGNAL_SOURCES = [
-  { icon: GitCommit,     label: 'GitHub commits' },
+  { icon: GitCommit,     label: 'Past experiments' },
   { icon: Activity,      label: 'PostHog behavior' },
   { icon: MessageSquare, label: 'Slack signals' },
   { icon: Globe,         label: 'Competitor intel' },
