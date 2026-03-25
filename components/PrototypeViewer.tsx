@@ -30,13 +30,23 @@ function buildSrcDoc(code: string): string {
 </head>
 <body>
 <div id="root"></div>
+<script>
+window.onerror = function(msg, _src, _line, _col, err) {
+  document.getElementById('root').innerHTML =
+    '<div style="color:#b91c1c;padding:14px;font-size:12px;font-family:monospace;white-space:pre-wrap">' +
+    (err ? err.message : msg) + '</div>';
+};
+</script>
 <script type="text/babel" data-presets="react">
-try {
 ${cleaned}
+</script>
+<script type="text/babel" data-presets="react">
+if (typeof BeforeAfterPrototype !== 'undefined') {
   const root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(React.createElement(BeforeAfterPrototype));
-} catch(e) {
-  document.getElementById('root').innerHTML = '<div style="color:#b91c1c;padding:12px;font-size:13px">' + e.message + '</div>';
+} else {
+  document.getElementById('root').innerHTML =
+    '<div style="color:#b91c1c;padding:14px;font-size:12px">Component \\'BeforeAfterPrototype\\' not found in generated code.</div>';
 }
 </script>
 </body>

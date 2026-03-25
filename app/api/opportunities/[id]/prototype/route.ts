@@ -102,7 +102,7 @@ Build an interactive before/after prototype.`
 
         const completion = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 2400,
+          max_tokens: 4096,
           temperature: 0.2,
           system,
           messages: [{ role: 'user', content: userPrompt }],
