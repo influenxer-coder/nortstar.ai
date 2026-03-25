@@ -25,7 +25,7 @@ const C = {
 
 type Idea = IdeaWithImpact
 
-type CommitRow = { sha: string; message: string; date: string; url: string }
+type CommitRow = { sha: string; message: string; date: string; formattedDate: string; url: string }
 
 type Props = {
   projectId: string
@@ -330,7 +330,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                     {c.message}
                   </span>
                   <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>
-                    {new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {c.formattedDate}
                   </span>
                 </a>
               ))}

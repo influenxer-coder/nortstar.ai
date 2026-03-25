@@ -63,32 +63,31 @@ export async function POST(req: NextRequest, { params }: Params) {
   const system = `You are building a React prototype showing before/after comparison of a UI change.
 
 Return ONLY a single self-contained React component named BeforeAfterPrototype.
-No imports. No markdown. No explanations.
+No imports. No markdown. No explanations. No comments.
 
-Hard constraints (important):
+LENGTH CONSTRAINT (critical): Keep the entire component under 180 lines. Be concise — use short variable names, minimal inline styles, reuse patterns. Do NOT add extra polish, animations, or detailed copy.
+
+Hard constraints:
 - Render validity: return a top-level single <div> only. Avoid invalid HTML nesting (no <table>/<tr>/<tbody>/<thead>/<tfoot>, no <html>/<body>/<head>).
-- Determinism: do NOT use Math.random() or Date.now() during render. Any non-deterministic values must be avoided entirely.
+- Determinism: do NOT use Math.random() or Date.now() during render.
 - Use only safe, common elements: div, button, span, p, h3/h4, input, textarea.
 
-Constraints:
-- The component MUST render side-by-side BEFORE and AFTER states on desktop.
-- On mobile, include a simple toggle to switch between BEFORE and AFTER.
-- Use only inline styles (preferred) or Tailwind classes.
-- The component must be interactive (buttons/tabs/toggles should respond).`
+Behavior constraints:
+- Render side-by-side BEFORE and AFTER columns on desktop (a simple 2-column flex layout).
+- Include a top toggle to switch between BEFORE and AFTER on mobile.
+- Use only inline styles. Keep styles minimal.
+- Buttons/toggles must be interactive.`
 
   const userPrompt = `Product: ${project.name ?? 'Product'}
 URL: ${project.url ?? ''}
 
-Current page structure:
-${JSON.stringify({ screenshot_base64_png: crawl?.screenshot ?? null, clickable_elements: crawl?.elements ?? [] })}
+Clickable elements on page: ${JSON.stringify(crawl?.elements ?? [])}
 
-Proposed change:
-${proposedChange}
+Proposed change: ${proposedChange}
 
-Plan:
-${planMarkdown}
+Plan: ${planMarkdown}
 
-Build an interactive before/after prototype.`
+Build a concise before/after prototype (under 180 lines).`
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({

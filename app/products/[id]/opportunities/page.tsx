@@ -25,8 +25,8 @@ export default async function OpportunitiesPage({ params }: Params) {
   const subverticalId = (match.subvertical_id as string) ?? null
 
   // Fetch recent commits for NorthStar product
-  type CommitRow = { sha: string; message: string; date: string; url: string }
-  let recentCommits: CommitRow[] = []
+  type CommitRowFormatted = { sha: string; message: string; date: string; formattedDate: string; url: string }
+  let recentCommits: CommitRowFormatted[] = []
   const isNorthStar = /northstar/i.test(productName)
   if (isNorthStar) {
     try {
@@ -40,6 +40,7 @@ export default async function OpportunitiesPage({ params }: Params) {
           sha: c.sha.slice(0, 7),
           message: c.commit.message.split('\n')[0],
           date: c.commit.author.date,
+          formattedDate: new Date(c.commit.author.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           url: c.html_url,
         }))
       }
