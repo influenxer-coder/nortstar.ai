@@ -23,12 +23,15 @@ type Idea = {
   winning_pattern: string
 }
 
+type CommitRow = { sha: string; message: string; date: string; url: string }
+
 type Props = {
   projectId: string
   projectName: string
   productName: string
   goal: string | null
   subverticalId: string | null
+  recentCommits?: CommitRow[]
 }
 
 const SIGNAL_SOURCES = [
@@ -43,7 +46,7 @@ const SIGNAL_SOURCES = [
   { icon: Zap,           label: 'Rage Shakes',               active: false },
 ]
 
-export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId }: Props) {
+export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId, recentCommits = [] }: Props) {
   const productMeta = getProductMeta(productName)
   const goalMeta = getGoalLabel(goal)
   const resolved = productMeta ?? goalMeta
@@ -151,6 +154,44 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           ))}
         </div>
 
+        {/* Recent launches */}
+        {recentCommits.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <GitCommit style={{ width: 14, height: 14, color: C.muted, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase' }}>
+                Recent launches
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              {recentCommits.map((c, i) => (
+                <a
+                  key={c.sha}
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px',
+                    background: i % 2 === 0 ? C.surface : '#fafafa',
+                    textDecoration: 'none',
+                    borderBottom: i < recentCommits.length - 1 ? `1px solid ${C.border}` : 'none',
+                  }}
+                  className="hover-row"
+                >
+                  <code style={{ fontSize: 11, color: C.blue, fontFamily: 'monospace', flexShrink: 0, width: 52 }}>{c.sha}</code>
+                  <span style={{ fontSize: 13, color: C.text, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.message}
+                  </span>
+                  <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>
+                    {new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Feed label */}
         <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
 
@@ -228,6 +269,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        .hover-row:hover { background: #f0f4ff !important; }
       `}</style>
     </div>
   )
