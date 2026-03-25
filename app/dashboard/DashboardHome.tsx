@@ -381,7 +381,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             }}
           >
             <Plus style={{ width: 14, height: 14 }} />
-            Create product
+            Add My Product
           </button>
         </div>
 
@@ -412,7 +412,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               }}
             >
               <Plus style={{ width: 15, height: 15 }} />
-              Create your first product
+              Add My Product
             </button>
           </div>
         ) : (
@@ -457,7 +457,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       }}
                     >
                       <Plus style={{ width: 12, height: 12 }} />
-                      Add agent
+                      Track new goal
                     </button>
                   </Link>
                 </div>
@@ -466,7 +466,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {product.agents.length === 0 ? (
                     <li style={{ padding: '20px 24px', textAlign: 'center', fontSize: 13, color: C.muted }}>
-                      No agents yet. Add an agent to get started.
+                      No goals tracked yet. Add one to get started.
                     </li>
                   ) : (
                     product.agents.map((agent, i) => (
