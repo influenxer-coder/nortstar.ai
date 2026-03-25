@@ -26,13 +26,22 @@ export function AgentNavList({ agents }: { agents: AgentStub[] }) {
 
   return (
     <div className="mt-1 space-y-0.5">
-      <Link
-        href="/dashboard/agents/new"
+      <button
+        type="button"
         className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition-colors"
+        onClick={() => {
+          try {
+            const id = localStorage.getItem('northstar_current_project_id')
+            if (!id) { router.push('/dashboard'); return }
+            router.push(`/products/${id}/opportunities`)
+          } catch {
+            router.push('/dashboard')
+          }
+        }}
       >
         <Plus className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden md:block">Improve</span>
-      </Link>
+      </button>
       {agents.map(agent => {
         const isActive = pathname.includes(agent.id)
         const isConfirming = confirmId === agent.id
