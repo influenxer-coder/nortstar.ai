@@ -158,7 +158,8 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/opportunities?project_id=${encodeURIComponent(projectId)}`)
+      const goalQuery = goal ? `&goal=${encodeURIComponent(goal)}` : ''
+      const res = await fetch(`/api/opportunities?project_id=${encodeURIComponent(projectId)}${goalQuery}`)
       if (!res.ok) throw new Error('Failed to load saved opportunities')
       const data = await res.json() as { ideas?: Idea[] }
       const saved = data.ideas ?? []
@@ -461,6 +462,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
         {addOpen && (
           <AddOpportunityDialog
             projectId={projectId}
+            goal={goal}
             onClose={() => setAddOpen(false)}
             onSaved={(idea) => setBacklogIdeas(prev => [...prev, idea])}
           />

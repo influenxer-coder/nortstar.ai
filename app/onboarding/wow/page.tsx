@@ -112,6 +112,7 @@ export default function WowPage() {
           fetch('/api/opportunities', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            // This is goal-specific; never wipe other goals' saved ideas.
             body: JSON.stringify({ project_id: parsed.project_id, ideas: d.ideas }),
           }).catch(() => { /* non-critical */ })
         }

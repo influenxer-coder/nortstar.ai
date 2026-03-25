@@ -9,13 +9,19 @@ export async function GET(req: NextRequest) {
 
   const projectId = req.nextUrl.searchParams.get('project_id')
   if (!projectId) return NextResponse.json({ error: 'project_id required' }, { status: 400 })
+  const goal = req.nextUrl.searchParams.get('goal')
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('opportunities')
     .select('*')
     .eq('project_id', projectId)
     .eq('user_id', user.id)
-    .order('impact_score', { ascending: false })
+
+  if (goal && goal.trim()) {
+    query = query.eq('goal', goal.trim())
+  }
+
+  const { data, error } = await query.order('impact_score', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -62,8 +68,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ideas[] or { idea, append: true } required' }, { status: 400 })
   }
 
-  // Replace all — delete existing and re-insert
-  await supabase.from('opportunities').delete().eq('project_id', project_id).eq('user_id', user.id)
+  // Replace for current goal(s) only — do not wipe other goals.
+  // This prevents switching goals from deleting previous goal ideas.
+  const goalCandidates = ideas
+    .map((i) => (typeof i.goal === 'string' ? i.goal.trim() : ''))
+    .filter(Boolean)
+
+  // Avoid Set iteration to keep TS compile target compatibility.
+  const distinctGoals = goalCandidates.filter((g, idx, arr) => arr.indexOf(g) === idx)
+
+  const deleteQuery = supabase.from('opportunities').delete().eq('project_id', project_id).eq('user_id', user.id)
+  if (distinctGoals.length > 0) {
+    await deleteQuery.in('goal', distinctGoals)
+  } else {
+    // Fallback: if ideas are missing goal, preserve previous behavior to avoid surprising "no update".
+    await deleteQuery
+  }
 
   const rows = ideas.map((idea) => ({
     user_id:            user.id,

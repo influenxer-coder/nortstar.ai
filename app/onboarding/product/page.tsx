@@ -234,7 +234,6 @@ export default function ProductSetupPage() {
             },
           },
           onboarding_step: 2,
-          onboarding_completed: false,
         }),
       })
 

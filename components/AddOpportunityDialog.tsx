@@ -26,11 +26,12 @@ const SIGNAL_SOURCES = [
 
 type Props = {
   projectId: string
+  goal: string | null
   onClose:   () => void
   onSaved:   (idea: IdeaWithImpact) => void
 }
 
-export default function AddOpportunityDialog({ projectId, onClose, onSaved }: Props) {
+export default function AddOpportunityDialog({ projectId, goal, onClose, onSaved }: Props) {
   const [title,       setTitle]       = useState('')
   const [sources,     setSources]     = useState<string[]>([])
   const [liftLow,     setLiftLow]     = useState('')
@@ -65,7 +66,7 @@ export default function AddOpportunityDialog({ projectId, onClose, onSaved }: Pr
 
       const idea: IdeaWithImpact & { pdf_url?: string } = {
         title:              title.trim(),
-        goal:               '',
+        goal:               goal ?? '',
         effort,
         evidence:           sources.length ? `Sources: ${sources.join(', ')}` : '',
         winning_pattern:    '',

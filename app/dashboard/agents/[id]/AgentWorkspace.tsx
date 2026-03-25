@@ -90,9 +90,13 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
 
   // ── Preview state ──────────────────────────────────────────────────────────
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
   const [previewLoading, setPreviewLoading] = useState<string | null>(null) // hid being loaded
   const [previewHypId, setPreviewHypId] = useState<string | null>(null)
   const [previewRegenerating, setPreviewRegenerating] = useState(false)
+  const [previewChatInput, setPreviewChatInput] = useState('')
+  const [previewChatLoading, setPreviewChatLoading] = useState(false)
+  const previewChatEndRef = useRef<HTMLDivElement>(null)
 
   // ── PostHog connect state ──────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
@@ -172,6 +176,7 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
     if (previewLoading) return
     setPreviewLoading(hid)
     setPreviewHypId(hid)
+    setPreviewTitle(title)
     setPreviewHtml(null)
     void title // kept for API compat
     // Load chat history for this hypothesis if not already loaded
@@ -208,6 +213,35 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
     }
   }
 
+  const handlePreviewChat = async () => {
+    const hid = previewHypId
+    if (!hid || !previewChatInput.trim() || previewChatLoading) return
+    const message = previewChatInput.trim()
+    const history = chatHistory[hid] ?? []
+    const newHistory: ChatMsg[] = [...history, { role: 'user', content: message }]
+    setChatHistory(prev => ({ ...prev, [hid]: newHistory }))
+    setPreviewChatInput('')
+    setPreviewChatLoading(true)
+    try {
+      const res = await fetch(`/api/agents/${agent.id}/hypotheses/${hid}/chat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }),
+      })
+      const data = await res.json()
+      setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: data.reply ?? 'No response', tool_called: data.tool_called }] }))
+      const wantsPreview = /preview|show me|regenerate|refresh/i.test(message)
+      if (data.tool_called === 'update_hypothesis' || wantsPreview) {
+        await handleRegeneratePreview()
+      }
+    } catch {
+      setChatHistory(prev => ({ ...prev, [hid]: [...newHistory, { role: 'assistant', content: 'Failed to get a response.' }] }))
+    } finally {
+      setPreviewChatLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (previewHypId) previewChatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatHistory, previewHypId])
 
   // ── Re-analyze ─────────────────────────────────────────────────────────────
   const handleReanalyze = useCallback(async () => {
@@ -529,6 +563,125 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       </div>
     </div>
 
+    {/* ── Full-screen preview modal (restored) ───────────────────────────── */}
+    {(previewHtml !== null || previewLoading !== null || previewHypId !== null) && (
+      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Eye className="h-4 w-4 text-blue-400 shrink-0" />
+            <span className="text-sm font-medium text-zinc-200 shrink-0">Preview</span>
+            {previewTitle && <span className="text-xs text-zinc-500 truncate">— {previewTitle}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => void handleRegeneratePreview()}
+              disabled={previewRegenerating || previewLoading !== null}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40"
+            >
+              {previewRegenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              Regenerate
+            </button>
+            <button
+              onClick={() => { setPreviewHtml(null); setPreviewLoading(null); setPreviewHypId(null); setPreviewTitle(''); setPreviewChatInput('') }}
+              className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Split pane */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: iframe preview */}
+          <div className="flex-1 overflow-hidden border-r border-zinc-800">
+            {(previewLoading !== null || previewRegenerating) && previewHtml === null ? (
+              <div className="flex items-center justify-center h-full gap-3 text-zinc-500 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin text-violet-400" /> Generating preview…
+              </div>
+            ) : (previewRegenerating && previewHtml !== null) ? (
+              <div className="relative w-full h-full">
+                <iframe srcDoc={previewHtml} className="w-full h-full border-0 opacity-40" sandbox="allow-scripts" title="Hypothesis UI Preview" />
+                <div className="absolute inset-0 flex items-center justify-center gap-3 text-zinc-500 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-violet-400" /> Regenerating…
+                </div>
+              </div>
+            ) : (
+              <iframe srcDoc={previewHtml ?? ''} className="w-full h-full border-0" sandbox="allow-scripts" title="Hypothesis UI Preview" />
+            )}
+          </div>
+
+          {/* Right: hypothesis chat panel */}
+          <div className="w-[420px] shrink-0 flex flex-col bg-zinc-950">
+            <div className="px-4 py-3 border-b border-zinc-800 shrink-0">
+              <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Refine hypothesis</p>
+              <p className="text-xs text-zinc-500 mt-1">
+                Push back, ask for evidence, or request a different approach. If it changes the hypothesis, the preview will refresh.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {(previewHypId ? (chatHistory[previewHypId] ?? []) : []).map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                    msg.role === 'user' ? 'bg-violet-600 text-white' : 'bg-zinc-900 border border-zinc-800 text-zinc-300'
+                  }`}>
+                    {msg.role === 'assistant' && msg.tool_called && (
+                      <div className="mb-1.5 inline-flex items-center gap-1 bg-emerald-900/40 border border-emerald-700/40 rounded px-1.5 py-0.5 text-[10px] text-emerald-400">
+                        <Check className="h-2.5 w-2.5" /> Saved: {msg.tool_called.replace(/_/g, ' ')}
+                      </div>
+                    )}
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown components={{
+                        p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold text-zinc-100">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        code: ({ children }) => <code className="bg-zinc-950 rounded px-1 py-0.5 font-mono text-[10px] text-violet-300 border border-zinc-800">{children}</code>,
+                        h1: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
+                        h2: ({ children }) => <p className="font-semibold text-zinc-100 mb-1">{children}</p>,
+                        h3: ({ children }) => <p className="font-semibold text-zinc-200 mb-0.5">{children}</p>,
+                      }}>{msg.content}</ReactMarkdown>
+                    ) : msg.content}
+                  </div>
+                </div>
+              ))}
+              {(previewChatLoading) && (
+                <div className="flex justify-start">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
+                    <Loader2 className="h-3 w-3 animate-spin inline mr-1" /> Thinking…
+                  </div>
+                </div>
+              )}
+              <div ref={previewChatEndRef} />
+            </div>
+
+            <div className="p-4 border-t border-zinc-800 shrink-0">
+              <div className="flex gap-2">
+                <textarea
+                  value={previewChatInput}
+                  onChange={(e) => setPreviewChatInput(e.target.value)}
+                  placeholder="e.g. Show a version that reduces friction at the first step…"
+                  rows={3}
+                  className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 resize-none"
+                />
+                <button
+                  onClick={() => void handlePreviewChat()}
+                  disabled={!previewChatInput.trim() || previewChatLoading}
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-md disabled:opacity-40 transition-colors h-[38px] self-end"
+                >
+                  Ask
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
 </>
   )
 }
@@ -679,78 +832,6 @@ function AnalyticsView({ agentId }: { agentId: string; kpiText: string }) {
 
 // ─── Hypothesis card ──────────────────────────────────────────────────────────
 
-// Mobile preview panel: fixed 180×320 phone proportions, scale = 180/390
-const PREVIEW_W = 180
-const PREVIEW_H = 320
-const PHONE_W = 390
-const PHONE_H = 700
-const PREVIEW_SCALE = PREVIEW_W / PHONE_W
-
-function MobilePreviewPanel({
-  previewHtml, previewLoading, previewRegenerating, onPreview, onRegeneratePreview,
-}: {
-  previewHtml: string | null; previewLoading: boolean; previewRegenerating: boolean
-  onPreview: () => void; onRegeneratePreview?: () => void
-}) {
-  return (
-    <div
-      style={{ width: PREVIEW_W, minHeight: PREVIEW_H, flexShrink: 0 }}
-      className="relative rounded-l-xl overflow-hidden bg-zinc-950 border-r border-zinc-800 flex items-center justify-center"
-    >
-      {/* Phone notch bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 28, background: '#0a0a0a', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 48, height: 5, borderRadius: 99, background: '#2a2a2a' }} />
-      </div>
-
-      {/* Scaled iframe */}
-      {previewHtml && (
-        <div style={{ position: 'absolute', top: 28, left: 0, width: PHONE_W, height: PHONE_H, transformOrigin: 'top left', transform: `scale(${PREVIEW_SCALE})`, pointerEvents: 'none' }}>
-          <iframe
-            srcDoc={previewHtml}
-            style={{ width: '100%', height: '100%', border: 'none', opacity: previewRegenerating ? 0.4 : 1 }}
-            sandbox="allow-scripts"
-            title="Preview"
-          />
-        </div>
-      )}
-
-      {/* Overlay: loading / empty */}
-      {(previewLoading || previewRegenerating) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10" style={{ top: 28 }}>
-          <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
-          <span className="text-[10px] text-zinc-500">{previewRegenerating ? 'Refreshing…' : 'Generating…'}</span>
-        </div>
-      )}
-
-      {!previewHtml && !previewLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10" style={{ top: 28 }}>
-          <Eye className="h-5 w-5 text-zinc-700" />
-          <button
-            onClick={e => { e.stopPropagation(); onPreview() }}
-            className="text-[10px] font-medium px-3 py-1.5 rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-          >
-            Generate preview
-          </button>
-        </div>
-      )}
-
-      {/* Regenerate icon */}
-      {previewHtml && !previewLoading && !previewRegenerating && onRegeneratePreview && (
-        <button
-          onClick={e => { e.stopPropagation(); onRegeneratePreview() }}
-          title="Regenerate preview"
-          className="absolute bottom-2 right-2 z-10 p-1.5 rounded bg-zinc-900/80 text-zinc-600 hover:text-zinc-300 transition-colors"
-        >
-          <RefreshCw className="h-3 w-3" />
-        </button>
-      )}
-
-      {/* PREVIEW label bottom */}
-      <span style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#444', letterSpacing: '0.1em', fontWeight: 500, zIndex: 3 }}>PREVIEW</span>
-    </div>
-  )
-}
-
 function HypothesisCard({
   hypothesis: h, agentKpi, isExpanded, onToggleExpand,
   isAsking, chatMsgs, chatInputVal, chatIsLoading, copied,
@@ -774,20 +855,8 @@ function HypothesisCard({
   return (
     <div className={`rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/20 transition-opacity ${isRejected ? 'opacity-40' : ''}`}>
 
-      {/* ── Card body: preview left + content right ─────────────────────── */}
-      <div className="flex">
-
-        {/* Left: mobile preview */}
-        <MobilePreviewPanel
-          previewHtml={previewHtml}
-          previewLoading={previewLoading}
-          previewRegenerating={previewRegenerating}
-          onPreview={onPreview}
-          onRegeneratePreview={onRegeneratePreview}
-        />
-
-        {/* Right: content */}
-        <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
+      {/* ── Card body: content only (preview opens full-screen modal) ───── */}
+      <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
 
           {/* Title row */}
           <div className="flex items-start gap-3 mb-3">
@@ -829,7 +898,7 @@ function HypothesisCard({
             <button onClick={e => { e.stopPropagation(); onPreview() }} disabled={previewLoading}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-zinc-700 text-zinc-400 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
               {previewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
-              {previewLoading ? 'Generating…' : previewHtml ? 'Refresh' : 'Preview'}
+              {previewLoading ? 'Generating…' : 'Preview'}
             </button>
             {h.status === 'proposed' && (
               <button onClick={e => { e.stopPropagation(); onAccept() }}
@@ -856,7 +925,6 @@ function HypothesisCard({
               Why we&apos;re proposing this
             </button>
           </div>
-        </div>
       </div>
 
       {/* ── Expand: reasoning + chat ────────────────────────────────────── */}
