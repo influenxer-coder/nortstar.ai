@@ -27,6 +27,18 @@ type Props = {
   dbInProgressProjects?: InProgressProject[]
 }
 
+// Hardcoded goal descriptions per product — will be variable later
+const GOAL_META: Record<string, { label: string; reach: string }> = {
+  'reevo':           { label: 'Improve number of user activations measured by users sending their first email', reach: '12% to 18%' },
+  'pygent':          { label: 'Increase number of users who install the script for measuring LLM cost', reach: '8% to 14%' },
+  'agent northstar': { label: 'Increase number of users who draft their first feature', reach: '15% to 23%' },
+  'northstar':       { label: 'Increase number of users who draft their first feature', reach: '15% to 23%' },
+}
+
+function getGoalMeta(productName: string): { label: string; reach: string } | null {
+  return GOAL_META[productName.toLowerCase().trim()] ?? null
+}
+
 const C = {
   bg: '#f6f6f6',
   surface: '#ffffff',
@@ -467,17 +479,31 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {product.agents.length === 0 ? (
                     <li style={{ padding: '20px 24px' }}>
-                      {product.goal ? (
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.border, flexShrink: 0, marginTop: 5 }} />
-                          <div>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{product.goal}</p>
-                            <p style={{ fontSize: 12, color: C.muted }}>Click &ldquo;Track new goal&rdquo; to start investigating</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p style={{ textAlign: 'center', fontSize: 13, color: C.muted }}>No goals tracked yet. Add one to get started.</p>
-                      )}
+                      {(() => {
+                        const meta = getGoalMeta(product.name)
+                        if (meta) {
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
+                              <div>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{meta.label}</p>
+                                <p style={{ fontSize: 12, color: C.muted }}>
+                                  Potential reach: <strong style={{ color: '#2e7d32' }}>{meta.reach} improvement</strong>
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        }
+                        if (product.goal) {
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.border, flexShrink: 0, marginTop: 5 }} />
+                              <p style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{product.goal}</p>
+                            </div>
+                          )
+                        }
+                        return <p style={{ textAlign: 'center', fontSize: 13, color: C.muted }}>No goals tracked yet. Add one to get started.</p>
+                      })()}
                     </li>
                   ) : (
                     product.agents.map((agent, i) => (
