@@ -43,6 +43,23 @@ export function getProductMeta(name: string): ProductMeta | null {
   return PRODUCT_META[name.toLowerCase().trim()] ?? null
 }
 
+// Friendly labels for goal slugs stored in DB — will be variable later
+const GOAL_LABELS: Record<string, { label: string; reach: string }> = {
+  'improve_activation': {
+    label: 'Improve number of user activations',
+    reach: '12% to 18%',
+  },
+  'beat_competitor': {
+    label: 'Continue to be the platform to find younger population most effectively, measured by MMM',
+    reach: '10% to 16%',
+  },
+}
+
+export function getGoalLabel(goal: string | null | undefined): { label: string; reach: string } | null {
+  if (!goal) return null
+  return GOAL_LABELS[goal.toLowerCase().trim()] ?? null
+}
+
 export function faviconUrl(url: string | null | undefined): string | null {
   if (!url) return null
   try {

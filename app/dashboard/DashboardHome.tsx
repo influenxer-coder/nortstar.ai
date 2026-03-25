@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2, CheckCircle2 } from 'lucide-react'
-import { getProductMeta, faviconUrl } from '@/lib/product-meta'
+import { getProductMeta, faviconUrl, getGoalLabel } from '@/lib/product-meta'
 
 export type ProductWithAgents = {
   id: string
@@ -531,6 +531,20 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                                 <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalMeta.label}</p>
                                 <p style={{ fontSize: 12, color: C.muted }}>
                                   Potential reach: <strong style={{ color: '#2e7d32' }}>{goalMeta.reach} improvement</strong>
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        }
+                        const goalLabel = getGoalLabel(product.goal)
+                        if (goalLabel) {
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
+                              <div>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{goalLabel.label}</p>
+                                <p style={{ fontSize: 12, color: C.muted }}>
+                                  Potential reach: <strong style={{ color: '#2e7d32' }}>{goalLabel.reach} improvement</strong>
                                 </p>
                               </div>
                             </div>
