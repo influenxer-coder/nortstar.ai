@@ -79,20 +79,7 @@ export default function OpportunityCard({ idea, onAction, actionLabel, actionLoa
       boxShadow:    C.cardShadow,
       overflow:     'hidden',
     }}>
-      {/* Decision badge */}
-      {badge && (
-        <div style={{ padding: '10px 16px 0' }}>
-          <span style={{
-            fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
-            padding: '2px 8px', borderRadius: 30,
-            color: badge.color, background: badge.bg, border: `1px solid ${badge.border}`,
-          }}>
-            {badge.label}
-          </span>
-        </div>
-      )}
-
-      <div style={{ padding: badge ? '10px 16px 16px' : '16px' }}>
+      <div style={{ padding: '16px' }}>
         <h4 style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 10 }}>{idea.title}</h4>
 
         {/* Metrics row */}
