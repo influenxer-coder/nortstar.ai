@@ -155,9 +155,13 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
       const endpoint = process.env.NEXT_PUBLIC_BROWSER_SCREENSHOT_URL
       if (!endpoint) throw new Error('Browser agent endpoint not configured')
 
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 120_000) // 2 min timeout
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           product_url: productUrl,
           email: emailInput,
@@ -166,6 +170,8 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           goal: goal ?? '',
         }),
       })
+
+      clearTimeout(timeout)
 
       if (!res.ok || !res.body) throw new Error('Could not reach browser agent')
 
@@ -212,7 +218,14 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Could not access your app. Check credentials and try again.'
+      let msg: string
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        msg = 'Mapping timed out — the page may be too complex or slow to load. Try again or skip this step.'
+      } else if (err instanceof TypeError && /failed to fetch|network/i.test(err.message)) {
+        msg = 'Connection lost to mapping service. Please try again.'
+      } else {
+        msg = err instanceof Error ? err.message : 'Could not access your app. Check credentials and try again.'
+      }
       setCrawlError(msg)
       setIsCrawling(false)
     }
