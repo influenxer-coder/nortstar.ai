@@ -251,7 +251,7 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
             {variationsLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9B9A97', fontSize: 13 }}>
                 <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
-                Finding competitor patterns…
+                Finding popular patterns…
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
