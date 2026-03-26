@@ -65,12 +65,12 @@ export function InvestigateModal({ title, onClose }: Props) {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: '#9B9A97',
+              color: '#4A4A4A',
               padding: 0,
               borderRadius: 4,
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#1A1A1A' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9B9A97' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#4A4A4A' }}
           >
             <X style={{ width: 16, height: 16 }} />
           </button>
