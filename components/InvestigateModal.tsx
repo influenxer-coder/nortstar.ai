@@ -72,6 +72,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [selectedScreens, setSelectedScreens] = useState<string[]>([])
   const [crawlError, setCrawlError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState(FALLBACK_MESSAGES[0])
+  const [discoveredPages, setDiscoveredPages] = useState<{ url: string; title?: string }[]>([])
   const fallbackIdxRef = useRef(0)
 
   useEffect(() => {
@@ -148,6 +149,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     setIsCrawling(true)
     setCrawlError(null)
     setCrawlResult(null)
+    setDiscoveredPages([])
     fallbackIdxRef.current = 0
     setStatusMessage(FALLBACK_MESSAGES[0])
 
@@ -206,6 +208,19 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
                 ? event.content
                 : ''
             if (msg) setStatusMessage(msg)
+            // Accumulate discovered pages from log events
+            // Prefer structured url field; fall back to parsing URLs from message text
+            let pageUrl = typeof event.url === 'string' ? event.url : null
+            const pageTitle = typeof event.title === 'string' ? event.title : undefined
+            if (!pageUrl && msg) {
+              const urlMatch = msg.match(/https?:\/\/[^\s"',)}\]]+/)
+              if (urlMatch) pageUrl = urlMatch[0]
+            }
+            if (pageUrl) {
+              setDiscoveredPages(prev =>
+                prev.some(p => p.url === pageUrl) ? prev : [...prev, { url: pageUrl!, title: pageTitle }]
+              )
+            }
           } else if (event.type === 'result') {
             const data = (event.data ?? event) as CrawlResult
             const screens = data.screens ?? []
@@ -245,9 +260,37 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const renderLeftPanel = () => {
     if (currentStep === 2 && isCrawling) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
-          <Loader2 style={{ width: 24, height: 24, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
-          <span style={{ fontSize: 13, color: '#9B9A97' }}>{statusMessage}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '24px 24px 16px' }}>
+            <Loader2 style={{ width: 18, height: 18, color: '#9B9A97', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: '#9B9A97' }}>{statusMessage}</span>
+          </div>
+          {discoveredPages.length > 0 && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                Pages found ({discoveredPages.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {discoveredPages.map((page, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#F7F7F5', borderRadius: 6, border: '1px solid #E5E3DD' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 4, background: '#EDEBEA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#9B9A97' }}>{i + 1}</span>
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {page.title || page.url}
+                      </div>
+                      {page.title && (
+                        <div style={{ fontSize: 11, color: '#9B9A97', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {page.url}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )
     }
