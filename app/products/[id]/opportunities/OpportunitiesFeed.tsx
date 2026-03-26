@@ -453,6 +453,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       {investigateOpen && (
         <InvestigateModal
           title={investigateOpen.title}
+          opportunityId={investigateOpen.id}
           onClose={() => setInvestigateOpen(null)}
         />
       )}
