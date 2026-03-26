@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, ArrowRight } from 'lucide-react'
 
 type Competitor = {
   name: string
@@ -32,7 +32,6 @@ function firstSignal(icp: unknown): string | null {
   if (typeof icp === 'string') {
     const trimmed = icp.trim()
     if (!trimmed) return null
-    // take first comma/semicolon separated segment
     return trimmed.split(/[,;]/)[0].trim().slice(0, 32) || null
   }
   if (Array.isArray(icp) && icp.length > 0) {
@@ -40,6 +39,8 @@ function firstSignal(icp: unknown): string | null {
   }
   return null
 }
+
+const STEPS = ['Approach', 'Activate', 'Plan', 'Preview', 'Ship']
 
 type Props = {
   title: string
@@ -95,243 +96,248 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
     (activeVariation?.validated_by ?? []).map(n => n.toLowerCase())
   )
 
+  // suppress unused — competitors + firstSignal kept for next step
+  void competitors
+  void firstSignal
+  void validatedNames
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'rgba(0,0,0,0.4)',
-      }}
-      onClick={onClose}
-    >
+    <>
+      {/* Backdrop */}
       <div
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 51,
+          zIndex: 49,
+          background: 'rgba(0,0,0,0.35)',
+        }}
+        onClick={onClose}
+      />
+
+      {/* Modal container */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 50,
           display: 'flex',
           flexDirection: 'column',
+          background: '#ffffff',
+          overflow: 'hidden',
         }}
-        onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* ── TOP BAR ── */}
         <div style={{
           height: 48,
+          flexShrink: 0,
           background: '#ffffff',
           borderBottom: '1px solid #E5E3DD',
-          padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
+          padding: '0 20px',
+          gap: 16,
         }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>
-            {title}
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 24,
-              height: 24,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#4A4A4A',
-              padding: 0,
-              borderRadius: 4,
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#1A1A1A' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#4A4A4A' }}
-          >
-            <X style={{ width: 16, height: 16 }} />
-          </button>
+          {/* Left: title */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: '#1A1A1A',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'block',
+              maxWidth: 400,
+            }}>
+              {title}
+            </span>
+          </div>
+
+          {/* Center: step dots */}
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {STEPS.map((label, i) => (
+                <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                  <div style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: i === 0 ? '#1A1A1A' : 'transparent',
+                    border: i === 0 ? 'none' : '1.5px solid #D4D4D4',
+                    flexShrink: 0,
+                  }} />
+                  {i === 0 && (
+                    <span style={{ fontSize: 10, color: '#9B9A97', whiteSpace: 'nowrap' }}>
+                      {label}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: close button */}
+          <div style={{ flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'none',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                color: '#9B9A97',
+                padding: 0,
+              }}
+              onMouseEnter={e => {
+                const b = e.currentTarget as HTMLButtonElement
+                b.style.background = '#F7F7F5'
+                b.style.color = '#1A1A1A'
+              }}
+              onMouseLeave={e => {
+                const b = e.currentTarget as HTMLButtonElement
+                b.style.background = 'none'
+                b.style.color = '#9B9A97'
+              }}
+            >
+              <X style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: '#ffffff' }}>
-
-          {/* Left panel — competitors (60%) */}
+        {/* ── BODY ── */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+          height: 'calc(100vh - 48px - 56px)',
+          overflow: 'hidden',
+        }}>
+          {/* Left panel — placeholder (60%) */}
           <div style={{
             width: '60%',
+            height: '100%',
+            background: '#F7F7F5',
             borderRight: '1px solid #E5E3DD',
-            overflow: 'auto',
-            padding: 24,
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}>
-            {competitors.length === 0 ? (
-              <div style={{ color: '#9B9A97', fontSize: 13, paddingTop: 8 }}>Loading competitors…</div>
+            <span style={{ fontSize: 13, color: '#C9C8C5' }}>
+              Competitor signals will appear here
+            </span>
+          </div>
+
+          {/* Right panel — variations (40%) */}
+          <div style={{
+            width: '40%',
+            height: '100%',
+            overflowY: 'auto',
+            padding: '24px 20px',
+            background: '#ffffff',
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>
+              How do you want to approach this?
+            </h3>
+            <p style={{ fontSize: 13, color: '#9B9A97', marginBottom: 20 }}>
+              Based on what&apos;s working in your market
+            </p>
+
+            {variationsLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9B9A97', fontSize: 13 }}>
+                <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
+                Finding competitor patterns…
+              </div>
             ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: 12,
-              }}>
-                {competitors.map((c, i) => {
-                  const isValidated = validatedNames.size > 0 && validatedNames.has(c.name.toLowerCase())
-                  const dimmed = validatedNames.size > 0 && !isValidated
-                  const signal = firstSignal(c.icp_signals)
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {variations.map((v, idx) => {
+                  const isSelected = selectedIdx === idx
+                  const risk = RISK_COLORS[v.risk] ?? RISK_COLORS.medium
                   return (
-                    <div
-                      key={i}
-                      style={{
-                        border: isValidated ? '1.5px solid #6B4FBB' : '1px solid #E5E3DD',
-                        borderRadius: 10,
-                        padding: '12px 14px',
-                        background: isValidated ? '#F0ECFA' : '#ffffff',
-                        opacity: dimmed ? 0.3 : 1,
-                        transition: 'opacity 0.15s, border-color 0.15s, background 0.15s',
-                        position: 'relative',
-                      }}
-                    >
-                      {isValidated && hoveredIdx === null && selectedIdx !== null && (
-                        <span style={{
-                          position: 'absolute', top: 8, right: 10,
-                          fontSize: 11, color: '#6B4FBB', fontWeight: 700,
-                        }}>✓</span>
+                    <div key={idx}>
+                      {v.is_recommended && (
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#6B4FBB', marginBottom: 4, letterSpacing: '0.03em' }}>
+                          Recommended
+                        </div>
                       )}
-                      <div style={{ fontWeight: 700, fontSize: 13, color: '#1A1A1A', marginBottom: 4, paddingRight: isValidated ? 16 : 0 }}>
-                        {c.name}
+                      <div
+                        onClick={() => setSelectedIdx(idx)}
+                        onMouseEnter={() => setHoveredIdx(idx)}
+                        onMouseLeave={() => setHoveredIdx(null)}
+                        style={{
+                          border: isSelected ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
+                          borderRadius: 10,
+                          padding: isSelected ? '13px 15px' : '14px 16px',
+                          background: isSelected ? '#F0ECFA' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'border-color 0.15s, background 0.15s',
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#1A1A1A', marginBottom: 4 }}>
+                          {v.name}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#6B6A67', marginBottom: 8, lineHeight: 1.4 }}>
+                          {v.pattern}
+                        </div>
+                        {v.validated_by.length > 0 && (
+                          <div style={{ fontSize: 12, color: '#9B9A97', marginBottom: 8 }}>
+                            Validated by: {v.validated_by.slice(0, 3).join(', ')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#15803d' }}>
+                            +{v.expected_lift_low}–{v.expected_lift_high}%
+                          </span>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600,
+                            color: risk.color, background: risk.bg,
+                            borderRadius: 20, padding: '2px 8px',
+                          }}>
+                            {v.risk} risk
+                          </span>
+                        </div>
                       </div>
-                      <div style={{
-                        fontSize: 12,
-                        color: '#6B6A67',
-                        lineHeight: 1.4,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        marginBottom: signal ? 8 : 0,
-                      }}>
-                        {c.one_liner ?? String(c.known_winning_features ?? '').split(/[,;]/)[0]?.trim() ?? ''}
-                      </div>
-                      {signal && (
-                        <span style={{
-                          display: 'inline-block',
-                          fontSize: 11,
-                          fontWeight: 500,
-                          color: '#6B4FBB',
-                          background: '#F0ECFA',
-                          borderRadius: 20,
-                          padding: '2px 8px',
-                        }}>
-                          {signal}
-                        </span>
-                      )}
-                      {c.funding_stage && (
-                        <span style={{
-                          display: 'inline-block',
-                          fontSize: 11,
-                          color: '#9B9A97',
-                          marginLeft: signal ? 4 : 0,
-                        }}>
-                          {c.funding_stage}
-                        </span>
-                      )}
                     </div>
                   )
                 })}
               </div>
             )}
-          </div>
 
-          {/* Right panel — variations (40%) */}
-          <div style={{ width: '40%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>
-                How do you want to approach this?
-              </h3>
-              <p style={{ fontSize: 13, color: '#9B9A97', marginBottom: 20 }}>
-                Based on what&apos;s working in your market
-              </p>
-
-              {variationsLoading ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9B9A97', fontSize: 13 }}>
-                  <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
-                  Finding competitor patterns…
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {variations.map((v, idx) => {
-                    const isSelected = selectedIdx === idx
-                    const risk = RISK_COLORS[v.risk] ?? RISK_COLORS.medium
-                    return (
-                      <div key={idx}>
-                        {v.is_recommended && (
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#6B4FBB', marginBottom: 4, letterSpacing: '0.03em' }}>
-                            Recommended
-                          </div>
-                        )}
-                        <div
-                          onClick={() => setSelectedIdx(idx)}
-                          onMouseEnter={() => setHoveredIdx(idx)}
-                          onMouseLeave={() => setHoveredIdx(null)}
-                          style={{
-                            border: isSelected ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
-                            borderRadius: 10,
-                            padding: isSelected ? '13px 15px' : '14px 16px',
-                            background: isSelected ? '#F0ECFA' : '#ffffff',
-                            cursor: 'pointer',
-                            transition: 'border-color 0.15s, background 0.15s',
-                          }}
-                        >
-                          <div style={{ fontWeight: 700, fontSize: 14, color: '#1A1A1A', marginBottom: 4 }}>
-                            {v.name}
-                          </div>
-                          <div style={{ fontSize: 13, color: '#6B6A67', marginBottom: 8, lineHeight: 1.4 }}>
-                            {v.pattern}
-                          </div>
-                          {v.validated_by.length > 0 && (
-                            <div style={{ fontSize: 12, color: '#9B9A97', marginBottom: 8 }}>
-                              Validated by: {v.validated_by.slice(0, 3).join(', ')}
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#15803d' }}>
-                              +{v.expected_lift_low}–{v.expected_lift_high}%
-                            </span>
-                            <span style={{
-                              fontSize: 11, fontWeight: 600,
-                              color: risk.color, background: risk.bg,
-                              borderRadius: 20, padding: '2px 8px',
-                            }}>
-                              {v.risk} risk
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Sticky bottom button */}
+            {/* Sticky plan button */}
             <div style={{
-              padding: '14px 24px',
-              borderTop: '1px solid #E5E3DD',
+              position: 'sticky',
+              bottom: 0,
               background: '#ffffff',
-              flexShrink: 0,
+              paddingTop: 12,
+              marginTop: 16,
+              borderTop: '1px solid #E5E3DD',
             }}>
               <button
                 type="button"
                 disabled={selectedIdx === null}
                 style={{
                   width: '100%',
-                  padding: '11px 0',
-                  borderRadius: 8,
+                  height: 36,
+                  borderRadius: 6,
                   border: 'none',
-                  background: selectedIdx !== null ? '#6B4FBB' : '#E5E3DD',
-                  color: selectedIdx !== null ? '#ffffff' : '#9B9A97',
-                  fontSize: 14,
-                  fontWeight: 600,
+                  background: '#1A1A1A',
+                  color: '#ffffff',
+                  fontSize: 13,
+                  fontWeight: 500,
                   cursor: selectedIdx !== null ? 'pointer' : 'not-allowed',
-                  transition: 'background 0.15s',
+                  opacity: selectedIdx === null ? 0.4 : 1,
+                  transition: 'background 0.15s, opacity 0.15s',
+                }}
+                onMouseEnter={e => {
+                  if (selectedIdx !== null) (e.currentTarget as HTMLButtonElement).style.background = '#333333'
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A'
                 }}
               >
                 Plan this approach →
@@ -339,11 +345,69 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
             </div>
           </div>
         </div>
+
+        {/* ── BOTTOM BAR ── */}
+        <div style={{
+          height: 56,
+          flexShrink: 0,
+          background: '#ffffff',
+          borderTop: '1px solid #E5E3DD',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          gap: 10,
+        }}>
+          <input
+            type="text"
+            placeholder="Ask anything about this step..."
+            style={{
+              flex: 1,
+              height: 36,
+              background: '#F7F7F5',
+              border: '1px solid #E5E3DD',
+              borderRadius: 6,
+              fontSize: 13,
+              color: '#1A1A1A',
+              padding: '0 12px',
+              outline: 'none',
+            }}
+            onFocus={e => {
+              e.currentTarget.style.borderColor = '#6B4FBB'
+              e.currentTarget.style.boxShadow = '0 0 0 2px #6B4FBB20'
+            }}
+            onBlur={e => {
+              e.currentTarget.style.borderColor = '#E5E3DD'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => console.log('send')}
+            style={{
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              background: '#1A1A1A',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
+          >
+            <ArrowRight style={{ width: 15, height: 15 }} />
+          </button>
+        </div>
       </div>
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        input::placeholder { color: #C9C8C5; }
       `}</style>
-    </div>
+    </>
   )
 }
