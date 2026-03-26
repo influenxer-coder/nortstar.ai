@@ -73,7 +73,10 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [crawlError, setCrawlError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState(FALLBACK_MESSAGES[0])
   const [discoveredPages, setDiscoveredPages] = useState<{ url: string; title?: string }[]>([])
+  const [crawlLogs, setCrawlLogs] = useState<string[]>([])
   const fallbackIdxRef = useRef(0)
+  const hasRealLogs = useRef(false)
+  const logsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -130,15 +133,24 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     }).catch(() => {})
   }, [opportunityId, selectedIdx, savedIdxLoaded])
 
-  // Fallback message rotation while crawling
+  // Fallback message rotation while crawling (stops once real logs arrive)
   useEffect(() => {
-    if (!isCrawling) return
+    if (!isCrawling) {
+      hasRealLogs.current = false
+      return
+    }
     const interval = setInterval(() => {
+      if (hasRealLogs.current) return
       fallbackIdxRef.current = (fallbackIdxRef.current + 1) % FALLBACK_MESSAGES.length
       setStatusMessage(FALLBACK_MESSAGES[fallbackIdxRef.current])
     }, 3000)
     return () => clearInterval(interval)
   }, [isCrawling])
+
+  // Auto-scroll logs
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [crawlLogs])
 
   const activeIdx = hoveredIdx ?? selectedIdx ?? 0
   const activeFlow = flows[activeIdx] ?? null
@@ -150,17 +162,16 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     setCrawlError(null)
     setCrawlResult(null)
     setDiscoveredPages([])
+    setCrawlLogs([])
     fallbackIdxRef.current = 0
+    hasRealLogs.current = false
     setStatusMessage(FALLBACK_MESSAGES[0])
 
     try {
-      const endpoint = process.env.NEXT_PUBLIC_BROWSER_SCREENSHOT_URL
-      if (!endpoint) throw new Error('Browser agent endpoint not configured')
-
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 120_000) // 2 min timeout
 
-      const res = await fetch(endpoint, {
+      const res = await fetch(`/api/opportunities/${opportunityId}/crawl`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -207,7 +218,11 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
               : typeof event.content === 'string'
                 ? event.content
                 : ''
-            if (msg) setStatusMessage(msg)
+            if (msg) {
+              hasRealLogs.current = true
+              setStatusMessage(msg)
+              setCrawlLogs(prev => [...prev, msg])
+            }
             // Accumulate discovered pages from log events
             // Prefer structured url field; fall back to parsing URLs from message text
             let pageUrl = typeof event.url === 'string' ? event.url : null
@@ -261,32 +276,48 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     if (currentStep === 2 && isCrawling) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '24px 24px 16px' }}>
-            <Loader2 style={{ width: 18, height: 18, color: '#9B9A97', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-            <span style={{ fontSize: 13, color: '#9B9A97' }}>{statusMessage}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px 12px' }}>
+            <Loader2 style={{ width: 16, height: 16, color: '#6B4FBB', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#6B4FBB' }}>Mapping your flow...</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
+            <div style={{
+              background: '#1A1A1A', borderRadius: 8, padding: '14px 16px',
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+              fontSize: 12, lineHeight: 1.7, color: '#A3A3A3', minHeight: 200,
+            }}>
+              {crawlLogs.length === 0 && (
+                <div style={{ color: '#525252' }}>{statusMessage}</div>
+              )}
+              {crawlLogs.map((log, i) => {
+                const isUrl = /https?:\/\//.test(log)
+                const isArrow = log.trim().startsWith('\u2192')
+                const isHeader = log.startsWith('[')
+                return (
+                  <div key={i} style={{
+                    color: isHeader ? '#E5E5E5' : isUrl ? '#93C5FD' : isArrow ? '#9B9A97' : '#A3A3A3',
+                    fontWeight: isHeader ? 500 : 400,
+                  }}>
+                    {log}
+                  </div>
+                )
+              })}
+              <div ref={logsEndRef} />
+            </div>
           </div>
           {discoveredPages.length > 0 && (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            <div style={{ padding: '0 20px 16px' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                 Pages found ({discoveredPages.length})
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {discoveredPages.map((page, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#F7F7F5', borderRadius: 6, border: '1px solid #E5E3DD' }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 4, background: '#EDEBEA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#9B9A97' }}>{i + 1}</span>
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {page.title || page.url}
-                      </div>
-                      {page.title && (
-                        <div style={{ fontSize: 11, color: '#9B9A97', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {page.url}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <span key={i} style={{
+                    fontSize: 11, color: '#6B4FBB', background: '#F3F0FF', padding: '2px 8px',
+                    borderRadius: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220,
+                  }}>
+                    {page.title || new URL(page.url).pathname}
+                  </span>
                 ))}
               </div>
             </div>
