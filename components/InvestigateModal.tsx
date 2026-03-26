@@ -231,14 +231,24 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
               const urlMatch = msg.match(/https?:\/\/[^\s"',)}\]]+/)
               if (urlMatch) pageUrl = urlMatch[0]
             }
-            if (pageUrl) {
-              setDiscoveredPages(prev =>
-                prev.some(p => p.url === pageUrl) ? prev : [...prev, { url: pageUrl!, title: pageTitle }]
-              )
+            // Filter out storage/screenshot URLs and non-page URLs
+            if (pageUrl && !pageUrl.includes('/storage/') && !pageUrl.includes('supabase.co')) {
+              try {
+                const pathname = new URL(pageUrl).pathname
+                setDiscoveredPages(prev =>
+                  prev.some(p => { try { return new URL(p.url).pathname === pathname } catch { return p.url === pageUrl } })
+                    ? prev
+                    : [...prev, { url: pageUrl!, title: pageTitle }]
+                )
+              } catch {
+                // invalid URL, skip
+              }
             }
           } else if (event.type === 'result') {
+            console.log('[crawl] result event:', JSON.stringify(event).slice(0, 500))
             const data = (event.data ?? event) as CrawlResult
             const screens = data.screens ?? []
+            console.log('[crawl] parsed screens:', screens.length, screens.map(s => ({ id: s.id, url: s.url, hasScreenshot: !!s.screenshot })))
             setCrawlResult({ screens })
             setSelectedScreens(screens.map(s => s.id))
             setIsCrawling(false)
