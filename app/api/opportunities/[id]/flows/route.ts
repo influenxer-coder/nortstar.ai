@@ -30,17 +30,21 @@ type FlowObject = {
   }
 }
 
-// In-memory cache: opportunityId → flows
-const cache = new Map<string, FlowObject[]>()
-
 export async function POST(req: NextRequest, { params }: Params) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Return cached result if available
-  const cached = cache.get(params.id)
-  if (cached) return NextResponse.json({ flows: cached })
+  // Return stored result if available
+  const { data: stored } = await supabase
+    .from('opportunity_flows')
+    .select('flows')
+    .eq('opportunity_id', params.id)
+    .eq('user_id', user.id)
+    .single()
+  if (stored && Array.isArray(stored.flows) && (stored.flows as unknown[]).length > 0) {
+    return NextResponse.json({ flows: stored.flows })
+  }
 
   const body = await req.json() as { variations?: VariationInput[] }
   const variations = body.variations ?? []
@@ -154,6 +158,12 @@ Return as a JSON array of exactly 3 flow objects.`
     flows = []
   }
 
-  cache.set(params.id, flows)
+  // Persist to DB for future requests
+  await supabase.from('opportunity_flows').upsert({
+    opportunity_id: params.id,
+    user_id: user.id,
+    flows,
+  }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
+
   return NextResponse.json({ flows })
 }

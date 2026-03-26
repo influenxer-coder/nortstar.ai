@@ -35,6 +35,17 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Return cached DB result if available
+  const { data: stored } = await supabase
+    .from('opportunity_variations')
+    .select('variations')
+    .eq('opportunity_id', params.id)
+    .eq('user_id', user.id)
+    .single()
+  if (stored && Array.isArray(stored.variations) && (stored.variations as unknown[]).length > 0) {
+    return NextResponse.json({ variations: stored.variations })
+  }
+
   const { data: opportunity, error: oppErr } = await supabase
     .from('opportunities')
     .select('*')
@@ -174,6 +185,13 @@ Generate 3 variations as JSON:
   if (variations.length > 0 && variations.every((v) => !v.is_recommended)) {
     variations[0].is_recommended = true
   }
+
+  // Persist to DB for future requests
+  await supabase.from('opportunity_variations').upsert({
+    opportunity_id: params.id,
+    user_id: user.id,
+    variations,
+  }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
 
   return NextResponse.json({ variations })
 }

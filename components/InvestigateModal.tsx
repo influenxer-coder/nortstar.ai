@@ -37,6 +37,7 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [flows, setFlows] = useState<FlowObject[]>([])
   const [flowsLoading, setFlowsLoading] = useState(false)
+  const [savedIdxLoaded, setSavedIdxLoaded] = useState(false)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -46,16 +47,29 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  // Fetch variations, then fetch flows once variations are ready
+  // Fetch variations + saved explore state in parallel, then fetch flows
   useEffect(() => {
     setVariationsLoading(true)
-    fetch(`/api/opportunities/${opportunityId}/variations`, { method: 'POST' })
-      .then(r => r.json())
-      .then((d: { variations?: Variation[] }) => {
-        const vars = d.variations ?? []
+
+    Promise.all([
+      fetch(`/api/opportunities/${opportunityId}/variations`, { method: 'POST' })
+        .then(r => r.json()) as Promise<{ variations?: Variation[] }>,
+      fetch(`/api/opportunities/${opportunityId}/explore-state`)
+        .then(r => r.json()) as Promise<{ selected_variation_index: number | null }>,
+    ])
+      .then(([varData, stateData]) => {
+        const vars = varData.variations ?? []
         setVariations(vars)
-        const recIdx = vars.findIndex(v => v.is_recommended)
-        setSelectedIdx(recIdx >= 0 ? recIdx : vars.length > 0 ? 0 : null)
+
+        // Restore saved index, fall back to recommended, then first
+        const savedIdx = stateData.selected_variation_index
+        if (savedIdx !== null && savedIdx !== undefined && savedIdx < vars.length) {
+          setSelectedIdx(savedIdx)
+        } else {
+          const recIdx = vars.findIndex(v => v.is_recommended)
+          setSelectedIdx(recIdx >= 0 ? recIdx : vars.length > 0 ? 0 : null)
+        }
+        setSavedIdxLoaded(true)
 
         // Fetch flows after variations load
         if (vars.length > 0) {
@@ -74,6 +88,16 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
       .catch(() => {})
       .finally(() => setVariationsLoading(false))
   }, [opportunityId])
+
+  // Save selected variation index to DB whenever it changes (after initial load)
+  useEffect(() => {
+    if (!savedIdxLoaded || selectedIdx === null) return
+    fetch(`/api/opportunities/${opportunityId}/explore-state`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selected_variation_index: selectedIdx }),
+    }).catch(() => {})
+  }, [opportunityId, selectedIdx, savedIdxLoaded])
 
   // Active index: hovered takes priority over selected
   const activeIdx = hoveredIdx ?? selectedIdx ?? 0
