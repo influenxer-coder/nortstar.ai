@@ -1,17 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 import AddOpportunityDialog from '@/components/AddOpportunityDialog'
+import { InvestigateModal } from '@/components/InvestigateModal'
 
-const InvestigatePanel = dynamic(
-  () => import('@/components/InvestigatePanel').then(m => m.InvestigatePanel),
-  { ssr: false },
-)
 
 const C = {
   bg: '#f6f6f6',
@@ -62,7 +58,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [launchesOpen, setLaunchesOpen] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [investigateOpenKey, setInvestigateOpenKey] = useState<string | null>(null)
+  const [investigateOpen, setInvestigateOpen] = useState<{ id: string; title: string } | null>(null)
   const hasFetched = useRef(false)
   function canInvestigate(idea: Idea): boolean {
     return typeof (idea as unknown as { id?: unknown }).id === 'string'
@@ -372,21 +368,11 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                       onInvestigate={() => {
                         const id = opportunityId(idea)
                         if (!id) return
-                        setInvestigateOpenKey((prev) => (prev === id ? null : id))
+                        setInvestigateOpen({ id, title: idea.title })
                       }}
                       investigateDisabled={!canInvestigate(idea)}
                       investigateLabel="Investigate"
                     />
-                    {(() => {
-                      const id = opportunityId(idea)
-                      if (!id || investigateOpenKey !== id) return null
-                      return (
-                        <InvestigatePanel
-                          opportunityId={id}
-                          onClose={() => setInvestigateOpenKey(null)}
-                        />
-                      )
-                    })()}
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button type="button" onClick={() => moveToBacklog(idx)}
                         style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
@@ -431,21 +417,11 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                         onInvestigate={() => {
                           const id = opportunityId(idea)
                           if (!id) return
-                          setInvestigateOpenKey((prev) => (prev === id ? null : id))
+                          setInvestigateOpen({ id, title: idea.title })
                         }}
                         investigateDisabled={!canInvestigate(idea)}
                         investigateLabel="Investigate"
                       />
-                      {(() => {
-                        const id = opportunityId(idea)
-                        if (!id || investigateOpenKey !== id) return null
-                        return (
-                          <InvestigatePanel
-                            opportunityId={id}
-                            onClose={() => setInvestigateOpenKey(null)}
-                          />
-                        )
-                      })()}
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button type="button" onClick={() => prioritize(idx)}
                           style={{
@@ -473,6 +449,13 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           />
         )}
       </div>
+
+      {investigateOpen && (
+        <InvestigateModal
+          title={investigateOpen.title}
+          onClose={() => setInvestigateOpen(null)}
+        />
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
