@@ -2,19 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { X, Loader2, ArrowRight } from 'lucide-react'
-
-type Competitor = {
-  name: string
-  one_liner: string | null
-  funding_stage: string | null
-  icp_signals: unknown
-  known_winning_features: unknown
-}
+import { FlowDiagram, type FlowObject } from '@/components/investigate/FlowDiagram'
 
 type Variation = {
   name: string
   pattern: string
   validated_by: string[]
+  what_they_did: string
+  what_this_means: string
   expected_lift_low: number
   expected_lift_high: number
   risk: 'low' | 'medium' | 'high'
@@ -27,19 +22,6 @@ const RISK_COLORS: Record<string, { color: string; bg: string }> = {
   high:   { color: '#be123c', bg: '#ffe4e6' },
 }
 
-function firstSignal(icp: unknown): string | null {
-  if (!icp) return null
-  if (typeof icp === 'string') {
-    const trimmed = icp.trim()
-    if (!trimmed) return null
-    return trimmed.split(/[,;]/)[0].trim().slice(0, 32) || null
-  }
-  if (Array.isArray(icp) && icp.length > 0) {
-    return String(icp[0]).slice(0, 32)
-  }
-  return null
-}
-
 const STEPS = ['Approach', 'Activate', 'Plan', 'Preview', 'Ship']
 
 type Props = {
@@ -49,11 +31,12 @@ type Props = {
 }
 
 export function InvestigateModal({ title, opportunityId, onClose }: Props) {
-  const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [variations, setVariations] = useState<Variation[]>([])
   const [variationsLoading, setVariationsLoading] = useState(true)
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+  const [flows, setFlows] = useState<FlowObject[]>([])
+  const [flowsLoading, setFlowsLoading] = useState(false)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -63,15 +46,7 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  // Fetch competitors
-  useEffect(() => {
-    fetch(`/api/opportunities/${opportunityId}/competitors`)
-      .then(r => r.json())
-      .then((d: { competitors?: Competitor[] }) => setCompetitors(d.competitors ?? []))
-      .catch(() => {})
-  }, [opportunityId])
-
-  // Fetch variations
+  // Fetch variations, then fetch flows once variations are ready
   useEffect(() => {
     setVariationsLoading(true)
     fetch(`/api/opportunities/${opportunityId}/variations`, { method: 'POST' })
@@ -81,51 +56,48 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
         setVariations(vars)
         const recIdx = vars.findIndex(v => v.is_recommended)
         setSelectedIdx(recIdx >= 0 ? recIdx : vars.length > 0 ? 0 : null)
+
+        // Fetch flows after variations load
+        if (vars.length > 0) {
+          setFlowsLoading(true)
+          fetch(`/api/opportunities/${opportunityId}/flows`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ variations: vars }),
+          })
+            .then(r => r.json())
+            .then((fd: { flows?: FlowObject[] }) => setFlows(fd.flows ?? []))
+            .catch(() => {})
+            .finally(() => setFlowsLoading(false))
+        }
       })
       .catch(() => {})
       .finally(() => setVariationsLoading(false))
   }, [opportunityId])
 
-  // Determine which competitor names are validated by active variation
-  const activeVariation = hoveredIdx !== null
-    ? variations[hoveredIdx]
-    : selectedIdx !== null
-      ? variations[selectedIdx]
-      : null
-  const validatedNames = new Set(
-    (activeVariation?.validated_by ?? []).map(n => n.toLowerCase())
-  )
-
-  // suppress unused — competitors + firstSignal kept for next step
-  void competitors
-  void firstSignal
-  void validatedNames
+  // Active index: hovered takes priority over selected
+  const activeIdx = hoveredIdx ?? selectedIdx ?? 0
+  const activeFlow = flows[activeIdx] ?? null
+  const activeVariation = variations[activeIdx] ?? null
 
   return (
     <>
       {/* Backdrop */}
       <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 49,
-          background: 'rgba(0,0,0,0.35)',
-        }}
+        style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.35)' }}
         onClick={onClose}
       />
 
       {/* Modal container */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 50,
-          display: 'flex',
-          flexDirection: 'column',
-          background: '#ffffff',
-          overflow: 'hidden',
-        }}
-      >
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#ffffff',
+        overflow: 'hidden',
+      }}>
         {/* ── TOP BAR ── */}
         <div style={{
           height: 48,
@@ -137,73 +109,44 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
           padding: '0 20px',
           gap: 16,
         }}>
-          {/* Left: title */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <span style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: '#1A1A1A',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: 'block',
-              maxWidth: 400,
+              fontSize: 13, fontWeight: 500, color: '#1A1A1A',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              display: 'block', maxWidth: 400,
             }}>
               {title}
             </span>
           </div>
 
-          {/* Center: step dots */}
           <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {STEPS.map((label, i) => (
                 <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                   <div style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
                     background: i === 0 ? '#1A1A1A' : 'transparent',
                     border: i === 0 ? 'none' : '1.5px solid #D4D4D4',
-                    flexShrink: 0,
                   }} />
                   {i === 0 && (
-                    <span style={{ fontSize: 10, color: '#9B9A97', whiteSpace: 'nowrap' }}>
-                      {label}
-                    </span>
+                    <span style={{ fontSize: 10, color: '#9B9A97', whiteSpace: 'nowrap' }}>{label}</span>
                   )}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right: close button */}
           <div style={{ flexShrink: 0 }}>
             <button
               type="button"
               onClick={onClose}
               style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'none',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                color: '#9B9A97',
-                padding: 0,
+                width: 32, height: 32, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', background: 'none', border: 'none',
+                borderRadius: 6, cursor: 'pointer', color: '#9B9A97', padding: 0,
               }}
-              onMouseEnter={e => {
-                const b = e.currentTarget as HTMLButtonElement
-                b.style.background = '#F7F7F5'
-                b.style.color = '#1A1A1A'
-              }}
-              onMouseLeave={e => {
-                const b = e.currentTarget as HTMLButtonElement
-                b.style.background = 'none'
-                b.style.color = '#9B9A97'
-              }}
+              onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = '#F7F7F5'; b.style.color = '#1A1A1A' }}
+              onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'none'; b.style.color = '#9B9A97' }}
             >
               <X style={{ width: 16, height: 16 }} />
             </button>
@@ -211,35 +154,45 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
         </div>
 
         {/* ── BODY ── */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          height: 'calc(100vh - 48px - 56px)',
-          overflow: 'hidden',
-        }}>
-          {/* Left panel — placeholder (60%) */}
+        <div style={{ display: 'flex', flexDirection: 'row', height: 'calc(100vh - 48px - 56px)', overflow: 'hidden' }}>
+
+          {/* Left panel — flow diagram (60%) */}
           <div style={{
-            width: '60%',
-            height: '100%',
-            background: '#F7F7F5',
-            borderRight: '1px solid #E5E3DD',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '60%', height: '100%',
+            background: '#F7F7F5', borderRight: '1px solid #E5E3DD', overflow: 'hidden',
           }}>
-            <span style={{ fontSize: 13, color: '#C9C8C5' }}>
-              Competitor signals will appear here
-            </span>
+            {variationsLoading ? (
+              <FlowDiagram
+                currentFlow={[]} proposedFlow={[]}
+                summary={{ removed_count: 0, added_count: 0, changed_count: 0, key_change: '' }}
+                variationName="" validatedBy={[]} isLoading
+              />
+            ) : activeFlow ? (
+              <FlowDiagram
+                currentFlow={activeFlow.current_flow}
+                proposedFlow={activeFlow.proposed_flow}
+                summary={activeFlow.summary}
+                variationName={activeVariation?.name ?? ''}
+                validatedBy={activeVariation?.validated_by ?? []}
+                isLoading={flowsLoading}
+              />
+            ) : flowsLoading ? (
+              <FlowDiagram
+                currentFlow={[]} proposedFlow={[]}
+                summary={{ removed_count: 0, added_count: 0, changed_count: 0, key_change: '' }}
+                variationName="" validatedBy={[]} isLoading
+              />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <span style={{ fontSize: 13, color: '#C9C8C5' }}>No flow data available</span>
+              </div>
+            )}
           </div>
 
           {/* Right panel — variations (40%) */}
           <div style={{
-            width: '40%',
-            height: '100%',
-            overflowY: 'auto',
-            padding: '24px 20px',
-            background: '#ffffff',
+            width: '40%', height: '100%', overflowY: 'auto',
+            padding: '24px 20px', background: '#ffffff',
           }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>
               How do you want to approach this?
@@ -310,35 +263,21 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
 
             {/* Sticky plan button */}
             <div style={{
-              position: 'sticky',
-              bottom: 0,
-              background: '#ffffff',
-              paddingTop: 12,
-              marginTop: 16,
-              borderTop: '1px solid #E5E3DD',
+              position: 'sticky', bottom: 0, background: '#ffffff',
+              paddingTop: 12, marginTop: 16, borderTop: '1px solid #E5E3DD',
             }}>
               <button
                 type="button"
                 disabled={selectedIdx === null}
                 style={{
-                  width: '100%',
-                  height: 36,
-                  borderRadius: 6,
-                  border: 'none',
-                  background: '#1A1A1A',
-                  color: '#ffffff',
-                  fontSize: 13,
-                  fontWeight: 500,
+                  width: '100%', height: 36, borderRadius: 6, border: 'none',
+                  background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500,
                   cursor: selectedIdx !== null ? 'pointer' : 'not-allowed',
                   opacity: selectedIdx === null ? 0.4 : 1,
                   transition: 'background 0.15s, opacity 0.15s',
                 }}
-                onMouseEnter={e => {
-                  if (selectedIdx !== null) (e.currentTarget as HTMLButtonElement).style.background = '#333333'
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A'
-                }}
+                onMouseEnter={e => { if (selectedIdx !== null) (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
               >
                 Plan this approach →
               </button>
@@ -348,53 +287,26 @@ export function InvestigateModal({ title, opportunityId, onClose }: Props) {
 
         {/* ── BOTTOM BAR ── */}
         <div style={{
-          height: 56,
-          flexShrink: 0,
-          background: '#ffffff',
-          borderTop: '1px solid #E5E3DD',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          gap: 10,
+          height: 56, flexShrink: 0, background: '#ffffff', borderTop: '1px solid #E5E3DD',
+          display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10,
         }}>
           <input
             type="text"
             placeholder="Ask anything about this step..."
             style={{
-              flex: 1,
-              height: 36,
-              background: '#F7F7F5',
-              border: '1px solid #E5E3DD',
-              borderRadius: 6,
-              fontSize: 13,
-              color: '#1A1A1A',
-              padding: '0 12px',
-              outline: 'none',
+              flex: 1, height: 36, background: '#F7F7F5', border: '1px solid #E5E3DD',
+              borderRadius: 6, fontSize: 13, color: '#1A1A1A', padding: '0 12px', outline: 'none',
             }}
-            onFocus={e => {
-              e.currentTarget.style.borderColor = '#6B4FBB'
-              e.currentTarget.style.boxShadow = '0 0 0 2px #6B4FBB20'
-            }}
-            onBlur={e => {
-              e.currentTarget.style.borderColor = '#E5E3DD'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
+            onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB'; e.currentTarget.style.boxShadow = '0 0 0 2px #6B4FBB20' }}
+            onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD'; e.currentTarget.style.boxShadow = 'none' }}
           />
           <button
             type="button"
             onClick={() => console.log('send')}
             style={{
-              width: 36,
-              height: 36,
-              flexShrink: 0,
-              background: '#1A1A1A',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
+              width: 36, height: 36, flexShrink: 0, background: '#1A1A1A', color: '#ffffff',
+              border: 'none', borderRadius: 6, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer',
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
