@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { Logo } from '@/components/logo'
 import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2, CheckCircle2 } from 'lucide-react'
-import { getProductMeta, faviconUrl, getGoalLabel } from '@/lib/product-meta'
+import { getProductMeta, faviconUrl, getGoalLabel, isLightColor } from '@/lib/product-meta'
 
 export type ProductWithAgents = {
   id: string
@@ -31,15 +32,14 @@ type Props = {
 // Hardcoded per-product brand + goal meta — will be variable later
 
 const C = {
-  bg:       '#F7F7F5',
-  surface:  '#FFFFFF',
-  text:     '#1A1A1A',
-  muted:    '#9B9A97',
-  border:   '#E5E3DD',
-  hover:    '#ECEAE4',
-  purple:   '#6B4FBB',
-  purpleBg: '#F0ECFA',
-  green:    '#4D9B6F',
+  bg: '#f6f6f6',
+  surface: '#ffffff',
+  text: '#1f2328',
+  muted: '#535963',
+  border: '#d4d7dc',
+  blue: '#367eed',
+  shadow: '0 0 0 1px #d4d7dc',
+  cardShadow: '0 1px 4px rgba(27,37,40,0.06)',
 }
 
 export default function DashboardHome({ products, ungroupedAgents, userDisplayName, dbInProgressProjects = [] }: Props) {
@@ -357,11 +357,11 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
       <div style={{ padding: '40px 32px', maxWidth: 860, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#C9C8C5', marginBottom: 6 }}>
+        <div style={{ marginBottom: 32 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.muted, marginBottom: 4 }}>
             Workspace
           </p>
-          <h1 style={{ fontSize: 15, fontWeight: 500, color: C.text }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em' }}>
             {userDisplayName}&apos;s workspace
           </h1>
         </div>
@@ -392,7 +392,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 href="/onboarding/product"
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  fontSize: 13, fontWeight: 600, color: C.purple,
+                  fontSize: 13, fontWeight: 600, color: C.blue,
                   textDecoration: 'none', flexShrink: 0,
                 }}
               >
@@ -419,20 +419,20 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
         ))}
 
         {/* Create product button */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 32 }}>
           <button
             type="button"
             onClick={openModal}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '0 14px', height: 32, borderRadius: 6,
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 20px', borderRadius: 30,
               background: C.text, color: '#fff',
-              fontSize: 13, fontWeight: 500,
+              fontSize: 13, fontWeight: 600,
               border: 'none', cursor: 'pointer',
             }}
           >
-            <Plus style={{ width: 13, height: 13 }} />
-            Add product
+            <Plus style={{ width: 14, height: 14 }} />
+            Add My Product
           </button>
         </div>
 
@@ -444,7 +444,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             padding: '64px 32px',
             textAlign: 'center',
             background: C.surface,
-            boxShadow: 'none',
+            boxShadow: C.cardShadow,
           }}>
             <FolderOpen style={{ width: 40, height: 40, color: C.border, margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: 18, fontWeight: 600, color: C.text, marginBottom: 8 }}>No products yet</h2>
@@ -467,54 +467,60 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {products.map((product) => {
               const meta = getProductMeta(product.name)
               const favicon = faviconUrl(product.productUrl)
               const displayName = meta?.officialName ?? product.name
+              const headerBg = meta?.cardBg ?? C.bg
+              const borderColor = meta?.brandColor ? `${meta.brandColor}30` : C.border
+              const btnColor = meta?.brandColor ?? C.blue
+              // Use dark text on light brand colors (e.g. Snapchat yellow)
+              const btnTextColor = meta?.brandColor && isLightColor(meta.brandColor) ? '#1f2328' : '#fff'
               return (
               <section
                 key={product.id}
                 style={{
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
+                  border: `1px solid ${borderColor}`,
+                  borderRadius: 10,
                   overflow: 'hidden',
                   background: C.surface,
+                  boxShadow: C.cardShadow,
                 }}
               >
                 {/* Product header */}
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 16px',
-                  borderBottom: `1px solid ${C.border}`,
-                  background: C.surface,
+                  padding: '14px 20px',
+                  borderBottom: `1px solid ${borderColor}`,
+                  background: headerBg,
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {favicon ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={favicon} alt={displayName} width={16} height={16} style={{ borderRadius: 4, flexShrink: 0 }} />
+                      <img src={favicon} alt={displayName} width={20} height={20} style={{ borderRadius: 5, flexShrink: 0 }} />
                     ) : (
-                      <FolderOpen style={{ width: 14, height: 14, color: C.muted, flexShrink: 0 }} />
+                      <FolderOpen style={{ width: 15, height: 15, color: btnColor, flexShrink: 0 }} />
                     )}
                     {product.projectId ? (
-                      <Link href={`/products/${product.projectId}`} style={{ fontSize: 13, fontWeight: 500, color: C.text, textDecoration: 'none' }}>
+                      <Link href={`/products/${product.projectId}`} style={{ fontSize: 14, fontWeight: 700, color: C.text, textDecoration: 'none' }}>
                         {displayName}
                       </Link>
                     ) : (
-                      <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{displayName}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{displayName}</span>
                     )}
                   </div>
                   {/* Remove product — confirm inline */}
                   {confirmRemoveId === product.id ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: C.muted }}>Remove?</span>
+                      <span style={{ fontSize: 12, color: C.muted }}>Remove product?</span>
                       <button
                         type="button"
                         onClick={() => void removeProduct(product.id)}
                         disabled={removingProductId === product.id}
-                        style={{ fontSize: 12, fontWeight: 500, color: '#9B3030', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
-                        {removingProductId === product.id ? 'Removing…' : 'Yes'}
+                        {removingProductId === product.id ? 'Removing…' : 'Yes, remove'}
                       </button>
                       <button
                         type="button"
@@ -529,13 +535,14 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       type="button"
                       onClick={() => setConfirmRemoveId(product.id)}
                       style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 12, color: C.muted,
-                        background: 'none', border: 'none',
-                        cursor: 'pointer', padding: '2px 4px',
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        fontSize: 12, fontWeight: 500, color: C.muted,
+                        background: 'none', border: `1px solid ${C.border}`,
+                        borderRadius: 30, padding: '5px 12px', cursor: 'pointer',
                       }}
                     >
                       <Trash2 style={{ width: 11, height: 11 }} />
+                      Say bye 👋
                     </button>
                   )}
                 </div>
@@ -623,8 +630,9 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
 
                 {/* Track new goal footer */}
                 <div style={{
-                  borderTop: `1px solid ${C.border}`,
-                  padding: '10px 16px',
+                  borderTop: `1px solid ${borderColor}`,
+                  padding: '12px 20px',
+                  background: headerBg,
                 }}>
                   <button
                     type="button"
@@ -636,13 +644,13 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                     }}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '0 12px', height: 28, borderRadius: 6,
-                      background: C.text, color: '#fff',
-                      fontSize: 12, fontWeight: 500,
+                      padding: '7px 14px', borderRadius: 30,
+                      background: btnColor, color: btnTextColor,
+                      fontSize: 12, fontWeight: 600,
                       border: 'none', cursor: 'pointer',
                     }}
                   >
-                    <Plus style={{ width: 11, height: 11 }} />
+                    <Plus style={{ width: 12, height: 12 }} />
                     Track new goal
                   </button>
                 </div>
@@ -657,7 +665,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 borderRadius: 10,
                 overflow: 'hidden',
                 background: C.surface,
-                boxShadow: 'none',
+                boxShadow: C.cardShadow,
               }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8,
@@ -711,7 +719,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.3)',
+            background: 'rgba(31,35,40,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 24,
             animation: 'fadeIn 0.15s ease',
@@ -721,11 +729,10 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
           <div
             style={{
               background: C.surface,
-              borderRadius: 8,
+              borderRadius: 16,
               width: '100%',
-              maxWidth: 480,
-              boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-              border: `1px solid ${C.border}`,
+              maxWidth: 520,
+              boxShadow: '0 8px 40px rgba(27,37,40,0.18)',
               overflow: 'hidden',
               animation: 'slideUp 0.18s ease',
             }}
@@ -733,12 +740,16 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
             {/* Modal header */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              height: 44, padding: '0 16px',
+              padding: '18px 24px',
               borderBottom: `1px solid ${C.border}`,
+              background: C.bg,
             }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>
-                {modalState === 'url_input' ? 'Add product' : 'Analyzing your product'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Logo size={24} color="purple" />
+                <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
+                  {modalState === 'url_input' ? 'Create a product' : 'Analyzing your product'}
+                </span>
+              </div>
               {modalState === 'url_input' && (
                 <button
                   type="button"
@@ -775,11 +786,10 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       autoFocus
                       style={{
                         width: '100%',
-                        height: 32,
-                        padding: '0 10px',
-                        borderRadius: 6,
-                        border: `1px solid ${urlError ? '#9B3030' : C.border}`,
-                        fontSize: 13,
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: `1px solid ${urlError ? '#e53e3e' : C.border}`,
+                        fontSize: 14,
                         color: C.text,
                         background: C.surface,
                         outline: 'none',
@@ -796,9 +806,9 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       type="button"
                       onClick={closeModal}
                       style={{
-                        height: 32, padding: '0 14px', borderRadius: 6,
+                        padding: '9px 18px', borderRadius: 30,
                         border: `1px solid ${C.border}`, background: C.surface,
-                        fontSize: 13, fontWeight: 500, color: C.muted,
+                        fontSize: 13, fontWeight: 600, color: C.muted,
                         cursor: 'pointer',
                       }}
                     >
@@ -808,15 +818,15 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       type="button"
                       onClick={() => void analyzeUrl()}
                       style={{
-                        height: 32, padding: '0 14px', borderRadius: 6,
-                        border: 'none', background: C.text, color: '#fff',
-                        fontSize: 13, fontWeight: 500,
+                        padding: '9px 20px', borderRadius: 30,
+                        border: 'none', background: C.blue, color: '#fff',
+                        fontSize: 13, fontWeight: 600,
                         cursor: 'pointer',
                         display: 'inline-flex', alignItems: 'center', gap: 6,
                       }}
                     >
-                      Analyze
-                      <ArrowRight style={{ width: 13, height: 13 }} />
+                      Analyze product
+                      <ArrowRight style={{ width: 14, height: 14 }} />
                     </button>
                   </div>
                 </>
@@ -849,7 +859,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       </div>
                     ) : (
                       <Loader2 style={{
-                        width: 32, height: 32, color: C.purple,
+                        width: 32, height: 32, color: C.blue,
                         marginBottom: 12,
                         animation: 'spin 1s linear infinite',
                       }} />
@@ -890,7 +900,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                             color: isActive ? C.text : C.muted,
                             fontWeight: isActive ? 500 : 400,
                           }}>
-                            <span style={{ flexShrink: 0, color: isActive ? C.purple : '#2e7d32' }}>
+                            <span style={{ flexShrink: 0, color: isActive ? C.blue : '#2e7d32' }}>
                               {isActive ? '›' : '✓'}
                             </span>
                             <span>{msg}</span>

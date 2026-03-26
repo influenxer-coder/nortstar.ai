@@ -84,12 +84,24 @@ function AgentTreeNode({ agent, isActive }: { agent: AgentStub; isActive: boolea
         <Link
           href={`/dashboard/agents/${agent.id}`}
           onClick={() => setConfirming(false)}
-          className={`flex-1 flex items-center gap-2 rounded-md transition-colors min-w-0 ${
-            isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          className={`flex-1 flex items-center gap-2 pl-1 pr-2 rounded-md transition-colors min-w-0 ${
+            isActive ? 'bg-accent' : 'hover:bg-muted'
           }`}
-          style={{ height: 26, paddingLeft: 24, paddingRight: 8, fontSize: 12 }}
+          style={{ height: 28 }}
         >
-          <span className="hidden md:block truncate">{agent.name}</span>
+          <div
+            className={`w-4 h-4 rounded shrink-0 flex items-center justify-center text-[9px] font-bold ${
+              isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {agent.name.charAt(0).toUpperCase()}
+          </div>
+          <span
+            className="hidden md:block truncate"
+            style={{ fontSize: 13, fontWeight: 500, color: isActive ? '#1f2328' : '#535963' }}
+          >
+            {agent.name}
+          </span>
         </Link>
 
         {/* Delete */}
@@ -162,15 +174,15 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
   }
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-1">
       {/* Home */}
       <Link
         href="/dashboard"
-        className={`flex items-center gap-2 rounded-md px-3 py-[5px] text-[13px] transition-colors ${
-          pathname === '/dashboard' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors ${
+          pathname === '/dashboard' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
       >
-        <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+        <LayoutDashboard className="h-4 w-4 shrink-0" />
         <span className="hidden flex-1 md:block">Home</span>
       </Link>
 
@@ -181,38 +193,43 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
         const displayName = meta?.officialName ?? product.name
         const isActive = !!product.projectId && pathname === `/products/${product.projectId}`
         return (
-        <div key={product.id} className="mt-2">
-          <div className="flex items-center gap-2 px-3 py-[5px]">
+        <div key={product.id} className="mt-3">
+          <div className="flex items-center gap-2 px-2 py-1.5">
             {favicon ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={favicon} alt={displayName} width={12} height={12} style={{ borderRadius: 3, flexShrink: 0 }} />
+              <img src={favicon} alt={displayName} width={14} height={14} style={{ borderRadius: 3, flexShrink: 0 }} />
             ) : (
-              <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <FolderOpen className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
             )}
             {product.projectId ? (
               <Link
                 href={`/products/${product.projectId}`}
-                className={`hidden text-[12px] font-medium truncate md:block transition-colors ${
+                className={`hidden text-xs font-semibold truncate md:block transition-colors ${
                   isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {displayName}
               </Link>
             ) : (
-              <span className="hidden text-[12px] font-medium text-muted-foreground truncate md:block">{displayName}</span>
+              <span className="hidden text-xs font-medium text-muted-foreground truncate md:block">{displayName}</span>
             )}
           </div>
-          <div className="space-y-0">
+          <div className="mt-0.5 space-y-0.5">
             {product.projectId && product.goal && (
               <Link
                 href={`/products/${product.projectId}/opportunities`}
-                className={`flex items-center gap-2 rounded-md transition-colors ${
-                  pathname === `/products/${product.projectId}/opportunities` ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                className={`flex items-center gap-2 pl-5 pr-2 rounded-md transition-colors ${
+                  pathname === `/products/${product.projectId}/opportunities` ? 'bg-accent' : 'hover:bg-muted'
                 }`}
-                style={{ height: 26, paddingLeft: 24, paddingRight: 12, fontSize: 12 }}
+                style={{ height: 28 }}
               >
-                <Lightbulb className="h-3 w-3 shrink-0 opacity-60" />
-                <span className="hidden md:block truncate">{product.goal}</span>
+                <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
+                <span
+                  className="hidden md:block truncate"
+                  style={{ fontSize: 13, fontWeight: 500, color: pathname === `/products/${product.projectId}/opportunities` ? '#1f2328' : '#535963' }}
+                >
+                  {product.goal}
+                </span>
               </Link>
             )}
             {product.agents.map((agent) => (
@@ -221,11 +238,10 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
             <button
               type="button"
               onClick={() => void startGoalSelection(product)}
-              className="flex items-center gap-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors w-full text-left"
-              style={{ height: 26, paddingLeft: 24, paddingRight: 12, fontSize: 12 }}
+              className="flex items-center gap-2.5 rounded-md pl-6 pr-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors w-full text-left"
               disabled={!product.projectId}
             >
-              <Plus className="h-3 w-3 shrink-0" />
+              <Plus className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden md:block">Track new goal</span>
             </button>
           </div>
@@ -235,12 +251,12 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
 
       {/* Ungrouped agents */}
       {ungroupedAgents.length > 0 && (
-        <div className="mt-2">
-          <div className="flex items-center gap-2 px-3 py-[5px]">
-            <Bot className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <span className="hidden text-[12px] font-medium text-muted-foreground md:block">Agents</span>
+        <div className="mt-3">
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Bot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="hidden text-xs font-medium text-muted-foreground md:block">Screen Optimization Agents</span>
           </div>
-          <div className="space-y-0">
+          <div className="mt-0.5 space-y-0.5">
             {ungroupedAgents.map((agent) => (
               <AgentTreeNode key={agent.id} agent={agent} isActive={pathname.includes(agent.id)} />
             ))}
@@ -249,10 +265,9 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
       )}
 
       {/* New agent */}
-      <div className="mt-2 pt-2 border-t border-border">
+      <div className="mt-3 pt-2 border-t border-border">
         <button
-          className="flex items-center gap-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          style={{ height: 28, paddingLeft: 12, paddingRight: 12, fontSize: 13 }}
+          className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           type="button"
           onClick={() => {
             try {

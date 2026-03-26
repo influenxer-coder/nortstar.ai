@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { RefreshCw, Loader2, ArrowLeft, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
+import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 import AddOpportunityDialog from '@/components/AddOpportunityDialog'
@@ -14,17 +14,13 @@ const InvestigatePanel = dynamic(
 )
 
 const C = {
-  bg:       '#F7F7F5',
-  surface:  '#FFFFFF',
-  text:     '#1A1A1A',
-  muted:    '#9B9A97',
-  tertiary: '#C9C8C5',
-  border:   '#E5E3DD',
-  hover:    '#ECEAE4',
-  purple:   '#6B4FBB',
-  purpleBg: '#F0ECFA',
-  green:    '#4D9B6F',
-  greenBg:  '#EEF6F1',
+  bg: '#f6f6f6',
+  surface: '#ffffff',
+  text: '#1f2328',
+  muted: '#535963',
+  border: '#d4d7dc',
+  blue: '#367eed',
+  cardShadow: '0 1px 3px rgba(0,0,0,0.06)',
 }
 
 type Idea = IdeaWithImpact
@@ -222,83 +218,74 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const totalIdeas = rankedIdeas.length + backlogIdeas.length
-
   return (
     <div style={{ minHeight: '100vh', background: C.bg, padding: '32px' }}>
+      {/* Header */}
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 24 }}>
           <Link
             href={`/products/${projectId}`}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: C.muted, textDecoration: 'none', marginBottom: 12 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted, textDecoration: 'none', marginBottom: 16 }}
           >
-            <ArrowLeft style={{ width: 11, height: 11 }} />
-            <span style={{ color: C.muted }}>/{' '}</span>
+            <ArrowLeft style={{ width: 12, height: 12 }} />
             {projectName}
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 6 }}>
-            <h1 style={{ fontSize: 15, fontWeight: 500, color: C.text }}>
-              {friendlyLabel}
-            </h1>
-            <button
-              type="button"
-              onClick={() => void fetchIdeas()}
-              disabled={loading || refreshing}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                fontSize: 12, fontWeight: 500, color: C.text,
-                background: C.surface, border: `1px solid ${C.border}`,
-                borderRadius: 6, padding: '4px 10px',
-                cursor: (loading || refreshing) ? 'not-allowed' : 'pointer',
-                opacity: (loading || refreshing) ? 0.5 : 1,
-              }}
-            >
-              <RefreshCw style={{ width: 12, height: 12, animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-              {refreshing ? 'Scoring…' : 'Refresh'}
-            </button>
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Lightbulb style={{ width: 20, height: 20, color: '#f59e0b', flexShrink: 0 }} />
+              <div>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 2 }}>
+                  {friendlyLabel}
+                </h1>
+              </div>
+            </div>
 
-          {/* Compact stat row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, fontSize: 12, color: C.muted, flexWrap: 'wrap' }}>
-            <span>{totalIdeas} ideas</span>
-            {reach && (
-              <>
-                <span style={{ margin: '0 6px', color: C.tertiary }}>·</span>
-                <span>Shipped so far: <strong style={{ color: C.green, fontFamily: '"JetBrains Mono","Fira Code",monospace', fontWeight: 500 }}>+{reach}</strong></span>
-              </>
-            )}
-            {lastUpdated && (
-              <>
-                <span style={{ margin: '0 6px', color: C.tertiary }}>·</span>
-                <span>Updated {lastUpdated}</span>
-              </>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => void fetchIdeas()}
+                disabled={loading || refreshing}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 13, fontWeight: 500, color: C.blue,
+                  background: C.surface, border: `1px solid ${C.border}`,
+                  borderRadius: 8, padding: '7px 14px',
+                  cursor: (loading || refreshing) ? 'not-allowed' : 'pointer',
+                  opacity: (loading || refreshing) ? 0.5 : 1,
+                  boxShadow: C.cardShadow,
+                }}
+              >
+                <RefreshCw style={{ width: 13, height: 13, animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+                {refreshing ? 'Scoring…' : 'Refresh'}
+              </button>
+              {lastUpdated && (
+                <span style={{ fontSize: 11, color: C.muted }}>Updated {lastUpdated}</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Signal sources — compact inline */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, fontSize: 12, color: C.muted }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', color: C.tertiary, marginRight: 2 }}>
-            Signals
+        {/* Signal Sources */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase', marginRight: 4 }}>
+            Signal sources
           </span>
-          {SIGNAL_SOURCES.map(({ label, active }) => (
-            <span
+          {SIGNAL_SOURCES.map(({ icon: Icon, label, active }) => (
+            <div
               key={label}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: 12, color: active ? C.text : C.muted,
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 12, fontWeight: 500,
+                color:      active ? '#166534' : C.muted,
+                background: active ? '#dcfce7'  : C.surface,
+                border:     `1px solid ${active ? '#86efac' : C.border}`,
+                borderRadius: 20, padding: '4px 10px',
               }}
             >
-              <span style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: active ? C.green : C.tertiary,
-                flexShrink: 0, display: 'inline-block',
-              }} />
+              <Icon style={{ width: 11, height: 11, flexShrink: 0 }} />
               {label}
-            </span>
+            </div>
           ))}
         </div>
 
@@ -338,7 +325,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
                   }}
                   className="hover-row"
                 >
-                  <code style={{ fontSize: 11, color: C.purple, fontFamily: 'monospace', flexShrink: 0, width: 52 }}>{c.sha}</code>
+                  <code style={{ fontSize: 11, color: C.blue, fontFamily: 'monospace', flexShrink: 0, width: 52 }}>{c.sha}</code>
                   <span style={{ fontSize: 13, color: C.text, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.message}
                   </span>
@@ -353,144 +340,128 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
 
         {/* Loading / error */}
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '48px 0', color: C.muted }}>
-            <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontSize: 13 }}>Generating opportunities…</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '80px 0', color: C.muted }}>
+            <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 14 }}>Generating opportunities…</span>
           </div>
         ) : error ? (
-          <div style={{ padding: '12px 16px', borderRadius: 6, background: '#FAEAEA', border: '1px solid #F0C6C6', marginBottom: 16 }}>
-            <p style={{ fontSize: 13, color: '#9B3030', marginBottom: 6 }}>{error}</p>
+          <div style={{ padding: 20, borderRadius: 10, background: '#fff5f5', border: '1px solid #fed7d7', marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: '#c53030', marginBottom: 8 }}>{error}</p>
             <button type="button" onClick={() => void fetchIdeas()}
-              style={{ fontSize: 12, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              style={{ fontSize: 13, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               Try again
             </button>
           </div>
         ) : null}
 
-        {/* Section label */}
+        {/* Ranked section */}
         {!loading && (
-          <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.tertiary, marginBottom: 8 }}>
-            Opportunities
-          </p>
-        )}
+          <>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 48 }}>
+              {rankedIdeas.length === 0 ? (
+                <div style={{ padding: 32, textAlign: 'center', borderRadius: 20, border: `1px dashed ${C.border}`, background: C.surface }}>
+                  <p style={{ fontSize: 14, color: C.muted }}>No prioritized ideas yet — promote from the backlog below</p>
+                </div>
+              ) : (
+                rankedIdeas.map((idea, idx) => (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <OpportunityCard
+                      idea={idea}
+                      featured={idx === 0}
+                      onInvestigate={() => {
+                        const id = opportunityId(idea)
+                        if (!id) return
+                        setInvestigateOpenKey((prev) => (prev === id ? null : id))
+                      }}
+                      investigateDisabled={!canInvestigate(idea)}
+                      investigateLabel="Investigate"
+                    />
+                    {(() => {
+                      const id = opportunityId(idea)
+                      if (!id || investigateOpenKey !== id) return null
+                      return (
+                        <InvestigatePanel
+                          opportunityId={id}
+                          onClose={() => setInvestigateOpenKey(null)}
+                        />
+                      )
+                    })()}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => moveToBacklog(idx)}
+                        style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+                        Move to backlog →
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+              <button
+                type="button" onClick={() => setAddOpen(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '14px', borderRadius: 20,
+                  border: `1px dashed ${C.border}`, background: 'transparent',
+                  fontSize: 14, fontWeight: 600, color: C.muted, cursor: 'pointer',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.surface; (e.currentTarget as HTMLButtonElement).style.color = C.text }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = C.muted }}
+              >
+                + Add new idea
+              </button>
+            </div>
 
-        {/* Ranked row list */}
-        {!loading && (
-          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, marginBottom: 24, overflow: 'hidden' }}>
-            {rankedIdeas.length === 0 ? (
-              <div style={{ padding: '16px 12px', fontSize: 13, color: C.muted }}>
-                No prioritized ideas yet — promote from the backlog below
+            {/* Backlog section */}
+            {backlogIdeas.length > 0 && (
+              <div style={{ marginBottom: 48 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: C.muted, textTransform: 'uppercase' }}>Backlog</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, color: C.muted,
+                    background: C.surface, border: `1px solid ${C.border}`,
+                    borderRadius: 30, padding: '1px 8px',
+                  }}>{backlogIdeas.length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {backlogIdeas.map((idea, idx) => (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <OpportunityCard
+                        idea={idea}
+                        featured={false}
+                        onInvestigate={() => {
+                          const id = opportunityId(idea)
+                          if (!id) return
+                          setInvestigateOpenKey((prev) => (prev === id ? null : id))
+                        }}
+                        investigateDisabled={!canInvestigate(idea)}
+                        investigateLabel="Investigate"
+                      />
+                      {(() => {
+                        const id = opportunityId(idea)
+                        if (!id || investigateOpenKey !== id) return null
+                        return (
+                          <InvestigatePanel
+                            opportunityId={id}
+                            onClose={() => setInvestigateOpenKey(null)}
+                          />
+                        )
+                      })()}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button type="button" onClick={() => prioritize(idx)}
+                          style={{
+                            fontSize: 12, fontWeight: 600, color: '#1d1d1f',
+                            background: C.surface, border: `1px solid ${C.border}`,
+                            borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                          }}>
+                          ↑ Prioritize
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : (
-              rankedIdeas.map((idea, idx) => {
-                const id = opportunityId(idea)
-                const panelOpen = !!id && investigateOpenKey === id
-                return (
-                  <div key={idx}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <OpportunityCard
-                          idea={idea}
-                          onInvestigate={id ? () => setInvestigateOpenKey((prev) => (prev === id ? null : id)) : undefined}
-                          investigateDisabled={!canInvestigate(idea)}
-                          investigateLabel="Investigate →"
-                          noBorderBottom={panelOpen}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => moveToBacklog(idx)}
-                        style={{
-                          fontSize: 11, color: C.muted, background: 'none', border: 'none',
-                          cursor: 'pointer', padding: '0 10px', height: 36, flexShrink: 0,
-                          borderBottom: panelOpen ? 'none' : `1px solid ${C.border}`,
-                          borderLeft: `1px solid ${C.border}`,
-                        }}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                    {panelOpen && (
-                      <div style={{ borderTop: `1px solid ${C.border}` }}>
-                        <InvestigatePanel
-                          opportunityId={id}
-                          onClose={() => setInvestigateOpenKey(null)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })
             )}
-            {/* Add row */}
-            <button
-              type="button"
-              onClick={() => setAddOpen(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                width: '100%', height: 34,
-                padding: '0 12px',
-                background: 'none', border: 'none', borderTop: rankedIdeas.length > 0 ? `1px solid ${C.border}` : 'none',
-                fontSize: 12, color: C.muted, cursor: 'pointer',
-                transition: 'background 120ms ease',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.hover }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-            >
-              + Add idea
-            </button>
-          </div>
-        )}
-
-        {/* Backlog section */}
-        {!loading && backlogIdeas.length > 0 && (
-          <div style={{ marginBottom: 48 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.05em', color: C.tertiary, textTransform: 'uppercase' }}>Backlog</span>
-              <span style={{ fontSize: 11, color: C.tertiary }}>{backlogIdeas.length}</span>
-            </div>
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, overflow: 'hidden' }}>
-              {backlogIdeas.map((idea, idx) => {
-                const id = opportunityId(idea)
-                const panelOpen = !!id && investigateOpenKey === id
-                return (
-                  <div key={idx}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <OpportunityCard
-                          idea={idea}
-                          onInvestigate={id ? () => setInvestigateOpenKey((prev) => (prev === id ? null : id)) : undefined}
-                          investigateDisabled={!canInvestigate(idea)}
-                          investigateLabel="Investigate →"
-                          noBorderBottom={panelOpen}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => prioritize(idx)}
-                        style={{
-                          fontSize: 11, color: C.muted, background: 'none', border: 'none',
-                          cursor: 'pointer', padding: '0 10px', height: 36, flexShrink: 0,
-                          borderBottom: panelOpen ? 'none' : `1px solid ${C.border}`,
-                          borderLeft: `1px solid ${C.border}`,
-                        }}
-                      >
-                        ↑
-                      </button>
-                    </div>
-                    {panelOpen && (
-                      <div style={{ borderTop: `1px solid ${C.border}` }}>
-                        <InvestigatePanel
-                          opportunityId={id}
-                          onClose={() => setInvestigateOpenKey(null)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          </>
         )}
 
         {addOpen && (
@@ -505,7 +476,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        .hover-row:hover { background: #ECEAE4 !important; }
+        .hover-row:hover { background: #f0f4ff !important; }
       `}</style>
     </div>
   )
