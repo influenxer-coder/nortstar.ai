@@ -27,6 +27,7 @@ type Props = {
   projectId: string
   projectName: string
   productName: string
+  productUrl: string
   goal: string | null
   subverticalId: string | null
   recentCommits?: CommitRow[]
@@ -44,7 +45,7 @@ const SIGNAL_SOURCES = [
   { icon: Zap,           label: 'Rage Shakes',               active: false },
 ]
 
-export default function OpportunitiesFeed({ projectId, projectName, productName, goal, subverticalId, recentCommits = [] }: Props) {
+export default function OpportunitiesFeed({ projectId, projectName, productName, productUrl, goal, subverticalId, recentCommits = [] }: Props) {
   const productMeta = getProductMeta(productName)
   const goalMeta = getGoalLabel(goal)
   const resolved = productMeta ?? goalMeta
@@ -454,6 +455,9 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
         <InvestigateModal
           title={investigateOpen.title}
           opportunityId={investigateOpen.id}
+          projectId={projectId}
+          productUrl={productUrl}
+          goal={goal}
           onClose={() => setInvestigateOpen(null)}
         />
       )}

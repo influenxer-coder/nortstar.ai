@@ -11,7 +11,7 @@ export default async function OpportunitiesPage({ params }: Params) {
 
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, strategy_json')
+    .select('id, name, url, strategy_json')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
@@ -52,6 +52,7 @@ export default async function OpportunitiesPage({ params }: Params) {
       projectId={project.id}
       projectName={project.name ?? 'Product'}
       productName={productName}
+      productUrl={project.url ?? ''}
       goal={goal}
       subverticalId={subverticalId}
       recentCommits={recentCommits}
