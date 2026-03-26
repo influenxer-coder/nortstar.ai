@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Loader2, ArrowRight } from 'lucide-react'
+import { X, Loader2, ArrowRight, Pencil } from 'lucide-react'
 import { FlowDiagram, type FlowObject } from '@/components/investigate/FlowDiagram'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type Variation = {
   name: string
@@ -16,32 +18,18 @@ type Variation = {
   is_recommended: boolean
 }
 
-type CrawlScreen = {
-  id: string
-  url?: string
-  screenshot?: string
-  title?: string
-  cta?: string
-}
-
-type CrawlResult = {
-  screens?: CrawlScreen[]
-}
-
 const RISK_COLORS: Record<string, { color: string; bg: string }> = {
   low:    { color: '#166534', bg: '#dcfce7' },
   medium: { color: '#92600a', bg: '#fef9c3' },
   high:   { color: '#be123c', bg: '#ffe4e6' },
 }
 
-const STEPS = ['Approach', 'Map', 'Plan', 'Preview']
+const STEPS = ['Approach', 'Plan', 'Preview']
 
-const FALLBACK_MESSAGES = [
-  'Logging in to your app...',
-  'Following your signup flow...',
-  'Capturing each screen...',
-  'Mapping CTAs and buttons...',
-  'Almost done...',
+const PLAN_SUB_MESSAGES = [
+  'Reading competitor patterns...',
+  'Analyzing your product...',
+  'Writing investigation plan...',
 ]
 
 type Props = {
@@ -64,19 +52,15 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [flowsLoading, setFlowsLoading] = useState(false)
   const [savedIdxLoaded, setSavedIdxLoaded] = useState(false)
 
-  // Step 2 state
-  const [emailInput, setEmailInput] = useState('')
-  const [passwordInput, setPasswordInput] = useState('')
-  const [isCrawling, setIsCrawling] = useState(false)
-  const [crawlResult, setCrawlResult] = useState<CrawlResult | null>(null)
-  const [selectedScreens, setSelectedScreens] = useState<string[]>([])
-  const [crawlError, setCrawlError] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState(FALLBACK_MESSAGES[0])
-  const [discoveredPages, setDiscoveredPages] = useState<{ url: string; title?: string }[]>([])
-  const [crawlLogs, setCrawlLogs] = useState<string[]>([])
-  const fallbackIdxRef = useRef(0)
-  const hasRealLogs = useRef(false)
-  const logsEndRef = useRef<HTMLDivElement>(null)
+  // Step 2 (Plan) state
+  const [planState, setPlanState] = useState<'idle' | 'generating' | 'streaming' | 'complete' | 'error'>('idle')
+  const [planMarkdown, setPlanMarkdown] = useState('')
+  const [planError, setPlanError] = useState<string | null>(null)
+  const [editingSection, setEditingSection] = useState<number | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const planSubMsgIdx = useRef(0)
+  const [planSubMessage, setPlanSubMessage] = useState(PLAN_SUB_MESSAGES[0])
+  const planEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -133,257 +117,127 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     }).catch(() => {})
   }, [opportunityId, selectedIdx, savedIdxLoaded])
 
-  // Fallback message rotation while crawling (stops once real logs arrive)
+  // Sub-message rotation while generating plan
   useEffect(() => {
-    if (!isCrawling) {
-      hasRealLogs.current = false
-      return
-    }
+    if (planState !== 'generating') return
+    planSubMsgIdx.current = 0
+    setPlanSubMessage(PLAN_SUB_MESSAGES[0])
     const interval = setInterval(() => {
-      if (hasRealLogs.current) return
-      fallbackIdxRef.current = (fallbackIdxRef.current + 1) % FALLBACK_MESSAGES.length
-      setStatusMessage(FALLBACK_MESSAGES[fallbackIdxRef.current])
-    }, 3000)
+      planSubMsgIdx.current = (planSubMsgIdx.current + 1) % PLAN_SUB_MESSAGES.length
+      setPlanSubMessage(PLAN_SUB_MESSAGES[planSubMsgIdx.current])
+    }, 2000)
     return () => clearInterval(interval)
-  }, [isCrawling])
+  }, [planState])
 
-  // Auto-scroll logs
+  // Auto-scroll while streaming
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [crawlLogs])
+    if (planState === 'streaming') {
+      planEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [planMarkdown, planState])
+
+  // Save plan to DB when complete
+  useEffect(() => {
+    if (planState !== 'complete' || !planMarkdown) return
+    fetch(`/api/opportunities/${opportunityId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan_markdown: planMarkdown }),
+    }).catch(() => {})
+  }, [planState, planMarkdown, opportunityId])
 
   const activeIdx = hoveredIdx ?? selectedIdx ?? 0
   const activeFlow = flows[activeIdx] ?? null
   const activeVariation = variations[activeIdx] ?? null
 
-  // ── CRAWL ──────────────────────────────────────────────────────────────────
-  const startCrawl = async () => {
-    setIsCrawling(true)
-    setCrawlError(null)
-    setCrawlResult(null)
-    setDiscoveredPages([])
-    setCrawlLogs([])
-    fallbackIdxRef.current = 0
-    hasRealLogs.current = false
-    setStatusMessage(FALLBACK_MESSAGES[0])
+  // ── PLAN ──────────────────────────────────────────────────────────────────
+  const startPlan = async () => {
+    setPlanState('generating')
+    setPlanMarkdown('')
+    setPlanError(null)
 
     try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 120_000) // 2 min timeout
+      const variation = variations[selectedIdx ?? 0]
+      if (!variation) throw new Error('No variation selected')
 
-      const res = await fetch(`/api/opportunities/${opportunityId}/crawl`, {
+      const res = await fetch(`/api/opportunities/${opportunityId}/plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          product_url: productUrl,
-          email: emailInput,
-          password: passwordInput,
-          project_id: projectId,
-          goal: goal ?? '',
-        }),
+        body: JSON.stringify({ variation }),
       })
 
-      clearTimeout(timeout)
+      if (!res.ok || !res.body) throw new Error('Plan generation failed')
 
-      if (!res.ok || !res.body) throw new Error('Could not reach browser agent')
+      setPlanState('streaming')
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        const chunk = decoder.decode(value, { stream: true })
+        setPlanMarkdown(prev => prev + chunk)
+      }
 
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-          const normalized = trimmed.startsWith('data:')
-            ? trimmed.slice(5).trim()
-            : trimmed
-          let event: Record<string, unknown>
-          try {
-            event = JSON.parse(normalized) as Record<string, unknown>
-          } catch {
-            continue
-          }
+      setPlanState('complete')
+    } catch (err: unknown) {
+      setPlanError(err instanceof Error ? err.message : 'Plan generation failed')
+      setPlanState('error')
+    }
+  }
 
-          if (event.type === 'log') {
-            const msg = typeof event.message === 'string'
-              ? event.message
-              : typeof event.content === 'string'
-                ? event.content
-                : ''
-            if (msg) {
-              hasRealLogs.current = true
-              setStatusMessage(msg)
-              setCrawlLogs(prev => [...prev, msg])
-            }
-            // Accumulate discovered pages from log events
-            // Prefer structured url field; fall back to parsing URLs from message text
-            let pageUrl = typeof event.url === 'string' ? event.url : null
-            const pageTitle = typeof event.title === 'string' ? event.title : undefined
-            if (!pageUrl && msg) {
-              const urlMatch = msg.match(/https?:\/\/[^\s"',)}\]]+/)
-              if (urlMatch) pageUrl = urlMatch[0]
-            }
-            // Filter out storage/screenshot URLs and non-page URLs
-            if (pageUrl && !pageUrl.includes('/storage/') && !pageUrl.includes('supabase.co')) {
-              try {
-                const pathname = new URL(pageUrl).pathname
-                setDiscoveredPages(prev =>
-                  prev.some(p => { try { return new URL(p.url).pathname === pathname } catch { return p.url === pageUrl } })
-                    ? prev
-                    : [...prev, { url: pageUrl!, title: pageTitle }]
-                )
-              } catch {
-                // invalid URL, skip
-              }
-            }
-          } else if (event.type === 'result') {
-            console.log('[crawl] result event:', JSON.stringify(event).slice(0, 500))
-            const data = (event.data ?? event) as CrawlResult
-            const screens = data.screens ?? []
-            console.log('[crawl] parsed screens:', screens.length, screens.map(s => ({ id: s.id, url: s.url, hasScreenshot: !!s.screenshot })))
-            setCrawlResult({ screens })
-            setSelectedScreens(screens.map(s => s.id))
-            setIsCrawling(false)
-          } else if (event.type === 'error') {
-            throw new Error(typeof event.message === 'string' ? event.message : 'Crawl failed')
-          }
+  // ── SECTION EDITING ───────────────────────────────────────────────────────
+  // Split markdown into h2 sections for inline editing
+  const splitSections = (md: string) => {
+    const parts: { heading: string; content: string }[] = []
+    const lines = md.split('\n')
+    let current: { heading: string; lines: string[] } | null = null
+
+    for (const line of lines) {
+      if (line.startsWith('## ')) {
+        if (current) parts.push({ heading: current.heading, content: current.lines.join('\n') })
+        current = { heading: line, lines: [] }
+      } else if (current) {
+        current.lines.push(line)
+      } else {
+        // Content before first h2 (like # title)
+        if (parts.length === 0 && !current) {
+          parts.push({ heading: '', content: line })
+        } else if (parts.length > 0 && !parts[parts.length - 1].heading) {
+          parts[parts.length - 1].content += '\n' + line
+        } else {
+          parts.push({ heading: '', content: line })
         }
       }
-    } catch (err: unknown) {
-      let msg: string
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        msg = 'Mapping timed out — the page may be too complex or slow to load. Try again or skip this step.'
-      } else if (err instanceof TypeError && /failed to fetch|network/i.test(err.message)) {
-        msg = 'Connection lost to mapping service. Please try again.'
-      } else {
-        msg = err instanceof Error ? err.message : 'Could not access your app. Check credentials and try again.'
-      }
-      setCrawlError(msg)
-      setIsCrawling(false)
     }
+    if (current) parts.push({ heading: current.heading, content: current.lines.join('\n') })
+    return parts
+  }
+
+  const handleSectionEdit = (sectionIdx: number) => {
+    const sections = splitSections(planMarkdown)
+    const section = sections[sectionIdx]
+    if (!section) return
+    setEditingSection(sectionIdx)
+    setEditValue(section.content.trim())
+  }
+
+  const handleSectionSave = () => {
+    if (editingSection === null) return
+    const sections = splitSections(planMarkdown)
+    const section = sections[editingSection]
+    if (!section) return
+    section.content = '\n' + editValue + '\n'
+    const newMd = sections.map(s => (s.heading ? s.heading + '\n' + s.content : s.content)).join('\n')
+    setPlanMarkdown(newMd)
+    setEditingSection(null)
+    setEditValue('')
   }
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
-  const screens = crawlResult?.screens ?? []
-  const checkedCount = selectedScreens.length
-
-  const toggleScreen = (id: string) => {
-    setSelectedScreens(prev =>
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    )
-  }
-
-  // Left panel content
   const renderLeftPanel = () => {
-    if (currentStep === 2 && isCrawling) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px 12px' }}>
-            <Loader2 style={{ width: 16, height: 16, color: '#6B4FBB', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: '#6B4FBB' }}>Mapping your flow...</span>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
-            <div style={{
-              background: '#1A1A1A', borderRadius: 8, padding: '14px 16px',
-              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
-              fontSize: 12, lineHeight: 1.7, color: '#A3A3A3', minHeight: 200,
-            }}>
-              {crawlLogs.length === 0 && (
-                <div style={{ color: '#525252' }}>{statusMessage}</div>
-              )}
-              {crawlLogs.map((log, i) => {
-                const isUrl = /https?:\/\//.test(log)
-                const isArrow = log.trim().startsWith('\u2192')
-                const isHeader = log.startsWith('[')
-                return (
-                  <div key={i} style={{
-                    color: isHeader ? '#E5E5E5' : isUrl ? '#93C5FD' : isArrow ? '#9B9A97' : '#A3A3A3',
-                    fontWeight: isHeader ? 500 : 400,
-                  }}>
-                    {log}
-                  </div>
-                )
-              })}
-              <div ref={logsEndRef} />
-            </div>
-          </div>
-          {discoveredPages.length > 0 && (
-            <div style={{ padding: '0 20px 16px' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                Pages found ({discoveredPages.length})
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {discoveredPages.map((page, i) => (
-                  <span key={i} style={{
-                    fontSize: 11, color: '#6B4FBB', background: '#F3F0FF', padding: '2px 8px',
-                    borderRadius: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220,
-                  }}>
-                    {page.title || new URL(page.url).pathname}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    if (currentStep === 2 && crawlResult && screens.length > 0) {
-      return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '24px 24px 0', overflowX: 'auto', display: 'flex', gap: 0, alignItems: 'flex-start' }}>
-            {screens.map((screen, i) => (
-              <div key={screen.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ width: 160, flexShrink: 0 }}>
-                  {/* Thumbnail */}
-                  <div style={{ height: 100, background: '#F7F7F5', border: '1px solid #E5E3DD', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
-                    {screen.screenshot ? (
-                      <img src={screen.screenshot} alt={screen.title ?? `Screen ${i + 1}`}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                        <span style={{ fontSize: 20, color: '#C9C8C5' }}>{i + 1}</span>
-                      </div>
-                    )}
-                    <input
-                      type="checkbox"
-                      checked={selectedScreens.includes(screen.id)}
-                      onChange={() => toggleScreen(screen.id)}
-                      style={{ position: 'absolute', top: 6, right: 6, width: 16, height: 16, accentColor: '#6B4FBB', cursor: 'pointer' }}
-                    />
-                  </div>
-                  {/* Label */}
-                  <div style={{ fontSize: 12, fontWeight: 500, color: '#1A1A1A', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {screen.title ?? `Screen ${i + 1}`}
-                  </div>
-                  {screen.cta && (
-                    <div style={{ fontSize: 11, color: '#9B9A97', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {screen.cta}
-                    </div>
-                  )}
-                </div>
-                {i < screens.length - 1 && (
-                  <span style={{ color: '#C9C8C5', fontSize: 14, margin: '0 6px', alignSelf: 'flex-start', marginTop: 43 }}>→</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: '16px 24px 0', fontSize: 12, color: '#9B9A97' }}>
-            {screens.length} screens mapped · {checkedCount} selected
-          </div>
-        </div>
-      )
-    }
-
-    // Default: flow diagram (step 1, or step 2 before crawl / on error)
+    // Flow diagram stays throughout
     if (variationsLoading || (flowsLoading && !activeFlow)) {
       return <FlowDiagram currentFlow={[]} proposedFlow={[]}
         summary={{ removed_count: 0, added_count: 0, changed_count: 0, key_change: '' }}
@@ -405,7 +259,6 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     )
   }
 
-  // Right panel content
   const renderRightPanel = () => {
     if (currentStep === 1) {
       return (
@@ -473,7 +326,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
             <button
               type="button"
               disabled={selectedIdx === null}
-              onClick={() => setCurrentStep(2)}
+              onClick={() => { setCurrentStep(2); startPlan() }}
               style={{
                 width: '100%', height: 36, borderRadius: 6, border: 'none',
                 background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500,
@@ -491,103 +344,111 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
       )
     }
 
-    // Step 2
-    const canMap = emailInput.trim() !== '' && passwordInput.trim() !== '' && !isCrawling
-    return (
-      <>
-        <h3 style={{ fontSize: 15, fontWeight: 500, color: '#1A1A1A', marginBottom: 4 }}>
-          Map your activation flow
-        </h3>
-        <p style={{ fontSize: 13, color: '#9B9A97', marginBottom: 24 }}>
-          We&apos;ll follow the exact path a new user takes in your app
-        </p>
-
-        {/* Credential inputs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#1A1A1A', marginBottom: 4 }}>
-              Test account email
-            </label>
-            <input
-              type="email"
-              value={emailInput}
-              onChange={e => setEmailInput(e.target.value)}
-              placeholder="test@yourapp.com"
-              style={{ width: '100%', height: 36, border: '1px solid #E5E3DD', borderRadius: 6, fontSize: 13, color: '#1A1A1A', padding: '0 12px', outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB'; e.currentTarget.style.boxShadow = '0 0 0 2px #6B4FBB20' }}
-              onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD'; e.currentTarget.style.boxShadow = 'none' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#1A1A1A', marginBottom: 4 }}>
-              Test account password
-            </label>
-            <input
-              type="password"
-              value={passwordInput}
-              onChange={e => setPasswordInput(e.target.value)}
-              placeholder="••••••••"
-              style={{ width: '100%', height: 36, border: '1px solid #E5E3DD', borderRadius: 6, fontSize: 13, color: '#1A1A1A', padding: '0 12px', outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB'; e.currentTarget.style.boxShadow = '0 0 0 2px #6B4FBB20' }}
-              onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD'; e.currentTarget.style.boxShadow = 'none' }}
-            />
-          </div>
+    // Step 2 — Plan
+    if (planState === 'generating') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+          <Loader2 style={{ width: 24, height: 24, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: 13, color: '#9B9A97' }}>Building your investigation plan...</span>
+          <span style={{ fontSize: 12, color: '#C9C8C5' }}>{planSubMessage}</span>
         </div>
+      )
+    }
 
-        <p style={{ fontSize: 11, color: '#C9C8C5', marginTop: 8 }}>
-          Used only for this crawl. Never stored.
-        </p>
+    if (planState === 'error') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+          <p style={{ fontSize: 13, color: '#9B3030' }}>{planError}</p>
+          <button
+            type="button"
+            onClick={() => startPlan()}
+            style={{
+              background: 'transparent', border: '1px solid #E5E3DD', borderRadius: 6,
+              padding: '6px 16px', fontSize: 13, color: '#1A1A1A', cursor: 'pointer',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6B4FBB' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E3DD' }}
+          >
+            Try again
+          </button>
+        </div>
+      )
+    }
 
-        {crawlError && (
-          <p style={{ fontSize: 12, color: '#9B3030', marginTop: 8 }}>{crawlError}</p>
-        )}
+    if (planState === 'streaming' || planState === 'complete') {
+      const sections = splitSections(planMarkdown)
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
+            {sections.map((section, i) => (
+              <div key={i} style={{ position: 'relative' }}>
+                {section.heading && editingSection !== i && (
+                  <button
+                    type="button"
+                    onClick={() => handleSectionEdit(i)}
+                    style={{
+                      position: 'absolute', top: 0, right: 0, background: 'none', border: 'none',
+                      cursor: 'pointer', padding: 4, color: '#C9C8C5', transition: 'color 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B4FBB' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#C9C8C5' }}
+                  >
+                    <Pencil style={{ width: 12, height: 12 }} />
+                  </button>
+                )}
+                {editingSection === i ? (
+                  <div>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {section.heading}
+                    </ReactMarkdown>
+                    <textarea
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={() => handleSectionSave()}
+                      autoFocus
+                      style={{
+                        width: '100%', minHeight: 120, border: '1px solid #6B4FBB', borderRadius: 6,
+                        padding: '10px 12px', fontSize: 13, color: '#444', lineHeight: 1.6,
+                        fontFamily: 'inherit', resize: 'vertical', outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                    {section.heading ? section.heading + '\n' + section.content : section.content}
+                  </ReactMarkdown>
+                )}
+              </div>
+            ))}
+            {planState === 'streaming' && (
+              <span style={{ display: 'inline-block', width: 6, height: 14, background: '#6B4FBB', animation: 'blink 1s step-end infinite', verticalAlign: 'text-bottom', marginLeft: 2 }} />
+            )}
+            <div ref={planEndRef} />
+          </div>
 
-        <div style={{ position: 'sticky', bottom: 0, background: '#ffffff', paddingTop: 12, marginTop: 16, borderTop: '1px solid #E5E3DD' }}>
-          {crawlResult ? (
-            <button
-              type="button"
-              onClick={() => console.log({ selectedScreens, crawlResult, selectedVariation: variations[selectedIdx ?? 0] })}
-              style={{ width: '100%', height: 36, borderRadius: 6, border: 'none', background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
-            >
-              Generate plan →
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={!canMap}
-                onClick={() => void startCrawl()}
-                style={{
-                  width: '100%', height: 36, borderRadius: 6, border: 'none',
-                  background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500,
-                  cursor: canMap ? 'pointer' : 'not-allowed',
-                  opacity: canMap ? 1 : 0.4,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}
-                onMouseEnter={e => { if (canMap) (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
-              >
-                {isCrawling
-                  ? <><Loader2 style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />Mapping your flow...</>
-                  : 'Map my flow →'
-                }
-              </button>
+          {planState === 'complete' && (
+            <div style={{ borderTop: '1px solid #E5E3DD', padding: '12px 20px', background: '#ffffff' }}>
               <button
                 type="button"
                 onClick={() => setCurrentStep(3)}
-                style={{ width: '100%', background: 'transparent', border: 'none', color: '#9B9A97', fontSize: 13, cursor: 'pointer', marginTop: 8, padding: '6px 0' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#1A1A1A' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9B9A97' }}
+                style={{
+                  width: '100%', height: 36, borderRadius: 6, border: 'none',
+                  background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
               >
-                Skip — use inferred flow
+                Build prototype →
               </button>
-            </>
+            </div>
           )}
         </div>
-      </>
-    )
+      )
+    }
+
+    // idle fallback (shouldn't happen)
+    return null
   }
 
   return (
@@ -606,7 +467,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
             </span>
           </div>
 
-          {/* 4-step indicator */}
+          {/* 3-step indicator */}
           <div style={{ flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {STEPS.map((label, i) => {
@@ -650,7 +511,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           </div>
 
           {/* Right panel (40%) */}
-          <div style={{ width: '40%', height: '100%', overflowY: 'auto', padding: '24px 20px', background: '#ffffff' }}>
+          <div style={{ width: '40%', height: '100%', overflowY: currentStep === 2 ? 'hidden' : 'auto', padding: currentStep === 2 ? 0 : '24px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
             {renderRightPanel()}
           </div>
         </div>
@@ -678,8 +539,46 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes blink { 50% { opacity: 0; } }
         input::placeholder { color: #C9C8C5; }
       `}</style>
     </>
   )
+}
+
+// ── MARKDOWN COMPONENTS ───────────────────────────────────────────────────────
+const mdComponents = {
+  h1: ({ children, ...props }: React.ComponentProps<'h1'>) => (
+    <h1 style={{ fontSize: 16, fontWeight: 600, color: '#1A1A1A', marginBottom: 12, marginTop: 0 }} {...props}>{children}</h1>
+  ),
+  h2: ({ children, ...props }: React.ComponentProps<'h2'>) => (
+    <h2 style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 8, marginTop: 20 }} {...props}>{children}</h2>
+  ),
+  h3: ({ children, ...props }: React.ComponentProps<'h3'>) => (
+    <h3 style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: 6, marginTop: 12 }} {...props}>{children}</h3>
+  ),
+  p: ({ children, ...props }: React.ComponentProps<'p'>) => (
+    <p style={{ fontSize: 13, color: '#444', lineHeight: 1.6, marginBottom: 8, marginTop: 0 }} {...props}>{children}</p>
+  ),
+  ul: ({ children, ...props }: React.ComponentProps<'ul'>) => (
+    <ul style={{ fontSize: 13, color: '#444', paddingLeft: 16, marginBottom: 8, marginTop: 0 }} {...props}>{children}</ul>
+  ),
+  ol: ({ children, ...props }: React.ComponentProps<'ol'>) => (
+    <ol style={{ fontSize: 13, color: '#444', paddingLeft: 16, marginBottom: 8, marginTop: 0 }} {...props}>{children}</ol>
+  ),
+  li: ({ children, ...props }: React.ComponentProps<'li'>) => (
+    <li style={{ marginBottom: 4 }} {...props}>{children}</li>
+  ),
+  strong: ({ children, ...props }: React.ComponentProps<'strong'>) => (
+    <strong style={{ fontWeight: 600, color: '#1A1A1A' }} {...props}>{children}</strong>
+  ),
+  code: ({ children, ...props }: React.ComponentProps<'code'>) => (
+    <code style={{
+      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+      fontSize: 12, background: '#F7F7F5', padding: '1px 4px', borderRadius: 3,
+    }} {...props}>{children}</code>
+  ),
+  hr: (props: React.ComponentProps<'hr'>) => (
+    <hr style={{ borderColor: '#E5E3DD', borderStyle: 'solid', borderWidth: '1px 0 0 0', margin: '16px 0' }} {...props} />
+  ),
 }
