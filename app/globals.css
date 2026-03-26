@@ -4,26 +4,27 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96%;
-    --foreground: 213 14% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 213 14% 14%;
+    /* Linear-style design tokens */
+    --background: 60 9% 97%;          /* #F7F7F5 */
+    --foreground: 0 0% 10%;           /* #1A1A1A */
+    --card: 0 0% 100%;                /* #FFFFFF */
+    --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 213 14% 14%;
-    --primary: 214 83% 57%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 0 0% 10%;              /* #1A1A1A — dark button */
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 93%;
-    --secondary-foreground: 213 14% 14%;
-    --muted: 0 0% 93%;
-    --muted-foreground: 217 9% 36%;
-    --accent: 214 83% 57%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --secondary: 40 16% 92%;          /* #EFEDE8 — sidebar bg */
+    --secondary-foreground: 0 0% 10%;
+    --muted: 40 16% 92%;              /* #EFEDE8 — sidebar, hover */
+    --muted-foreground: 40 3% 60%;    /* #9B9A97 */
+    --accent: 40 12% 91%;             /* #ECEAE4 — active item bg */
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 60% 39%;         /* #9B3030 */
     --destructive-foreground: 0 0% 100%;
-    --border: 218 11% 85%;
-    --input: 218 11% 85%;
-    --ring: 214 83% 57%;
-    --radius: 0.625rem;
+    --border: 43 14% 88%;             /* #E5E3DD */
+    --input: 43 14% 88%;
+    --ring: 262 44% 52%;              /* #6B4FBB */
+    --radius: 0.375rem;               /* 6px */
   }
 }
 
@@ -34,20 +35,20 @@
 
   body,
   p {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-size: 17px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13px;
     font-weight: 400;
-    letter-spacing: -0.01em;
-    line-height: 1.6;
+    letter-spacing: 0;
+    line-height: 1.5;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   h1 {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: clamp(48px, 6vw, 80px);
     font-weight: 700;
     letter-spacing: -0.03em;
@@ -55,7 +56,7 @@
   }
 
   h2 {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: clamp(32px, 4vw, 56px);
     font-weight: 600;
     letter-spacing: -0.025em;
@@ -63,7 +64,7 @@
   }
 }
 
-/* Linear-style scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -72,11 +73,17 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(0 0% 20%);
+  background: #C9C8C5;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(0 0% 30%);
+  background: #9B9A97;
+}
+
+/* Opportunity row hover reveals investigate button */
+.opp-row:hover .opp-investigate {
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 /* Smooth transitions */

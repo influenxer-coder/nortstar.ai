@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Globe, Megaphone } from 'lucide-react'
 
 export type IdeaWithImpact = {
   title:              string
@@ -18,210 +17,178 @@ export type IdeaWithImpact = {
   human_number:       string | null | undefined
 }
 
-const BADGE_BAR: Record<string, string> = {
-  do_first:    '#22c55e',
-  worth_bet:   '#3b82f6',
-  quick_win:   '#f59e0b',
-  plan_sprint: '#9ca3af',
+const T = {
+  bg:       '#FFFFFF',
+  bgHover:  '#ECEAE4',
+  border:   '#E5E3DD',
+  text:     '#1A1A1A',
+  muted:    '#9B9A97',
+  green:    '#4D9B6F',
+  greenBg:  '#EEF6F1',
+  amber:    '#9B6D1A',
+  amberBg:  '#FBF4E6',
+  red:      '#9B3030',
+  redBg:    '#FAEAEA',
+  purple:   '#6B4FBB',
+  purpleBg: '#F0ECFA',
 }
 
-const EFFORT_LABEL: Record<string, { color: string; bg: string }> = {
-  low:    { color: '#166534', bg: 'rgba(220,252,231,0.7)' },
-  medium: { color: '#92600a', bg: 'rgba(255,251,235,0.7)' },
-  high:   { color: '#be123c', bg: 'rgba(255,241,242,0.7)' },
+function priorityColor(score: number | null | undefined): string {
+  if (score == null) return '#D4D4D4'
+  if (score >= 9.0)  return '#E5484D'
+  if (score >= 7.0)  return '#E2A336'
+  if (score >= 5.0)  return '#5E6AD2'
+  if (score >= 3.0)  return '#6E6E6E'
+  return '#D4D4D4'
+}
+
+const EFFORT_STYLE: Record<string, { color: string; bg: string }> = {
+  low:    { color: T.green,  bg: T.greenBg },
+  medium: { color: T.amber,  bg: T.amberBg },
+  high:   { color: T.red,    bg: T.redBg },
 }
 
 type Props = {
-  idea:           IdeaWithImpact
-  featured?:      boolean
-  onAction?:      () => void
-  actionLabel?:   string
-  actionLoading?: boolean
-  onInvestigate?: () => void
-  investigateLabel?: string
+  idea:                IdeaWithImpact
+  featured?:           boolean
+  onAction?:           () => void
+  actionLabel?:        string
+  actionLoading?:      boolean
+  onInvestigate?:      () => void
+  investigateLabel?:   string
   investigateDisabled?: boolean
+  noBorderBottom?:     boolean
 }
 
 export default function OpportunityCard({
   idea,
-  featured = false,
   onAction,
   actionLabel,
   actionLoading,
   onInvestigate,
   investigateLabel,
   investigateDisabled,
+  noBorderBottom = false,
 }: Props) {
-  const [expanded, setExpanded] = useState(false)
+  const [hovered, setHovered] = useState(false)
 
-  const barColor   = BADGE_BAR[idea.decision_badge ?? ''] ?? '#9ca3af'
-  const effort     = EFFORT_LABEL[idea.effort] ?? EFFORT_LABEL.medium
-  const impactPct  = idea.impact_score != null
-    ? Math.min(100, Math.round((idea.impact_score / 10) * 100))
-    : null
-
-  const bg          = featured ? '#1d1d1f' : '#ffffff'
-  const titleColor  = featured ? '#f5f5f7' : '#1d1d1f'
-  const mutedColor  = featured ? 'rgba(245,245,247,0.6)' : '#6e6e73'
-  const liftColor   = featured ? '#34d399' : '#166534'
-  const borderColor = featured ? 'rgba(255,255,255,0.08)' : '#e5e5ea'
-  const barTrack    = featured ? 'rgba(255,255,255,0.12)' : '#e5e7eb'
-  const tagBg       = featured ? 'rgba(255,255,255,0.1)' : '#f5f5f7'
-  const tagColor    = featured ? 'rgba(245,245,247,0.8)' : '#6e6e73'
+  const dotColor  = priorityColor(idea.impact_score)
+  const effort    = EFFORT_STYLE[idea.effort] ?? EFFORT_STYLE.medium
 
   return (
-    <div style={{
-      background:   bg,
-      borderRadius: 20,
-      boxShadow:    featured
-        ? '0 8px 32px rgba(0,0,0,0.22)'
-        : '0 2px 12px rgba(0,0,0,0.06)',
-      overflow:     'hidden',
-      border:       featured ? 'none' : '1px solid #e5e5ea',
-      height:       '100%',
-      display:      'flex',
-      flexDirection:'column',
-    }}>
-      {/* Always-visible summary */}
-      <div
-        onClick={() => setExpanded(o => !o)}
-        style={{ padding: '28px 28px 24px', cursor: 'pointer', flex: 1 }}
-      >
-        {/* Top label row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-          <span style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-            padding: '3px 10px', borderRadius: 30,
-            color: featured ? tagColor : effort.color,
-            background: featured ? tagBg : effort.bg,
-          }}>
-            {idea.effort} effort
-          </span>
-          {[
-            { icon: Globe,     label: 'Competitor intel' },
-            { icon: Megaphone, label: 'PMM Inbounds' },
-          ].map(({ icon: Icon, label }) => (
-            <span key={label} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              fontSize: 11, fontWeight: 500,
-              color: featured ? '#34d399' : '#166534',
-              background: featured ? 'rgba(52,211,153,0.12)' : '#dcfce7',
-              border: `1px solid ${featured ? 'rgba(52,211,153,0.3)' : '#86efac'}`,
-              borderRadius: 20, padding: '2px 8px',
-            }}>
-              <Icon style={{ width: 10, height: 10, flexShrink: 0 }} />
-              {label}
-            </span>
-          ))}
-        </div>
+    <div
+      className="opp-row"
+      style={{
+        display:      'flex',
+        alignItems:   'center',
+        height:       36,
+        padding:      '0 12px',
+        borderBottom: noBorderBottom ? 'none' : `1px solid ${T.border}`,
+        cursor:       'pointer',
+        background:   hovered ? T.bgHover : T.bg,
+        transition:   'background 120ms ease',
+        gap:          0,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => !onAction && onInvestigate?.()}
+    >
+      {/* Priority dot */}
+      <div style={{
+        width: 8, height: 8,
+        borderRadius: '50%',
+        background: dotColor,
+        flexShrink: 0,
+        marginRight: 10,
+      }} />
 
-        {/* Title */}
-        <h4 style={{
-          fontSize: featured ? 26 : 22,
-          fontWeight: 700,
-          color: titleColor,
-          lineHeight: 1.2,
-          letterSpacing: '-0.02em',
-          marginBottom: 10,
-        }}>
-          {idea.title}
-        </h4>
+      {/* Title */}
+      <span style={{
+        fontSize: 13,
+        color: T.text,
+        flex: 1,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        marginRight: 8,
+      }}>
+        {idea.title}
+      </span>
 
-        {/* Tagline — human number */}
-        {idea.human_number && (
-          <p style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: featured ? 'rgba(245,245,247,0.85)' : '#1d1d1f',
-            lineHeight: 1.4,
-            marginBottom: 6,
-          }}>
-            {idea.human_number}
-          </p>
-        )}
+      {/* Competitor intel tag */}
+      <span style={{
+        fontSize: 11, fontWeight: 500,
+        padding: '2px 6px', borderRadius: 4,
+        background: T.purpleBg, color: T.purple,
+        marginLeft: 6, flexShrink: 0, whiteSpace: 'nowrap',
+      }}>
+        Competitor intel
+      </span>
 
-        {/* Lift range */}
-        {idea.expected_lift_low != null && idea.expected_lift_high != null && (
-          <p style={{ fontSize: 14, color: mutedColor, marginBottom: 0 }}>
-            Expected lift: <strong style={{ color: liftColor }}>+{idea.expected_lift_low}–{idea.expected_lift_high}%</strong>
-          </p>
-        )}
-      </div>
+      {/* Effort tag */}
+      <span style={{
+        fontSize: 11, fontWeight: 500,
+        padding: '2px 6px', borderRadius: 4,
+        background: effort.bg, color: effort.color,
+        marginLeft: 6, flexShrink: 0, whiteSpace: 'nowrap',
+      }}>
+        {idea.effort}
+      </span>
 
-      {/* Impact bar */}
-      {impactPct != null && (
-        <div style={{ padding: '0 28px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: mutedColor, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Impact</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: titleColor }}>{Number(idea.impact_score).toFixed(1)}/10</span>
-          </div>
-          <div style={{ height: 4, borderRadius: 99, background: barTrack, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${impactPct}%`, borderRadius: 99, background: barColor }} />
-          </div>
-        </div>
+      {/* Impact score */}
+      <span style={{
+        fontSize: 12,
+        color: T.muted,
+        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+        marginLeft: 12,
+        width: 36,
+        textAlign: 'right',
+        flexShrink: 0,
+      }}>
+        {idea.impact_score != null ? Number(idea.impact_score).toFixed(1) : '—'}
+      </span>
+
+      {/* Primary action (always visible — used in onboarding wow) */}
+      {onAction && (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onAction() }}
+          disabled={actionLoading}
+          style={{
+            fontSize: 12, fontWeight: 500,
+            color: T.purple, background: T.purpleBg,
+            border: 'none', borderRadius: 4,
+            padding: '3px 8px',
+            cursor: actionLoading ? 'not-allowed' : 'pointer',
+            opacity: actionLoading ? 0.6 : 1,
+            marginLeft: 12, flexShrink: 0, whiteSpace: 'nowrap',
+          }}
+        >
+          {actionLabel ?? 'Select →'}
+        </button>
       )}
 
-      {/* Expanded detail */}
-      {expanded && (
-        <div style={{
-          padding: '20px 28px 24px',
-          borderTop: `1px solid ${borderColor}`,
-        }}>
-          <p style={{ fontSize: 13, color: mutedColor, lineHeight: 1.7, marginBottom: 12 }}>
-            {idea.evidence}
-          </p>
-          <p style={{
-            fontSize: 13, color: featured ? 'rgba(245,245,247,0.75)' : '#3a3a3c',
-            lineHeight: 1.65,
-            paddingTop: 12, borderTop: `1px solid ${borderColor}`,
-          }}>
-            {idea.winning_pattern}
-          </p>
-
-          {onAction && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onAction() }}
-              disabled={actionLoading}
-              style={{
-                marginTop: 16,
-                borderRadius: 30,
-                border: `1px solid ${borderColor}`,
-                background: featured ? 'rgba(255,255,255,0.1)' : '#f5f5f7',
-                color: titleColor,
-                padding: '9px 18px',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: actionLoading ? 'not-allowed' : 'pointer',
-                opacity: actionLoading ? 0.6 : 1,
-              }}
-            >
-              {actionLabel ?? 'Select →'}
-            </button>
-          )}
-
-          {onInvestigate && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onInvestigate() }}
-              disabled={investigateDisabled}
-              style={{
-                marginTop: 10,
-                borderRadius: 30,
-                border: `1px solid ${borderColor}`,
-                background: featured ? 'rgba(52,211,153,0.14)' : '#dcfce7',
-                color: featured ? '#34d399' : '#166534',
-                padding: '9px 18px',
-                fontSize: 13,
-                fontWeight: 800,
-                cursor: investigateDisabled ? 'not-allowed' : 'pointer',
-                opacity: investigateDisabled ? 0.55 : 1,
-              }}
-            >
-              {investigateLabel ?? 'Investigate →'}
-            </button>
-          )}
-        </div>
+      {/* Investigate — hover-only */}
+      {onInvestigate && (
+        <button
+          type="button"
+          className="opp-investigate"
+          onClick={e => { e.stopPropagation(); onInvestigate() }}
+          disabled={investigateDisabled}
+          style={{
+            fontSize: 12, fontWeight: 500,
+            color: T.purple, background: 'none',
+            border: 'none', borderRadius: 4,
+            padding: '3px 8px',
+            cursor: investigateDisabled ? 'not-allowed' : 'pointer',
+            opacity: 0,
+            marginLeft: 8, flexShrink: 0, whiteSpace: 'nowrap',
+            transition: 'opacity 120ms ease',
+            pointerEvents: 'none',
+          }}
+        >
+          {investigateLabel ?? 'Investigate →'}
+        </button>
       )}
     </div>
   )
