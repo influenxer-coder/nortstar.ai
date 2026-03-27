@@ -144,34 +144,23 @@ Infer from this:
 Apply these patterns to every component.\n`
     : ''
 
-  const system = `You are generating React component prototypes for a product flow.
+  const system = `You are generating HTML prototypes for product screens.
 
-For each screen generate a self-contained React functional component.
+For each screen generate a complete, self-contained HTML document.
 
-STRICT NAMING RULES:
-- Screen at index 0 MUST be named Screen_0
-- Screen at index 1 MUST be named Screen_1
-- Screen at index N MUST be named Screen_N
-- Each MUST start with: var Screen_N = function() {
-- Each MUST end with a return statement with React.createElement calls
-
-STRICT CODE RULES:
-- Use ONLY React.createElement() — NO JSX syntax
-- Use React.createElement('div', {style: {...}}, children...)
-- React, useState, useEffect, useMemo are available as globals — do NOT import them
-- Use var for declarations (not const/let — safer in Function constructor)
-- No import statements, no require()
-- No external dependencies
-- Use only inline styles via style objects — no Tailwind, no CSS classes
+RULES:
+- Output complete HTML with inline <style> in <head>
+- Use modern CSS (flexbox, grid, variables)
 - Make it look like a REAL product screen — not a wireframe
 - Use real hex colors, proper spacing, realistic placeholder content
-- Match modern SaaS design patterns (clean, minimal, professional)
-- Each component MUST be under 50 lines — be concise
-- Use helper variables to reduce repetition
-- For "existing" screens: show a realistic current state
-- For "modified" screens: show the updated version with changes highlighted
-- For "new" screens: design a fresh screen matching the product style
-- For "removed" screens: show a simplified version of what was there
+- Match modern SaaS design (clean, minimal, professional)
+- Each screen should be a full-page layout (min-height: 100vh)
+- Include a nav/header, main content, realistic text
+- Keep HTML concise — under 80 lines per screen
+- For "existing" screens: realistic current state
+- For "modified" screens: updated version with changes visible
+- For "new" screens: fresh screen matching the product style
+- For "removed" screens: simplified version of what was there
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences.`
 
@@ -186,7 +175,7 @@ ${designContext}
 Plan:
 ${planMarkdown.slice(0, 3000)}
 
-Generate React components for these screens:
+Generate HTML prototypes for these screens:
 ${screenDescriptions}
 
 Return JSON:
@@ -196,14 +185,13 @@ Return JSON:
       "id": "slug-of-label",
       "label": "Screen Name",
       "type": "new|modified|removed|existing",
-      "component_code": "var Screen_0 = function() { var el = React.createElement; ... return el('div', {style: {minHeight: 800, background: '#fff'}}, ...); };"
+      "component_code": "<!DOCTYPE html><html><head><style>...</style></head><body>...</body></html>"
     }
   ]
 }
 
-CRITICAL: component_code must use React.createElement() NOT JSX.
-CRITICAL: Screen at index N must be named Screen_N.
-CRITICAL: Use var for all variable declarations.
+CRITICAL: component_code must be complete valid HTML — NOT React code.
+CRITICAL: Keep each HTML under 80 lines.
 CRITICAL: Return valid JSON only — no markdown fences.`
 
   try {
