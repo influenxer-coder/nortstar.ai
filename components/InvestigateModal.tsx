@@ -106,6 +106,14 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [protoError, setProtoError] = useState<string | null>(null)
   const [activeScreenId, setActiveScreenId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  // Launch state
+  const [launchStep, setLaunchStep] = useState<'idle' | 'targeting' | 'launching' | 'live' | 'rolled_back' | 'deployed'>('idle')
+  const [targetingType, setTargetingType] = useState<'emails' | 'percentage' | 'category'>('percentage')
+  const [targetingEmails, setTargetingEmails] = useState('')
+  const [targetingPct, setTargetingPct] = useState(10)
+  const [targetingCategory, setTargetingCategory] = useState<'new_users' | 'power_users'>('new_users')
+  const [launchData, setLaunchData] = useState<Record<string, unknown> | null>(null)
+  const [launchError, setLaunchError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop')
   const [canvasZoom, setCanvasZoom] = useState(1)
   const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 })
@@ -162,6 +170,20 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           setPlanState('complete')
           setCurrentStep(2)
         }
+
+        // Check for existing launch
+        fetch(`/api/opportunities/${opportunityId}/launch`)
+          .then(r => r.json())
+          .then((d: { launch?: Record<string, unknown> | null }) => {
+            if (d.launch && d.launch.status) {
+              setLaunchData(d.launch)
+              const s = d.launch.status as string
+              if (s === 'under_testing') setLaunchStep('live')
+              else if (s === 'rolled_back') setLaunchStep('rolled_back')
+              else if (s === 'deployed_to_all') setLaunchStep('deployed')
+            }
+          })
+          .catch(() => {})
 
         if (vars.length > 0) {
           setFlowsLoading(true)
@@ -424,6 +446,69 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
       setIsApplyingEdit(false)
       setPendingHtml(null)
     }
+  }
+
+  // ── LAUNCH ────────────────────────────────────────────────────────────────
+  const startLaunch = async () => {
+    setLaunchStep('launching')
+    setLaunchError(null)
+
+    const variation = variations[selectedIdx ?? 0] ?? {}
+    const value: Record<string, unknown> =
+      targetingType === 'emails' ? { emails: targetingEmails.split(/[,\n]/).map(e => e.trim()).filter(Boolean) }
+        : targetingType === 'percentage' ? { percentage: targetingPct }
+          : { category: targetingCategory }
+
+    try {
+      const res = await fetch(`/api/opportunities/${opportunityId}/launch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targeting_type: targetingType,
+          targeting_value: value,
+          plan_markdown: planMarkdown,
+          prototype_screens: protoScreens,
+          screen_comments: screenComments,
+          variation,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Launch failed' })) as { error?: string }
+        throw new Error(err.error ?? 'Launch failed')
+      }
+
+      const data = await res.json() as { launch: Record<string, unknown> }
+      setLaunchData(data.launch)
+      setLaunchStep('live')
+    } catch (err: unknown) {
+      setLaunchError(err instanceof Error ? err.message : 'Launch failed')
+      setLaunchStep('targeting')
+    }
+  }
+
+  const handleRollback = async () => {
+    try {
+      await fetch(`/api/opportunities/${opportunityId}/launch`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rollback' }),
+      })
+      setLaunchStep('rolled_back')
+      setLaunchData(prev => prev ? { ...prev, status: 'rolled_back' } : null)
+    } catch { /* */ }
+  }
+
+  const handleDeployAll = async () => {
+    try {
+      await fetch(`/api/opportunities/${opportunityId}/launch`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deploy_all' }),
+      })
+      setLaunchStep('deployed')
+      setLaunchData(prev => prev ? { ...prev, status: 'deployed_to_all' } : null)
+    } catch { /* */ }
   }
 
   const copyPromptForCursor = async () => {
@@ -995,21 +1080,155 @@ Implement the changes described in the plan above. The prototype screens show wh
               )}
 
               <div style={{ margin: '16px 0 0', borderTop: '1px solid #E5E3DD', paddingTop: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: '#9B9A97', marginBottom: 12 }}>What&apos;s next</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Launch</div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => copyPromptForCursor()}
-                style={{
-                  width: '100%', height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
-              >
-                {copied ? <><Check style={{ width: 13, height: 13 }} /> Copied!</> : <><Copy style={{ width: 13, height: 13 }} /> Copy prompt for Cursor →</>}
-              </button>
+              {/* ── LAUNCH: targeting form ── */}
+              {(launchStep === 'idle' || launchStep === 'targeting') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Targeting type */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {(['percentage', 'emails', 'category'] as const).map(t => (
+                      <button key={t} type="button" onClick={() => setTargetingType(t)}
+                        style={{
+                          flex: 1, height: 30, borderRadius: 6, border: `1px solid ${targetingType === t ? '#6B4FBB' : '#E5E3DD'}`,
+                          background: targetingType === t ? '#F0ECFA' : '#fff',
+                          color: targetingType === t ? '#6B4FBB' : '#9B9A97',
+                          fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                        }}>
+                        {t === 'percentage' ? '% Users' : t === 'emails' ? 'Emails' : 'Category'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Targeting value */}
+                  {targetingType === 'percentage' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, color: '#9B9A97' }}>Rollout</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>{targetingPct}%</span>
+                      </div>
+                      <input type="range" min={1} max={50} value={targetingPct} onChange={e => setTargetingPct(Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#6B4FBB' }} />
+                    </div>
+                  )}
+                  {targetingType === 'emails' && (
+                    <textarea value={targetingEmails} onChange={e => setTargetingEmails(e.target.value)}
+                      placeholder="user@example.com, another@example.com"
+                      style={{
+                        width: '100%', minHeight: 60, border: '1px solid #E5E3DD', borderRadius: 6,
+                        padding: '8px 10px', fontSize: 12, color: '#1A1A1A', resize: 'vertical',
+                        outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
+                    />
+                  )}
+                  {targetingType === 'category' && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {(['new_users', 'power_users'] as const).map(c => (
+                        <button key={c} type="button" onClick={() => setTargetingCategory(c)}
+                          style={{
+                            flex: 1, height: 32, borderRadius: 6, border: `1px solid ${targetingCategory === c ? '#6B4FBB' : '#E5E3DD'}`,
+                            background: targetingCategory === c ? '#F0ECFA' : '#fff',
+                            color: targetingCategory === c ? '#6B4FBB' : '#9B9A97',
+                            fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                          }}>
+                          {c === 'new_users' ? 'New Users' : 'Power Users'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {launchError && (
+                    <p style={{ fontSize: 12, color: '#9B3030', margin: 0 }}>{launchError}</p>
+                  )}
+
+                  <button type="button" onClick={() => startLaunch()}
+                    disabled={targetingType === 'emails' && !targetingEmails.trim()}
+                    style={{
+                      width: '100%', height: 36, borderRadius: 6, border: 'none',
+                      background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                      opacity: targetingType === 'emails' && !targetingEmails.trim() ? 0.4 : 1,
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
+                  >
+                    Launch to small group →
+                  </button>
+                </div>
+              )}
+
+              {/* ── LAUNCH: in progress ── */}
+              {launchStep === 'launching' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9B9A97', fontSize: 13, padding: '12px 0' }}>
+                  <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
+                  Creating branch and PR...
+                </div>
+              )}
+
+              {/* ── LAUNCH: live ── */}
+              {launchStep === 'live' && launchData && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#166534' }}>Under testing</span>
+                  </div>
+
+                  {typeof launchData.pr_url === 'string' && (
+                    <a href={launchData.pr_url as string} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 12, color: '#6B4FBB', textDecoration: 'none' }}>
+                      View Pull Request →
+                    </a>
+                  )}
+
+                  <div style={{ fontSize: 11, color: '#9B9A97', lineHeight: 1.5 }}>
+                    Flag: <code style={{ fontSize: 10, background: '#F7F7F5', padding: '1px 4px', borderRadius: 3 }}>{launchData.flag_key as string}</code>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                    <button type="button" onClick={() => handleDeployAll()}
+                      style={{
+                        flex: 1, height: 32, borderRadius: 6, border: 'none',
+                        background: '#166534', color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                      }}>
+                      Deploy to all →
+                    </button>
+                    <button type="button" onClick={() => handleRollback()}
+                      style={{
+                        flex: 1, height: 32, borderRadius: 6, border: '1px solid #fecaca',
+                        background: '#fff', color: '#9B3030', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                      }}>
+                      Rollback
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── LAUNCH: rolled back ── */}
+              {launchStep === 'rolled_back' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#9B3030' }} />
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#9B3030' }}>Rolled back</span>
+                  </div>
+                  <button type="button" onClick={() => { setLaunchStep('targeting'); setLaunchData(null) }}
+                    style={{
+                      width: '100%', height: 32, borderRadius: 6, border: '1px solid #E5E3DD',
+                      background: '#fff', color: '#1A1A1A', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    }}>
+                    Relaunch with new targeting
+                  </button>
+                </div>
+              )}
+
+              {/* ── LAUNCH: deployed to all ── */}
+              {launchStep === 'deployed' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#166534' }}>Deployed to all users</span>
+                </div>
+              )}
             </div>
           </div>
         )
