@@ -74,12 +74,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     .maybeSingle()
   const githubToken = ghRow?.value?.trim()
 
-  // Get repo from agents table (linked to this product)
-  const productId = opportunity.project_id as string
+  // Get repo from agents table (find any agent by this user with GitHub connected)
   const { data: agent } = await supabase
     .from('agents')
     .select('github_repo')
-    .eq('product_id', productId)
+    .eq('user_id', user.id)
     .not('github_repo', 'is', null)
     .limit(1)
     .maybeSingle()
