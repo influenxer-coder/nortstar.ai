@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Loader2, ArrowRight, Pencil, Check, Copy } from 'lucide-react'
+import { X, Loader2, ArrowRight, Pencil, Check, Copy, Monitor, Smartphone, ZoomIn, ZoomOut } from 'lucide-react'
 import { FlowDiagram, type FlowObject, type FlowNode } from '@/components/investigate/FlowDiagram'
 import { DynamicScreen } from '@/components/investigate/DynamicScreen'
 import ReactMarkdown from 'react-markdown'
@@ -89,9 +89,12 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [protoError, setProtoError] = useState<string | null>(null)
   const [activeScreenId, setActiveScreenId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop')
+  const [canvasZoom, setCanvasZoom] = useState(1)
   const protoSubMsgIdx = useRef(0)
   const [protoSubMessage, setProtoSubMessage] = useState(PROTO_SUB_MESSAGES[0])
   const screenScrollRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -427,50 +430,84 @@ Implement the changes described in the plan above. The prototype screens show wh
       }
 
       if (protoState === 'ready' && protoScreens.length > 0) {
+        const visibleScreens = protoScreens.filter(s => s.type !== 'removed')
+        const cardW = viewMode === 'desktop' ? 420 : 195
+        const cardH = viewMode === 'desktop' ? 263 : 422
         return (
-          <div ref={screenScrollRef} style={{ display: 'flex', flexDirection: 'row', gap: 24, padding: 32, overflowX: 'auto', height: '100%', alignItems: 'flex-start' }}>
-            {protoScreens.map((screen, i) => {
-              const badge = TYPE_BADGE[screen.type] ?? TYPE_BADGE.existing
-              const isActive = activeScreenId === screen.id
-              return (
-                <div key={screen.id} style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0 }}>
-                  <div
-                    id={`proto-screen-${screen.id}`}
-                    onClick={() => setActiveScreenId(screen.id)}
-                    style={{ width: 320, flexShrink: 0, cursor: 'pointer' }}
-                  >
-                    {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>{screen.label}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: badge.color, background: badge.bg, borderRadius: 20, padding: '2px 8px' }}>
-                        {badge.text}
-                      </span>
-                    </div>
-                    {/* Screen frame — renders at 1280px scaled to 320px */}
-                    <div style={{
-                      width: 320, height: 500,
-                      border: isActive ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
-                      borderRadius: 8, overflow: 'hidden', background: '#ffffff', position: 'relative',
-                    }}>
-                      <DynamicScreen code={screen.component_code} index={i} />
-                      {screen.type === 'removed' && (
-                        <div style={{
-                          position: 'absolute', inset: 0, background: 'rgba(155, 48, 48, 0.1)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: '#9B3030', background: 'rgba(255,255,255,0.9)', padding: '4px 12px', borderRadius: 4 }}>
-                            Removed
+          <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+            {/* Canvas controls */}
+            <div style={{
+              position: 'absolute', top: 12, right: 12, zIndex: 10,
+              display: 'flex', gap: 4, background: '#ffffff', border: '1px solid #E5E3DD',
+              borderRadius: 8, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            }}>
+              <button type="button" onClick={() => setViewMode('desktop')}
+                style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'desktop' ? '#F0ECFA' : 'transparent', color: viewMode === 'desktop' ? '#6B4FBB' : '#9B9A97' }}>
+                <Monitor style={{ width: 14, height: 14 }} />
+              </button>
+              <button type="button" onClick={() => setViewMode('mobile')}
+                style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'mobile' ? '#F0ECFA' : 'transparent', color: viewMode === 'mobile' ? '#6B4FBB' : '#9B9A97' }}>
+                <Smartphone style={{ width: 14, height: 14 }} />
+              </button>
+              <div style={{ width: 1, background: '#E5E3DD', margin: '2px 2px' }} />
+              <button type="button" onClick={() => setCanvasZoom(z => Math.min(2, z + 0.15))}
+                style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: '#9B9A97' }}>
+                <ZoomIn style={{ width: 14, height: 14 }} />
+              </button>
+              <button type="button" onClick={() => setCanvasZoom(z => Math.max(0.3, z - 0.15))}
+                style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: '#9B9A97' }}>
+                <ZoomOut style={{ width: 14, height: 14 }} />
+              </button>
+              <button type="button" onClick={() => setCanvasZoom(1)}
+                style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: '#9B9A97', fontSize: 11, fontWeight: 500, padding: '0 6px' }}>
+                {Math.round(canvasZoom * 100)}%
+              </button>
+            </div>
+
+            {/* Zoomable canvas */}
+            <div ref={canvasRef} style={{ width: '100%', height: '100%', overflow: 'auto', background: '#F7F7F5' }}
+              onWheel={e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setCanvasZoom(z => Math.min(2, Math.max(0.3, z + (e.deltaY > 0 ? -0.08 : 0.08)))) } }}>
+              <div ref={screenScrollRef} style={{
+                display: 'flex', flexDirection: 'row', gap: 32, padding: 40,
+                alignItems: 'flex-start',
+                transform: `scale(${canvasZoom})`,
+                transformOrigin: 'top left',
+                minWidth: 'fit-content',
+              }}>
+                {visibleScreens.map((screen, i) => {
+                  const badge = TYPE_BADGE[screen.type] ?? TYPE_BADGE.existing
+                  const isActive = activeScreenId === screen.id
+                  return (
+                    <div key={screen.id} style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0 }}>
+                      <div
+                        id={`proto-screen-${screen.id}`}
+                        onClick={() => setActiveScreenId(screen.id)}
+                        style={{ width: cardW, flexShrink: 0, cursor: 'pointer' }}
+                      >
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>{screen.label}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: badge.color, background: badge.bg, borderRadius: 20, padding: '2px 8px' }}>
+                            {badge.text}
                           </span>
                         </div>
+                        {/* Screen frame */}
+                        <div style={{
+                          width: cardW, height: cardH,
+                          border: isActive ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
+                          borderRadius: 8, overflow: 'hidden', background: '#ffffff', position: 'relative',
+                        }}>
+                          <DynamicScreen code={screen.component_code} index={i} viewMode={viewMode} />
+                        </div>
+                      </div>
+                      {i < visibleScreens.length - 1 && (
+                        <span style={{ color: '#C9C8C5', fontSize: 18, margin: '0 12px', alignSelf: 'center', marginTop: cardH / 2, flexShrink: 0 }}>→</span>
                       )}
                     </div>
-                  </div>
-                  {i < protoScreens.length - 1 && (
-                    <span style={{ color: '#C9C8C5', fontSize: 18, margin: '0 4px', alignSelf: 'center', marginTop: 260, flexShrink: 0 }}>→</span>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            </div>
           </div>
         )
       }
@@ -722,7 +759,7 @@ Implement the changes described in the plan above. The prototype screens show wh
                 Prototype screens
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {protoScreens.map(screen => {
+                {protoScreens.filter(s => s.type !== 'removed').map(screen => {
                   const badge = TYPE_BADGE[screen.type] ?? TYPE_BADGE.existing
                   const isActive = activeScreenId === screen.id
                   return (
