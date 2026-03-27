@@ -101,7 +101,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  // Fetch variations + saved explore state in parallel, then fetch flows
+  // Fetch variations + saved explore state + saved plan in parallel, then fetch flows
   useEffect(() => {
     setVariationsLoading(true)
     Promise.all([
@@ -109,8 +109,11 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         .then(r => r.json()) as Promise<{ variations?: Variation[] }>,
       fetch(`/api/opportunities/${opportunityId}/explore-state`)
         .then(r => r.json()) as Promise<{ selected_variation_index: number | null }>,
+      fetch(`/api/opportunities/${opportunityId}`)
+        .then(r => r.json())
+        .catch(() => ({})) as Promise<{ plan_markdown?: string | null }>,
     ])
-      .then(([varData, stateData]) => {
+      .then(([varData, stateData, oppData]) => {
         const vars = varData.variations ?? []
         setVariations(vars)
         const savedIdx = stateData.selected_variation_index
@@ -121,6 +124,15 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           setSelectedIdx(recIdx >= 0 ? recIdx : vars.length > 0 ? 0 : null)
         }
         setSavedIdxLoaded(true)
+
+        // Restore saved plan if available
+        const savedPlan = oppData.plan_markdown
+        if (savedPlan && savedPlan.trim()) {
+          setPlanMarkdown(savedPlan)
+          setPlanState('complete')
+          setCurrentStep(2)
+        }
+
         if (vars.length > 0) {
           setFlowsLoading(true)
           fetch(`/api/opportunities/${opportunityId}/flows`, {

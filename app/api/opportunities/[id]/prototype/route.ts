@@ -36,6 +36,17 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Return cached prototype if available
+  const { data: cached } = await supabase
+    .from('opportunity_prototypes')
+    .select('screens')
+    .eq('opportunity_id', params.id)
+    .eq('user_id', user.id)
+    .single()
+  if (cached && Array.isArray(cached.screens) && (cached.screens as unknown[]).length > 0) {
+    return NextResponse.json({ screens: cached.screens })
+  }
+
   const body = await req.json() as {
     plan_markdown?: string
     variation?: Record<string, unknown>
@@ -215,6 +226,13 @@ CRITICAL: Return valid JSON only — no markdown fences.`
 
     const parsed = JSON.parse(text) as { screens?: ProtoScreen[] }
     const resultScreens = Array.isArray(parsed.screens) ? parsed.screens : []
+
+    // Persist to DB for future requests
+    await supabase.from('opportunity_prototypes').upsert({
+      opportunity_id: params.id,
+      user_id: user.id,
+      screens: resultScreens,
+    }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
 
     return NextResponse.json({ screens: resultScreens })
   } catch (e) {

@@ -3,6 +3,22 @@ import { createClient } from '@/lib/supabase/server'
 
 type Params = { params: { id: string } }
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data, error } = await supabase
+    .from('opportunities')
+    .select('id, title, goal, evidence, plan_markdown, project_id')
+    .eq('id', params.id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json(data)
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
