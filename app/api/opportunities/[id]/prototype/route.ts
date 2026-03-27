@@ -166,7 +166,8 @@ STRICT CODE RULES:
 - Make it look like a REAL product screen — not a wireframe
 - Use real hex colors, proper spacing, realistic placeholder content
 - Match modern SaaS design patterns (clean, minimal, professional)
-- Each component should be 30-80 lines
+- Each component MUST be under 50 lines — be concise
+- Use helper variables to reduce repetition
 - For "existing" screens: show a realistic current state
 - For "modified" screens: show the updated version with changes highlighted
 - For "new" screens: design a fresh screen matching the product style
@@ -208,13 +209,13 @@ CRITICAL: Return valid JSON only — no markdown fences.`
   try {
     const completion = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      max_tokens: 16000,
       temperature: 0.3,
       system,
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    const text = completion.content
+    let text = completion.content
       .filter(b => b.type === 'text')
       .map(b => b.text)
       .join('\n')
@@ -224,15 +225,34 @@ CRITICAL: Return valid JSON only — no markdown fences.`
       .replace(/\s*```$/i, '')
       .trim()
 
-    const parsed = JSON.parse(text) as { screens?: ProtoScreen[] }
+    // Attempt to repair truncated JSON — extract complete screen objects
+    let parsed: { screens?: ProtoScreen[] }
+    try {
+      parsed = JSON.parse(text) as { screens?: ProtoScreen[] }
+    } catch {
+      // JSON was truncated — try to extract whatever complete screens we got
+      const screenRegex = /\{\s*"id"\s*:\s*"[^"]+"\s*,\s*"label"\s*:\s*"[^"]+"\s*,\s*"type"\s*:\s*"[^"]+"\s*,\s*"component_code"\s*:\s*"(?:[^"\\]|\\.)*"\s*\}/g
+      const matches = text.match(screenRegex)
+      if (matches && matches.length > 0) {
+        const repaired = matches.map(m => {
+          try { return JSON.parse(m) as ProtoScreen } catch { return null }
+        }).filter((s): s is ProtoScreen => s !== null)
+        parsed = { screens: repaired }
+      } else {
+        throw new Error('Could not parse prototype response — try again')
+      }
+    }
+
     const resultScreens = Array.isArray(parsed.screens) ? parsed.screens : []
 
     // Persist to DB for future requests
-    await supabase.from('opportunity_prototypes').upsert({
-      opportunity_id: params.id,
-      user_id: user.id,
-      screens: resultScreens,
-    }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
+    if (resultScreens.length > 0) {
+      await supabase.from('opportunity_prototypes').upsert({
+        opportunity_id: params.id,
+        user_id: user.id,
+        screens: resultScreens,
+      }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
+    }
 
     return NextResponse.json({ screens: resultScreens })
   } catch (e) {
