@@ -394,14 +394,13 @@ Implement the changes described in the plan above. The prototype screens show wh
                         {badge.text}
                       </span>
                     </div>
-                    {/* Screen frame */}
+                    {/* Screen frame — renders at 1280px scaled to 320px */}
                     <div style={{
-                      height: 500, border: isActive ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
+                      width: 320, height: 500,
+                      border: isActive ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
                       borderRadius: 8, overflow: 'hidden', background: '#ffffff', position: 'relative',
                     }}>
-                      <div style={{ width: '100%', height: '100%', overflow: 'auto' }}>
-                        <DynamicScreen code={screen.component_code} />
-                      </div>
+                      <DynamicScreen code={screen.component_code} index={i} />
                       {screen.type === 'removed' && (
                         <div style={{
                           position: 'absolute', inset: 0, background: 'rgba(155, 48, 48, 0.1)',

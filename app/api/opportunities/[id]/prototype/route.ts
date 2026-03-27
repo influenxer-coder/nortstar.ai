@@ -61,6 +61,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     .eq('user_id', user.id)
     .single()
 
+  // Fetch homepage for design inference
+  let pageText = ''
+  if (product?.url) {
+    try {
+      const jinaRes = await fetch(`https://r.jina.ai/${product.url}`, {
+        signal: AbortSignal.timeout(8000),
+      })
+      pageText = await jinaRes.text()
+    } catch {
+      // continue without it
+    }
+  }
+
   // Build screen list from flow nodes
   const screens = flowNodes.map(node => ({
     id: slugify(node.label),
@@ -101,28 +114,54 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
   const anthropic = new Anthropic({ apiKey })
 
-  const screenDescriptions = screens.map(s =>
-    `Screen: "${s.label}" | Type: ${s.type} | CTA: "${s.cta || 'N/A'}"`
+  const screenDescriptions = screens.map((s, i) =>
+    `Screen index ${i}: "${s.label}" | Type: ${s.type} | CTA: "${s.cta || 'N/A'}"`
   ).join('\n')
+
+  const designContext = pageText
+    ? `\nIMPORTANT: Match this product's design style.
+Public homepage content for reference:
+${pageText.slice(0, 1500)}
+
+Infer from this:
+- Color scheme (primary color, backgrounds)
+- Font style (serif/sans, sizes)
+- Border radius (sharp/rounded)
+- Spacing density (compact/spacious)
+- Component style (minimal/detailed)
+
+Apply these patterns to every component.\n`
+    : ''
 
   const system = `You are generating React component prototypes for a product flow.
 
-For each screen generate a self-contained React functional component named "Component".
+For each screen generate a self-contained React functional component.
 
-RULES:
-- Use ONLY inline styles (no Tailwind, no CSS imports)
-- No imports — React, useState, useEffect, useMemo are passed as globals
-- Component must be named exactly "Component" (function Component() { ... })
+STRICT NAMING RULES:
+- Screen at index 0 MUST be named Screen_0
+- Screen at index 1 MUST be named Screen_1
+- Screen at index N MUST be named Screen_N
+- Each MUST start with: var Screen_N = function() {
+- Each MUST end with a return statement with React.createElement calls
+
+STRICT CODE RULES:
+- Use ONLY React.createElement() — NO JSX syntax
+- Use React.createElement('div', {style: {...}}, children...)
+- React, useState, useEffect, useMemo are available as globals — do NOT import them
+- Use var for declarations (not const/let — safer in Function constructor)
+- No import statements, no require()
+- No external dependencies
+- Use only inline styles via style objects — no Tailwind, no CSS classes
 - Make it look like a REAL product screen — not a wireframe
-- Use real colors (#hex), proper spacing, realistic placeholder content
+- Use real hex colors, proper spacing, realistic placeholder content
 - Match modern SaaS design patterns (clean, minimal, professional)
 - Each component should be 30-80 lines
-- Use React.createElement() NOT JSX (code runs in Function constructor)
-- Return ONLY valid JSON — no markdown, no explanation
 - For "existing" screens: show a realistic current state
 - For "modified" screens: show the updated version with changes highlighted
 - For "new" screens: design a fresh screen matching the product style
-- For "removed" screens: show a simplified version of what was there`
+- For "removed" screens: show a simplified version of what was there
+
+Return ONLY valid JSON — no markdown, no explanation, no code fences.`
 
   const userPrompt = `Product: ${product?.name ?? 'Product'}
 What it does: ${product?.description ?? ''}
@@ -131,7 +170,7 @@ Opportunity: ${opportunity.title ?? ''}
 
 Variation: ${String(variation.name ?? '')}
 Pattern: ${String(variation.pattern ?? '')}
-
+${designContext}
 Plan:
 ${planMarkdown.slice(0, 3000)}
 
@@ -145,13 +184,14 @@ Return JSON:
       "id": "slug-of-label",
       "label": "Screen Name",
       "type": "new|modified|removed|existing",
-      "component_code": "function Component() { var el = React.createElement; ... return el('div', ...); }"
+      "component_code": "var Screen_0 = function() { var el = React.createElement; ... return el('div', {style: {minHeight: 800, background: '#fff'}}, ...); };"
     }
   ]
 }
 
-CRITICAL: component_code must use React.createElement() not JSX.
-CRITICAL: Each component must be named "Component".
+CRITICAL: component_code must use React.createElement() NOT JSX.
+CRITICAL: Screen at index N must be named Screen_N.
+CRITICAL: Use var for all variable declarations.
 CRITICAL: Return valid JSON only — no markdown fences.`
 
   try {

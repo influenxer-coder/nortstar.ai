@@ -21,8 +21,8 @@ class ErrorBoundary extends Component<EBProps, EBState> {
 }
 
 // ── Dynamic Screen Renderer ─────────────────────────────────────────────────
-export function DynamicScreen({ code }: { code: string }) {
-  const Component = useMemo(() => {
+export function DynamicScreen({ code, index }: { code: string; index: number }) {
+  const Comp = useMemo(() => {
     try {
       const fn = new Function(
         'React',
@@ -30,11 +30,10 @@ export function DynamicScreen({ code }: { code: string }) {
         'useEffect',
         'useMemo',
         `${code}
-        return typeof Component !== 'undefined'
-          ? Component
-          : typeof App !== 'undefined'
-            ? App
-            : () => React.createElement('div', {style: {padding: 16, fontSize: 13, color: '#9B9A97'}}, 'Preview not available')`
+        if (typeof Screen_${index} !== 'undefined') return Screen_${index};
+        if (typeof Component !== 'undefined') return Component;
+        if (typeof App !== 'undefined') return App;
+        return function() { return React.createElement('div', {style: {padding: 16, fontSize: 13, color: '#9B9A97'}}, 'Preview not available'); };`
       )
       return fn(React, useState, useEffect, useMemo) as React.FC
     } catch {
@@ -44,7 +43,7 @@ export function DynamicScreen({ code }: { code: string }) {
         </div>
       )
     }
-  }, [code])
+  }, [code, index])
 
   return (
     <ErrorBoundary
@@ -54,7 +53,14 @@ export function DynamicScreen({ code }: { code: string }) {
         </div>
       }
     >
-      <Component />
+      <div style={{
+        width: 1280,
+        height: 2000,
+        transform: 'scale(0.25)',
+        transformOrigin: 'top left',
+      }}>
+        <Comp />
+      </div>
     </ErrorBoundary>
   )
 }
