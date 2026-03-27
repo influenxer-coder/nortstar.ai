@@ -1080,7 +1080,7 @@ Implement the changes described in the plan above. The prototype screens show wh
               )}
 
               <div style={{ margin: '16px 0 0', borderTop: '1px solid #E5E3DD', paddingTop: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Launch</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Target audience</div>
               </div>
 
               {/* ── LAUNCH: targeting form ── */}
@@ -1154,7 +1154,7 @@ Implement the changes described in the plan above. The prototype screens show wh
                     onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
                     onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
                   >
-                    Launch to small group →
+                    Create PR →
                   </button>
                 </div>
               )}
