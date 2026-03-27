@@ -862,13 +862,13 @@ Implement the changes described in the plan above. The prototype screens show wh
         <div style={{ display: 'flex', flexDirection: 'row', height: 'calc(100vh - 48px - 56px)', overflow: 'hidden' }}>
 
           {/* Left panel (60%) */}
-          <div style={{ width: '60%', height: '100%', background: '#F7F7F5', borderRight: '1px solid #E5E3DD', overflow: 'hidden' }}>
+          <div style={{ width: '65%', height: '100%', background: '#F7F7F5', borderRight: '1px solid #E5E3DD', overflow: 'hidden' }}>
             {renderLeftPanel()}
           </div>
 
-          {/* Right panel (40%) */}
+          {/* Right panel (35%) */}
           <div style={{
-            width: '40%', height: '100%', background: '#ffffff', display: 'flex', flexDirection: 'column',
+            width: '35%', height: '100%', background: '#ffffff', display: 'flex', flexDirection: 'column',
             overflowY: currentStep === 2 ? 'hidden' : 'auto',
             padding: currentStep === 2 ? 0 : '24px 20px',
           }}>
