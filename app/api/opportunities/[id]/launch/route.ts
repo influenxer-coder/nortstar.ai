@@ -75,15 +75,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   const githubToken = ghRow?.value?.trim()
 
   // Get repo from agents table (find any agent by this user with GitHub connected)
-  const { data: agent } = await supabase
+  const { data: agents, error: agentErr } = await supabase
     .from('agents')
     .select('github_repo')
     .eq('user_id', user.id)
-    .not('github_repo', 'is', null)
-    .limit(1)
-    .maybeSingle()
+    .neq('github_repo', '')
+    .limit(10)
 
-  const githubRepo = agent?.github_repo?.trim() ?? null
+  const githubRepo = agents?.find(a => a.github_repo?.trim())?.github_repo?.trim() ?? null
 
   // Build flag key and branch name
   const oppSlug = slugify(opportunity.title ?? 'experiment')
