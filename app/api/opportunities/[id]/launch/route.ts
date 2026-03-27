@@ -125,6 +125,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({
       launch: { ...launch, status: 'under_testing' },
       github_connected: false,
+      debug_github_token: !!githubToken,
+      debug_github_repo: githubRepo,
+      debug_agents_found: agents?.length ?? 0,
       flag_snippet: buildFlagSnippet(flagKey),
     })
   }
