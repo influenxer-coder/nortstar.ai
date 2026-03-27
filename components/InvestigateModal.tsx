@@ -478,8 +478,9 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         throw new Error(err.error ?? 'Launch failed')
       }
 
-      const data = await res.json() as { launch: Record<string, unknown> }
-      setLaunchData(data.launch)
+      const data = await res.json() as Record<string, unknown>
+      console.log('[launch] response:', data)
+      setLaunchData(data.launch as Record<string, unknown>)
       setLaunchStep('live')
     } catch (err: unknown) {
       setLaunchError(err instanceof Error ? err.message : 'Launch failed')
