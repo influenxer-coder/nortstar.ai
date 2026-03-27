@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Loader2, ArrowRight, Pencil, Check, Copy, Monitor, Smartphone, ZoomIn, ZoomOut, Send } from 'lucide-react'
+import { X, Loader2, ArrowRight, Pencil, Check, Copy, Monitor, Smartphone, ZoomIn, ZoomOut, Send, Github } from 'lucide-react'
 import { FlowDiagram, type FlowObject, type FlowNode } from '@/components/investigate/FlowDiagram'
 import { DynamicScreen, type ScreenClickInfo } from '@/components/investigate/DynamicScreen'
 import ReactMarkdown from 'react-markdown'
@@ -79,7 +79,15 @@ type Props = {
   onClose: () => void
 }
 
+type GitHubRepo = { full_name: string; name: string; private: boolean }
+
 export function InvestigateModal({ title, opportunityId, projectId, productUrl, goal, onClose }: Props) {
+  // GitHub connection state (gate before Step 1)
+  const [githubStatus, setGithubStatus] = useState<'loading' | 'not_connected' | 'picking_repos' | 'connected'>('loading')
+  const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([])
+  const [selectedRepos, setSelectedRepos] = useState<string[]>([])
+  const [repoSearch, setRepoSearch] = useState('')
+
   // Step 1 state
   const [currentStep, setCurrentStep] = useState(1)
   const [variations, setVariations] = useState<Variation[]>([])
@@ -138,6 +146,38 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
+
+  // Check GitHub connection on mount
+  useEffect(() => {
+    fetch('/api/github/repos')
+      .then(r => r.json())
+      .then((data: { connected?: boolean; repos?: GitHubRepo[] }) => {
+        if (data.connected && data.repos && data.repos.length > 0) {
+          setGithubRepos(data.repos)
+          setGithubStatus('picking_repos')
+        } else {
+          setGithubStatus('not_connected')
+        }
+      })
+      .catch(() => setGithubStatus('not_connected'))
+  }, [])
+
+  const confirmRepos = async () => {
+    if (selectedRepos.length === 0) return
+    // Save to opportunity
+    await fetch(`/api/opportunities/${opportunityId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ github_repos: selectedRepos }),
+    }).catch(() => {})
+    setGithubStatus('connected')
+  }
+
+  const toggleRepo = (fullName: string) => {
+    setSelectedRepos(prev =>
+      prev.includes(fullName) ? prev.filter(r => r !== fullName) : [...prev, fullName]
+    )
+  }
 
   // Fetch variations + saved explore state + saved plan in parallel, then fetch flows
   useEffect(() => {
@@ -816,6 +856,127 @@ Implement the changes described in the plan above. The prototype screens show wh
 
   // ── RIGHT PANEL ───────────────────────────────────────────────────────────
   const renderRightPanel = () => {
+    // GitHub gate — show before Step 1 if not connected
+    if (githubStatus === 'loading') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
+          <Loader2 style={{ width: 16, height: 16, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: 13, color: '#9B9A97' }}>Checking connections...</span>
+        </div>
+      )
+    }
+
+    if (githubStatus === 'not_connected') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, padding: 24, textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F7F7F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Github style={{ width: 24, height: 24, color: '#1A1A1A' }} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A', marginBottom: 6 }}>Connect your repositories</h3>
+            <p style={{ fontSize: 13, color: '#9B9A97', lineHeight: 1.5, margin: 0 }}>
+              We need read access to your code to generate accurate prototypes and create pull requests.
+            </p>
+          </div>
+          <a
+            href={`/api/auth/github?next=${encodeURIComponent(`/products/${projectId}/opportunities?investigate=${opportunityId}&github=connected`)}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, height: 36, padding: '0 20px',
+              borderRadius: 6, border: 'none', background: '#1A1A1A', color: '#ffffff',
+              fontSize: 13, fontWeight: 500, textDecoration: 'none', cursor: 'pointer',
+            }}
+          >
+            <Github style={{ width: 14, height: 14 }} />
+            Authorize GitHub →
+          </a>
+        </div>
+      )
+    }
+
+    if (githubStatus === 'picking_repos') {
+      const filtered = githubRepos.filter(r =>
+        !repoSearch || r.full_name.toLowerCase().includes(repoSearch.toLowerCase())
+      )
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ padding: '24px 20px 0' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>
+              Select your repositories
+            </h3>
+            <p style={{ fontSize: 13, color: '#9B9A97', marginBottom: 16 }}>
+              Pick your frontend and/or backend repos for this project
+            </p>
+            <input
+              type="text"
+              value={repoSearch}
+              onChange={e => setRepoSearch(e.target.value)}
+              placeholder="Search repos..."
+              style={{
+                width: '100%', height: 32, border: '1px solid #E5E3DD', borderRadius: 6,
+                fontSize: 12, color: '#1A1A1A', padding: '0 10px', outline: 'none',
+                boxSizing: 'border-box', marginBottom: 12,
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
+            />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {filtered.slice(0, 50).map(repo => {
+                const isSelected = selectedRepos.includes(repo.full_name)
+                return (
+                  <div
+                    key={repo.full_name}
+                    onClick={() => toggleRepo(repo.full_name)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                      borderRadius: 6, cursor: 'pointer',
+                      background: isSelected ? '#F0ECFA' : 'transparent',
+                      border: isSelected ? '1px solid #D4C8F0' : '1px solid transparent',
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <input type="checkbox" checked={isSelected} readOnly
+                      style={{ accentColor: '#6B4FBB', cursor: 'pointer', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, color: '#1A1A1A', fontWeight: isSelected ? 500 : 400 }}>
+                        {repo.full_name}
+                      </div>
+                    </div>
+                    {repo.private && (
+                      <span style={{ fontSize: 10, color: '#9B9A97', background: '#F7F7F5', padding: '1px 6px', borderRadius: 4 }}>Private</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #E5E3DD' }}>
+            {selectedRepos.length > 0 && (
+              <div style={{ fontSize: 11, color: '#6B4FBB', marginBottom: 8 }}>
+                {selectedRepos.length} repo{selectedRepos.length > 1 ? 's' : ''} selected
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={selectedRepos.length === 0}
+              onClick={() => confirmRepos()}
+              style={{
+                width: '100%', height: 36, borderRadius: 6, border: 'none',
+                background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500,
+                cursor: selectedRepos.length > 0 ? 'pointer' : 'not-allowed',
+                opacity: selectedRepos.length > 0 ? 1 : 0.4,
+              }}
+              onMouseEnter={e => { if (selectedRepos.length > 0) (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
+            >
+              Continue →
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     // Step 1 — Approach
     if (currentStep === 1) {
       return (

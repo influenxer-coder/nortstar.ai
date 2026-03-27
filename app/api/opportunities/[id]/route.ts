@@ -30,6 +30,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (typeof body.plan_markdown === 'string') {
     updates.plan_markdown = body.plan_markdown
   }
+  if (Array.isArray(body.github_repos)) {
+    updates.github_repos = body.github_repos
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
