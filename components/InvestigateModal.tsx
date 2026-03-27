@@ -91,6 +91,9 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [copied, setCopied] = useState(false)
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop')
   const [canvasZoom, setCanvasZoom] = useState(1)
+  const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const protoSubMsgIdx = useRef(0)
   const [protoSubMessage, setProtoSubMessage] = useState(PROTO_SUB_MESSAGES[0])
   const screenScrollRef = useRef<HTMLDivElement>(null)
@@ -458,19 +461,46 @@ Implement the changes described in the plan above. The prototype screens show wh
                 style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: '#9B9A97' }}>
                 <ZoomOut style={{ width: 14, height: 14 }} />
               </button>
-              <button type="button" onClick={() => setCanvasZoom(1)}
+              <button type="button" onClick={() => { setCanvasZoom(1); setCanvasPan({ x: 0, y: 0 }) }}
                 style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: '#9B9A97', fontSize: 11, fontWeight: 500, padding: '0 6px' }}>
                 {Math.round(canvasZoom * 100)}%
               </button>
             </div>
 
-            {/* Zoomable canvas */}
-            <div ref={canvasRef} style={{ width: '100%', height: '100%', overflow: 'auto', background: '#F7F7F5' }}
-              onWheel={e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setCanvasZoom(z => Math.min(3, Math.max(0.3, z + (e.deltaY > 0 ? -0.08 : 0.08)))) } }}>
+            {/* Zoomable + pannable canvas */}
+            <div ref={canvasRef}
+              style={{
+                width: '100%', height: '100%', overflow: 'hidden', background: '#F7F7F5',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                userSelect: 'none',
+              }}
+              onWheel={e => {
+                if (e.ctrlKey || e.metaKey) {
+                  e.preventDefault()
+                  setCanvasZoom(z => Math.min(3, Math.max(0.3, z + (e.deltaY > 0 ? -0.08 : 0.08))))
+                } else {
+                  setCanvasPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
+                }
+              }}
+              onMouseDown={e => {
+                if (e.button !== 0) return
+                setIsDragging(true)
+                dragStart.current = { x: e.clientX, y: e.clientY, panX: canvasPan.x, panY: canvasPan.y }
+              }}
+              onMouseMove={e => {
+                if (!isDragging) return
+                setCanvasPan({
+                  x: dragStart.current.panX + (e.clientX - dragStart.current.x),
+                  y: dragStart.current.panY + (e.clientY - dragStart.current.y),
+                })
+              }}
+              onMouseUp={() => setIsDragging(false)}
+              onMouseLeave={() => setIsDragging(false)}
+            >
               <div ref={screenScrollRef} style={{
                 display: 'flex', flexDirection: 'row', gap: 32, padding: 40,
                 alignItems: 'flex-start',
-                transform: `scale(${canvasZoom})`,
+                transform: `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`,
                 transformOrigin: 'top left',
                 minWidth: 'fit-content',
               }}>
@@ -481,8 +511,12 @@ Implement the changes described in the plan above. The prototype screens show wh
                     <div key={screen.id} style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0 }}>
                       <div
                         id={`proto-screen-${screen.id}`}
-                        onClick={() => setActiveScreenId(screen.id)}
-                        style={{ width: cardW, flexShrink: 0, cursor: 'pointer' }}
+                        onMouseUp={e => {
+                          const dx = Math.abs(e.clientX - dragStart.current.x)
+                          const dy = Math.abs(e.clientY - dragStart.current.y)
+                          if (dx < 5 && dy < 5) setActiveScreenId(screen.id)
+                        }}
+                        style={{ width: cardW, flexShrink: 0 }}
                       >
                         {/* Header */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
