@@ -450,7 +450,7 @@ Implement the changes described in the plan above. The prototype screens show wh
                 <Smartphone style={{ width: 14, height: 14 }} />
               </button>
               <div style={{ width: 1, background: '#E5E3DD', margin: '2px 2px' }} />
-              <button type="button" onClick={() => setCanvasZoom(z => Math.min(2, z + 0.15))}
+              <button type="button" onClick={() => setCanvasZoom(z => Math.min(3, z + 0.15))}
                 style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: 4, cursor: 'pointer', background: 'transparent', color: '#9B9A97' }}>
                 <ZoomIn style={{ width: 14, height: 14 }} />
               </button>
@@ -466,7 +466,7 @@ Implement the changes described in the plan above. The prototype screens show wh
 
             {/* Zoomable canvas */}
             <div ref={canvasRef} style={{ width: '100%', height: '100%', overflow: 'auto', background: '#F7F7F5' }}
-              onWheel={e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setCanvasZoom(z => Math.min(2, Math.max(0.3, z + (e.deltaY > 0 ? -0.08 : 0.08)))) } }}>
+              onWheel={e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setCanvasZoom(z => Math.min(3, Math.max(0.3, z + (e.deltaY > 0 ? -0.08 : 0.08)))) } }}>
               <div ref={screenScrollRef} style={{
                 display: 'flex', flexDirection: 'row', gap: 32, padding: 40,
                 alignItems: 'flex-start',
