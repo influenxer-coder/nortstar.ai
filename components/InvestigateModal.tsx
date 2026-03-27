@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Loader2, ArrowRight, Pencil, Check, Copy, Monitor, Smartphone, ZoomIn, ZoomOut } from 'lucide-react'
+import { X, Loader2, ArrowRight, Pencil, Check, Copy, Monitor, Smartphone, ZoomIn, ZoomOut, Send } from 'lucide-react'
 import { FlowDiagram, type FlowObject, type FlowNode } from '@/components/investigate/FlowDiagram'
-import { DynamicScreen } from '@/components/investigate/DynamicScreen'
+import { DynamicScreen, type ScreenClickInfo } from '@/components/investigate/DynamicScreen'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -24,6 +24,23 @@ type ProtoScreen = {
   label: string
   type: 'new' | 'modified' | 'removed' | 'existing'
   component_code: string
+}
+
+type ScreenComment = {
+  id: string
+  screenId: string
+  screenLabel: string
+  instruction: string
+  elementContext: string
+  timestamp: number
+  applied: boolean
+}
+
+type CommentBox = {
+  screenId: string
+  x: number
+  y: number
+  elementContext: string
 }
 
 const RISK_COLORS: Record<string, { color: string; bg: string }> = {
@@ -94,6 +111,13 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  // Comment / edit state
+  const [commentBox, setCommentBox] = useState<CommentBox | null>(null)
+  const [commentText, setCommentText] = useState('')
+  const [isApplyingEdit, setIsApplyingEdit] = useState(false)
+  const [screenComments, setScreenComments] = useState<ScreenComment[]>([])
+  const [pendingHtml, setPendingHtml] = useState<{ screenId: string; html: string } | null>(null)
+  const commentInputRef = useRef<HTMLInputElement>(null)
   const protoSubMsgIdx = useRef(0)
   const [protoSubMessage, setProtoSubMessage] = useState(PROTO_SUB_MESSAGES[0])
   const screenScrollRef = useRef<HTMLDivElement>(null)
@@ -333,6 +357,75 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }
 
+  // ── SCREEN COMMENTS / EDITS ──────────────────────────────────────────────
+  const handleScreenClick = (screenId: string, info: ScreenClickInfo) => {
+    if (isDragging) return
+    const screenEl = document.getElementById(`proto-screen-${screenId}`)
+    if (!screenEl) return
+    const rect = screenEl.getBoundingClientRect()
+    // Position comment box relative to the screen card
+    setCommentBox({
+      screenId,
+      x: info.x,
+      y: info.y,
+      elementContext: `<${info.elementTag}> "${info.elementText}"${info.elementClasses ? ` class="${info.elementClasses}"` : ''}`,
+    })
+    setCommentText('')
+    setActiveScreenId(screenId)
+    setTimeout(() => commentInputRef.current?.focus(), 50)
+  }
+
+  const submitComment = async () => {
+    if (!commentBox || !commentText.trim()) return
+    const screen = protoScreens.find(s => s.id === commentBox.screenId)
+    if (!screen) return
+
+    const comment: ScreenComment = {
+      id: `c-${Date.now()}`,
+      screenId: commentBox.screenId,
+      screenLabel: screen.label,
+      instruction: commentText.trim(),
+      elementContext: commentBox.elementContext,
+      timestamp: Date.now(),
+      applied: false,
+    }
+
+    setIsApplyingEdit(true)
+    const savedBox = { ...commentBox }
+
+    try {
+      const res = await fetch(`/api/opportunities/${opportunityId}/prototype/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          screen_id: savedBox.screenId,
+          current_html: screen.component_code,
+          instruction: commentText.trim(),
+          element_context: savedBox.elementContext,
+          plan_markdown: planMarkdown,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Edit failed')
+      const data = await res.json() as { html: string; screen_id: string }
+
+      // Store pending HTML for accept/reject
+      setPendingHtml({ screenId: data.screen_id, html: data.html })
+      setScreenComments(prev => [...prev, { ...comment, applied: true }])
+      // Apply immediately (user can still see history)
+      setProtoScreens(prev => prev.map(s =>
+        s.id === data.screen_id ? { ...s, component_code: data.html } : s
+      ))
+      setCommentBox(null)
+      setCommentText('')
+    } catch {
+      // Keep comment box open on error
+    } finally {
+      setIsApplyingEdit(false)
+      setPendingHtml(null)
+    }
+  }
+
   const copyPromptForCursor = async () => {
     const variation = variations[selectedIdx ?? 0]
     const prompt = `# Implementation Task
@@ -347,10 +440,12 @@ Pattern: ${variation?.pattern ?? ''}
 ${planMarkdown}
 
 ## Prototype Screens
-${protoScreens.map(s => `### ${s.label} (${s.type})\n\`\`\`jsx\n${s.component_code}\n\`\`\``).join('\n\n')}
+${protoScreens.filter(s => s.type !== 'removed').map(s => `### ${s.label} (${s.type})\n\`\`\`html\n${s.component_code}\n\`\`\``).join('\n\n')}
+
+${screenComments.length > 0 ? `## PM Feedback / Iterations\n${screenComments.map(c => `- **${c.screenLabel}**: "${c.instruction}"${c.elementContext ? ` (on ${c.elementContext})` : ''}`).join('\n')}` : ''}
 
 ## Instructions
-Implement the changes described in the plan above. The prototype screens show what each screen should look like. Match the design closely.`
+Implement the changes described in the plan above. The prototype screens show what each screen should look like. Match the design closely.${screenComments.length > 0 ? ' Pay special attention to the PM feedback items — these are refinements that must be included.' : ''}`
 
     await navigator.clipboard.writeText(prompt)
     setCopied(true)
@@ -531,7 +626,71 @@ Implement the changes described in the plan above. The prototype screens show wh
                           border: isActive ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
                           borderRadius: 8, overflow: 'hidden', background: '#ffffff', position: 'relative',
                         }}>
-                          <DynamicScreen code={screen.component_code} index={i} viewMode={viewMode} />
+                          <DynamicScreen code={screen.component_code} index={i} viewMode={viewMode}
+                            onElementClick={(info) => handleScreenClick(screen.id, info)} />
+                          {/* Inline comment box */}
+                          {commentBox?.screenId === screen.id && (
+                            <div style={{
+                              position: 'absolute',
+                              left: Math.min(commentBox.x, cardW - 220),
+                              top: Math.min(commentBox.y + 8, cardH - 50),
+                              zIndex: 20,
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              background: '#ffffff', border: '1px solid #6B4FBB', borderRadius: 8,
+                              padding: '4px 6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              minWidth: 200,
+                            }}
+                              onClick={e => e.stopPropagation()}
+                              onMouseDown={e => e.stopPropagation()}
+                            >
+                              {isApplyingEdit ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px' }}>
+                                  <Loader2 style={{ width: 13, height: 13, color: '#6B4FBB', animation: 'spin 1s linear infinite' }} />
+                                  <span style={{ fontSize: 12, color: '#9B9A97' }}>Applying...</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <input
+                                    ref={commentInputRef}
+                                    value={commentText}
+                                    onChange={e => setCommentText(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && commentText.trim()) submitComment(); if (e.key === 'Escape') setCommentBox(null) }}
+                                    placeholder="Describe the change..."
+                                    style={{
+                                      flex: 1, border: 'none', outline: 'none', fontSize: 12,
+                                      color: '#1A1A1A', padding: '4px 2px', background: 'transparent',
+                                    }}
+                                  />
+                                  <button type="button" onClick={() => submitComment()} disabled={!commentText.trim()}
+                                    style={{
+                                      width: 24, height: 24, borderRadius: 4, border: 'none',
+                                      background: commentText.trim() ? '#6B4FBB' : '#E5E3DD',
+                                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      cursor: commentText.trim() ? 'pointer' : 'not-allowed', flexShrink: 0,
+                                    }}>
+                                    <Send style={{ width: 11, height: 11 }} />
+                                  </button>
+                                  <button type="button" onClick={() => setCommentBox(null)}
+                                    style={{
+                                      width: 24, height: 24, borderRadius: 4, border: 'none',
+                                      background: 'transparent', color: '#9B9A97', display: 'flex',
+                                      alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+                                    }}>
+                                    <X style={{ width: 11, height: 11 }} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          {/* Comment dots for this screen */}
+                          {screenComments.filter(c => c.screenId === screen.id).length > 0 && (
+                            <div style={{ position: 'absolute', top: 6, left: 6, display: 'flex', gap: 3 }}>
+                              {screenComments.filter(c => c.screenId === screen.id).map(c => (
+                                <div key={c.id} title={c.instruction}
+                                  style={{ width: 8, height: 8, borderRadius: '50%', background: '#6B4FBB', border: '1px solid #fff' }} />
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {i < visibleScreens.length - 1 && (
@@ -816,9 +975,28 @@ Implement the changes described in the plan above. The prototype screens show wh
                 })}
               </div>
 
-              <div style={{ margin: '20px 0', borderTop: '1px solid #E5E3DD' }} />
+              {/* Edit history */}
+              {screenComments.length > 0 && (
+                <>
+                  <div style={{ margin: '16px 0 8px', borderTop: '1px solid #E5E3DD', paddingTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                      Changes ({screenComments.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {screenComments.map(c => (
+                        <div key={c.id} style={{ fontSize: 12, color: '#444', padding: '6px 8px', background: '#F7F7F5', borderRadius: 4, lineHeight: 1.4 }}>
+                          <span style={{ fontWeight: 500, color: '#6B4FBB' }}>{c.screenLabel}:</span>{' '}
+                          {c.instruction}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#9B9A97', marginBottom: 12 }}>What&apos;s next</div>
+              <div style={{ margin: '16px 0 0', borderTop: '1px solid #E5E3DD', paddingTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#9B9A97', marginBottom: 12 }}>What&apos;s next</div>
+              </div>
 
               <button
                 type="button"
