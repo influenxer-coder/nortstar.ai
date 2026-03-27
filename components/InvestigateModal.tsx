@@ -268,12 +268,52 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         throw new Error(err.error ?? 'Prototype generation failed')
       }
 
-      const data = await res.json() as { screens?: ProtoScreen[] }
-      const screens = data.screens ?? []
-      if (screens.length === 0) throw new Error('No screens generated')
+      if (!res.body) throw new Error('No response body')
 
-      setProtoScreens(screens)
-      setActiveScreenId(screens[0]?.id ?? null)
+      // Read NDJSON stream — each line is one screen
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let firstScreen = true
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const screen = JSON.parse(trimmed) as ProtoScreen
+            setProtoScreens(prev => [...prev, screen])
+            if (firstScreen) {
+              setActiveScreenId(screen.id)
+              setProtoState('ready')
+              firstScreen = false
+            }
+          } catch {
+            // skip unparseable lines
+          }
+        }
+      }
+
+      // Handle any remaining buffer
+      if (buffer.trim()) {
+        try {
+          const screen = JSON.parse(buffer.trim()) as ProtoScreen
+          setProtoScreens(prev => [...prev, screen])
+          if (firstScreen) {
+            setActiveScreenId(screen.id)
+            firstScreen = false
+          }
+        } catch {
+          // skip
+        }
+      }
+
       setProtoState('ready')
     } catch (err: unknown) {
       setProtoError(err instanceof Error ? err.message : 'Prototype generation failed')

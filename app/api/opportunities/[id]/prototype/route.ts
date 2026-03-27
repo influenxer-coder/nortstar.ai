@@ -44,7 +44,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     .eq('user_id', user.id)
     .single()
   if (cached && Array.isArray(cached.screens) && (cached.screens as unknown[]).length > 0) {
-    return NextResponse.json({ screens: cached.screens })
+    // Return cached as NDJSON so client handles it the same way
+    const encoder = new TextEncoder()
+    const lines = (cached.screens as ProtoScreen[]).map(s => JSON.stringify(s) + '\n').join('')
+    return new Response(encoder.encode(lines), {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
   }
 
   const body = await req.json() as {
@@ -125,128 +130,113 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
   const anthropic = new Anthropic({ apiKey })
 
-  const screenDescriptions = screens.map((s, i) =>
-    `Screen index ${i}: "${s.label}" | Type: ${s.type} | CTA: "${s.cta || 'N/A'}"`
-  ).join('\n')
-
   const designContext = pageText
-    ? `\nIMPORTANT: Match this product's design style.
-Public homepage content for reference:
-${pageText.slice(0, 1500)}
+    ? `\nMatch this product's design style.
+Homepage content for reference:
+${pageText.slice(0, 1200)}
 
-Infer from this:
-- Color scheme (primary color, backgrounds)
-- Font style (serif/sans, sizes)
-- Border radius (sharp/rounded)
-- Spacing density (compact/spacious)
-- Component style (minimal/detailed)
-
-Apply these patterns to every component.\n`
+Infer: color scheme, font style, border radius, spacing density.\n`
     : ''
 
-  const system = `You are generating HTML prototypes for product screens.
-
-For each screen generate a complete, self-contained HTML document.
-
-RULES:
-- Output complete HTML with inline <style> in <head>
-- Use modern CSS (flexbox, grid, variables)
-- Make it look like a REAL product screen — not a wireframe
-- Use real hex colors, proper spacing, realistic placeholder content
-- Match modern SaaS design (clean, minimal, professional)
-- Each screen should be a full-page layout (min-height: 100vh)
-- Include a nav/header, main content, realistic text
-- Keep HTML concise — under 80 lines per screen
-- For "existing" screens: realistic current state
-- For "modified" screens: updated version with changes visible
-- For "new" screens: fresh screen matching the product style
-- For "removed" screens: simplified version of what was there
-
-Return ONLY valid JSON — no markdown, no explanation, no code fences.`
-
-  const userPrompt = `Product: ${product?.name ?? 'Product'}
+  const productContext = `Product: ${product?.name ?? 'Product'}
 What it does: ${product?.description ?? ''}
 Goal: ${opportunity.goal ?? ''}
 Opportunity: ${opportunity.title ?? ''}
-
 Variation: ${String(variation.name ?? '')}
 Pattern: ${String(variation.pattern ?? '')}
 ${designContext}
 Plan:
-${planMarkdown.slice(0, 3000)}
+${planMarkdown.slice(0, 2000)}`
 
-Generate HTML prototypes for these screens:
-${screenDescriptions}
+  const systemPrompt = `You generate a single HTML prototype for one product screen.
 
-Return JSON:
-{
-  "screens": [
-    {
-      "id": "slug-of-label",
-      "label": "Screen Name",
-      "type": "new|modified|removed|existing",
-      "component_code": "<!DOCTYPE html><html><head><style>...</style></head><body>...</body></html>"
-    }
-  ]
-}
+Output a complete, self-contained HTML document with inline <style>.
+Use modern CSS (flexbox, grid, variables).
+Make it look like a REAL product screen — not a wireframe.
+Use real hex colors, proper spacing, realistic placeholder content.
+Modern SaaS design (clean, minimal, professional).
+Full-page layout (min-height: 100vh).
+Include a nav/header, main content area, realistic text and UI elements.
+Keep HTML concise — under 100 lines.
 
-CRITICAL: component_code must be complete valid HTML — NOT React code.
-CRITICAL: Keep each HTML under 80 lines.
-CRITICAL: Return valid JSON only — no markdown fences.`
+Return ONLY the raw HTML. No JSON wrapper. No markdown fences. No explanation.
+Start with <!DOCTYPE html> and end with </html>.`
 
-  try {
-    const completion = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 16000,
-      temperature: 0.3,
-      system,
-      messages: [{ role: 'user', content: userPrompt }],
-    })
+  // Generate each screen one at a time, stream as NDJSON
+  const encoder = new TextEncoder()
+  const completedScreens: ProtoScreen[] = []
 
-    let text = completion.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('\n')
-      .trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim()
+  const stream = new ReadableStream<Uint8Array>({
+    start: async (controller) => {
+      for (const screen of screens) {
+        try {
+          const completion = await anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 4000,
+            temperature: 0.3,
+            system: systemPrompt,
+            messages: [{
+              role: 'user',
+              content: `${productContext}
 
-    // Attempt to repair truncated JSON — extract complete screen objects
-    let parsed: { screens?: ProtoScreen[] }
-    try {
-      parsed = JSON.parse(text) as { screens?: ProtoScreen[] }
-    } catch {
-      // JSON was truncated — try to extract whatever complete screens we got
-      const screenRegex = /\{\s*"id"\s*:\s*"[^"]+"\s*,\s*"label"\s*:\s*"[^"]+"\s*,\s*"type"\s*:\s*"[^"]+"\s*,\s*"component_code"\s*:\s*"(?:[^"\\]|\\.)*"\s*\}/g
-      const matches = text.match(screenRegex)
-      if (matches && matches.length > 0) {
-        const repaired = matches.map(m => {
-          try { return JSON.parse(m) as ProtoScreen } catch { return null }
-        }).filter((s): s is ProtoScreen => s !== null)
-        parsed = { screens: repaired }
-      } else {
-        throw new Error('Could not parse prototype response — try again')
+Generate the HTML prototype for this screen:
+Name: "${screen.label}"
+Type: ${screen.type} (${screen.type === 'new' ? 'brand new screen' : screen.type === 'modified' ? 'existing screen with changes' : screen.type === 'removed' ? 'screen being removed' : 'unchanged screen'})
+CTA: "${screen.cta || 'N/A'}"
+
+Return ONLY raw HTML.`,
+            }],
+          })
+
+          const html = completion.content
+            .filter(b => b.type === 'text')
+            .map(b => b.text)
+            .join('')
+            .trim()
+            .replace(/^```html\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim()
+
+          const result: ProtoScreen = {
+            id: screen.id,
+            label: screen.label,
+            type: screen.type,
+            component_code: html,
+          }
+
+          completedScreens.push(result)
+          controller.enqueue(encoder.encode(JSON.stringify(result) + '\n'))
+        } catch {
+          // Send a placeholder for failed screens
+          const fallback: ProtoScreen = {
+            id: screen.id,
+            label: screen.label,
+            type: screen.type,
+            component_code: `<!DOCTYPE html><html><head><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#9B9A97;}</style></head><body><p>Could not generate preview for "${screen.label}"</p></body></html>`,
+          }
+          completedScreens.push(fallback)
+          controller.enqueue(encoder.encode(JSON.stringify(fallback) + '\n'))
+        }
       }
-    }
 
-    const resultScreens = Array.isArray(parsed.screens) ? parsed.screens : []
+      // Save all completed screens to DB
+      if (completedScreens.length > 0) {
+        await supabase.from('opportunity_prototypes').upsert({
+          opportunity_id: params.id,
+          user_id: user.id,
+          screens: completedScreens,
+        }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
+      }
 
-    // Persist to DB for future requests
-    if (resultScreens.length > 0) {
-      await supabase.from('opportunity_prototypes').upsert({
-        opportunity_id: params.id,
-        user_id: user.id,
-        screens: resultScreens,
-      }, { onConflict: 'opportunity_id,user_id' }).then(() => {})
-    }
+      controller.close()
+    },
+  })
 
-    return NextResponse.json({ screens: resultScreens })
-  } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message ?? 'Failed to generate prototype' },
-      { status: 500 }
-    )
-  }
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    },
+  })
 }
