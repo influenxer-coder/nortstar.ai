@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 type Params = { params: { id: string } }
 
@@ -64,8 +65,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   const strategy = (product?.strategy_json ?? {}) as Record<string, unknown>
   const match = (strategy.match ?? {}) as Record<string, unknown>
 
+  // Use service role to bypass RLS for cross-table lookups
+  const supa = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   // Get GitHub token
-  const { data: ghRow } = await supabase
+  const { data: ghRow } = await supa
     .from('user_context')
     .select('value')
     .eq('user_id', user.id)
@@ -74,8 +81,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     .maybeSingle()
   const githubToken = ghRow?.value?.trim()
 
-  // Get repo from agents table (find any agent by this user with GitHub connected)
-  const { data: agents, error: agentErr } = await supabase
+  // Get repo from agents table
+  const { data: agents } = await supa
     .from('agents')
     .select('github_repo')
     .eq('user_id', user.id)
