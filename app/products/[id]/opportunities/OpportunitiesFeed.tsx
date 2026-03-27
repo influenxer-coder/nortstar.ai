@@ -63,13 +63,16 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [investigateOpen, setInvestigateOpen] = useState<{ id: string; title: string } | null>(null)
   const hasFetched = useRef(false)
   const searchParams = useSearchParams()
+  const handledInvestigateParam = useRef(false)
 
-  // Auto-reopen investigate modal after GitHub OAuth redirect
+  // Auto-reopen investigate modal after GitHub OAuth redirect (once only)
   useEffect(() => {
+    if (handledInvestigateParam.current) return
     const investigateId = searchParams.get('investigate')
     if (investigateId) {
+      handledInvestigateParam.current = true
       setInvestigateOpen({ id: investigateId, title: '' })
-      // Clean URL
+      // Clean URL immediately
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [searchParams])

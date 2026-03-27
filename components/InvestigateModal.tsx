@@ -147,20 +147,9 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  // Check GitHub connection on mount
-  useEffect(() => {
-    fetch('/api/github/repos')
-      .then(r => r.json())
-      .then((data: { connected?: boolean; repos?: GitHubRepo[] }) => {
-        if (data.connected && data.repos && data.repos.length > 0) {
-          setGithubRepos(data.repos)
-          setGithubStatus('picking_repos')
-        } else {
-          setGithubStatus('not_connected')
-        }
-      })
-      .catch(() => setGithubStatus('not_connected'))
-  }, [])
+  // Check GitHub connection — but wait for opportunity data first to avoid race condition
+  // (opportunity may already have saved repos, skipping the picker)
+  // This runs inside the main data-fetch useEffect below instead of separately
 
   const confirmRepos = async () => {
     if (selectedRepos.length === 0) return
@@ -211,11 +200,24 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           setCurrentStep(2)
         }
 
-        // Restore saved GitHub repos
+        // Restore saved GitHub repos — or fetch from API if none saved
         const savedGhRepos = Array.isArray(oppData.github_repos) ? oppData.github_repos as string[] : []
         if (savedGhRepos.length > 0) {
           setSelectedRepos(savedGhRepos)
           setGithubStatus('connected')
+        } else {
+          // No saved repos — check if GitHub is connected and show picker
+          fetch('/api/github/repos')
+            .then(r => r.json())
+            .then((ghData: { connected?: boolean; repos?: GitHubRepo[] }) => {
+              if (ghData.connected && ghData.repos && ghData.repos.length > 0) {
+                setGithubRepos(ghData.repos)
+                setGithubStatus('picking_repos')
+              } else {
+                setGithubStatus('not_connected')
+              }
+            })
+            .catch(() => setGithubStatus('not_connected'))
         }
 
         // Check for existing launch
