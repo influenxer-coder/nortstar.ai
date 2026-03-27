@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
@@ -61,6 +62,17 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [addOpen, setAddOpen] = useState(false)
   const [investigateOpen, setInvestigateOpen] = useState<{ id: string; title: string } | null>(null)
   const hasFetched = useRef(false)
+  const searchParams = useSearchParams()
+
+  // Auto-reopen investigate modal after GitHub OAuth redirect
+  useEffect(() => {
+    const investigateId = searchParams.get('investigate')
+    if (investigateId) {
+      setInvestigateOpen({ id: investigateId, title: '' })
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [searchParams])
   function canInvestigate(idea: Idea): boolean {
     return typeof (idea as unknown as { id?: unknown }).id === 'string'
   }

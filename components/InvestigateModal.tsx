@@ -189,7 +189,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         .then(r => r.json()) as Promise<{ selected_variation_index: number | null }>,
       fetch(`/api/opportunities/${opportunityId}`)
         .then(r => r.json())
-        .catch(() => ({})) as Promise<{ plan_markdown?: string | null }>,
+        .catch(() => ({})) as Promise<{ plan_markdown?: string | null; github_repos?: string[] }>,
     ])
       .then(([varData, stateData, oppData]) => {
         const vars = varData.variations ?? []
@@ -209,6 +209,13 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           setPlanMarkdown(savedPlan)
           setPlanState('complete')
           setCurrentStep(2)
+        }
+
+        // Restore saved GitHub repos
+        const savedGhRepos = Array.isArray(oppData.github_repos) ? oppData.github_repos as string[] : []
+        if (savedGhRepos.length > 0) {
+          setSelectedRepos(savedGhRepos)
+          setGithubStatus('connected')
         }
 
         // Check for existing launch
@@ -1465,6 +1472,19 @@ Implement the changes described in the plan above. The prototype screens show wh
             overflowY: currentStep === 2 ? 'hidden' : 'auto',
             padding: currentStep === 2 ? 0 : '24px 20px',
           }}>
+            {githubStatus === 'connected' && selectedRepos.length > 0 && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0',
+                marginBottom: currentStep === 2 ? 0 : 12,
+                ...(currentStep === 2 ? { padding: '8px 20px' } : {}),
+              }}>
+                <Github style={{ width: 13, height: 13, color: '#4D9B6F' }} />
+                <span style={{ fontSize: 11, color: '#4D9B6F', fontWeight: 500 }}>Connected</span>
+                <span style={{ fontSize: 11, color: '#9B9A97' }}>
+                  {selectedRepos.map(r => r.split('/')[1]).join(', ')}
+                </span>
+              </div>
+            )}
             {renderRightPanel()}
           </div>
         </div>

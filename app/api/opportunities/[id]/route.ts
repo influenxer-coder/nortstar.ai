@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data, error } = await supabase
     .from('opportunities')
-    .select('id, title, goal, evidence, plan_markdown, project_id')
+    .select('id, title, goal, evidence, plan_markdown, project_id, github_repos')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
