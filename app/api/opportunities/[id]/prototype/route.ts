@@ -1,134 +1,186 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
 
 type Params = { params: { id: string } }
 
-function sse(data: unknown) {
-  return `data: ${JSON.stringify(data)}\n\n`
+type FlowNode = {
+  id: string
+  label: string
+  type: 'existing' | 'removed' | 'added' | 'changed'
+  cta: string
+}
+
+type ProtoScreen = {
+  id: string
+  label: string
+  type: 'new' | 'modified' | 'removed' | 'existing'
+  component_code: string
+}
+
+function nodeTypeToScreenType(t: string): ProtoScreen['type'] {
+  switch (t) {
+    case 'added': return 'new'
+    case 'changed': return 'modified'
+    case 'removed': return 'removed'
+    default: return 'existing'
+  }
+}
+
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new Response(sse({ type: 'error', message: 'Unauthorized' }), { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json().catch(() => ({})) as {
-    variation?: Record<string, unknown>
-    activation_event?: unknown
+  const body = await req.json() as {
     plan_markdown?: string
+    variation?: Record<string, unknown>
+    flow_nodes?: FlowNode[]
   }
+
+  const planMarkdown = body.plan_markdown ?? ''
+  const variation = body.variation ?? {}
+  const flowNodes = body.flow_nodes ?? []
 
   const { data: opportunity } = await supabase
     .from('opportunities')
-    .select('*')
+    .select('title, goal, evidence, project_id')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()
-  if (!opportunity) return new Response(sse({ type: 'error', message: 'Opportunity not found' }), { status: 404 })
+  if (!opportunity) return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 })
 
-  const { data: project } = await supabase
+  const { data: product } = await supabase
     .from('projects')
-    .select('id, name, url')
-    .eq('id', opportunity.project_id)
+    .select('name, url, description')
+    .eq('id', opportunity.project_id as string)
     .eq('user_id', user.id)
     .single()
-  if (!project) return new Response(sse({ type: 'error', message: 'Project not found' }), { status: 404 })
 
-  // Optional crawl for a “current page structure” screenshot + element list.
-  let crawl: { screenshot?: string; elements?: unknown[] } | null = null
-  try {
-    if (project.url) {
-      const crawlRes = await fetch(new URL('/api/crawl', req.nextUrl).toString(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: project.url }),
-      })
-      if (crawlRes.ok) {
-        const j = await crawlRes.json() as { screenshot?: string; elements?: unknown[] }
-        crawl = j
+  // Build screen list from flow nodes
+  const screens = flowNodes.map(node => ({
+    id: slugify(node.label),
+    label: node.label,
+    type: nodeTypeToScreenType(node.type),
+    cta: node.cta,
+  }))
+
+  // Fallback: extract from plan markdown if no flow nodes
+  if (screens.length === 0 && planMarkdown) {
+    const lines = planMarkdown.split('\n')
+    let inSection = false
+    for (const line of lines) {
+      if (/^## The New Screens/i.test(line) || /^## What We're Building/i.test(line)) {
+        inSection = true
+        continue
+      }
+      if (line.startsWith('## ')) inSection = false
+      if (inSection && line.trim().startsWith('-')) {
+        const text = line.replace(/^-\s*/, '').trim()
+        if (text) {
+          screens.push({
+            id: slugify(text.split(':')[0] ?? text),
+            label: text.split(':')[0]?.trim() ?? text,
+            type: 'new',
+            cta: '',
+          })
+        }
       }
     }
-  } catch {
-    crawl = null
+  }
+
+  if (screens.length === 0) {
+    return NextResponse.json({ error: 'No screens found in plan or flow' }, { status: 400 })
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return new Response(sse({ type: 'error', message: 'ANTHROPIC_API_KEY not configured' }), { status: 500 })
+  if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
   const anthropic = new Anthropic({ apiKey })
 
-  const proposedChange = String((body.variation as Record<string, unknown> | undefined)?.what_this_means ?? '')
-  const planMarkdown = String(body.plan_markdown ?? '')
+  const screenDescriptions = screens.map(s =>
+    `Screen: "${s.label}" | Type: ${s.type} | CTA: "${s.cta || 'N/A'}"`
+  ).join('\n')
 
-  const system = `You are building a React prototype showing before/after comparison of a UI change.
+  const system = `You are generating React component prototypes for a product flow.
 
-Return ONLY a single self-contained React component named BeforeAfterPrototype.
-No imports. No markdown. No explanations. No comments.
+For each screen generate a self-contained React functional component named "Component".
 
-LENGTH CONSTRAINT (critical): Keep the entire component under 180 lines. Be concise — use short variable names, minimal inline styles, reuse patterns. Do NOT add extra polish, animations, or detailed copy.
+RULES:
+- Use ONLY inline styles (no Tailwind, no CSS imports)
+- No imports — React, useState, useEffect, useMemo are passed as globals
+- Component must be named exactly "Component" (function Component() { ... })
+- Make it look like a REAL product screen — not a wireframe
+- Use real colors (#hex), proper spacing, realistic placeholder content
+- Match modern SaaS design patterns (clean, minimal, professional)
+- Each component should be 30-80 lines
+- Use React.createElement() NOT JSX (code runs in Function constructor)
+- Return ONLY valid JSON — no markdown, no explanation
+- For "existing" screens: show a realistic current state
+- For "modified" screens: show the updated version with changes highlighted
+- For "new" screens: design a fresh screen matching the product style
+- For "removed" screens: show a simplified version of what was there`
 
-Hard constraints:
-- Render validity: return a top-level single <div> only. Avoid invalid HTML nesting (no <table>/<tr>/<tbody>/<thead>/<tfoot>, no <html>/<body>/<head>).
-- Determinism: do NOT use Math.random() or Date.now() during render.
-- Use only safe, common elements: div, button, span, p, h3/h4, input, textarea.
+  const userPrompt = `Product: ${product?.name ?? 'Product'}
+What it does: ${product?.description ?? ''}
+Goal: ${opportunity.goal ?? ''}
+Opportunity: ${opportunity.title ?? ''}
 
-Behavior constraints:
-- Render side-by-side BEFORE and AFTER columns on desktop (a simple 2-column flex layout).
-- Include a top toggle to switch between BEFORE and AFTER on mobile.
-- Use only inline styles. Keep styles minimal.
-- Buttons/toggles must be interactive.`
+Variation: ${String(variation.name ?? '')}
+Pattern: ${String(variation.pattern ?? '')}
 
-  const userPrompt = `Product: ${project.name ?? 'Product'}
-URL: ${project.url ?? ''}
+Plan:
+${planMarkdown.slice(0, 3000)}
 
-Clickable elements on page: ${JSON.stringify(crawl?.elements ?? [])}
+Generate React components for these screens:
+${screenDescriptions}
 
-Proposed change: ${proposedChange}
-
-Plan: ${planMarkdown}
-
-Build a concise before/after prototype (under 180 lines).`
-
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream<Uint8Array>({
-    start: async (controller) => {
-      try {
-        controller.enqueue(encoder.encode(sse({ type: 'log', message: 'Reading current page structure...' })))
-        controller.enqueue(encoder.encode(sse({ type: 'log', message: `Applying ${String((body.variation as Record<string, unknown> | undefined)?.name ?? 'variation')} pattern...` })))
-        controller.enqueue(encoder.encode(sse({ type: 'log', message: 'Generating BEFORE state...' })))
-        controller.enqueue(encoder.encode(sse({ type: 'log', message: 'Generating AFTER state...' })))
-        controller.enqueue(encoder.encode(sse({ type: 'log', message: 'Rendering preview...' })))
-
-        const completion = await anthropic.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 8192,
-          temperature: 0.2,
-          system,
-          messages: [{ role: 'user', content: userPrompt }],
-        })
-
-        const code = completion.content
-          .filter((b) => b.type === 'text')
-          .map((b) => b.text)
-          .join('\n')
-          .trim()
-
-        controller.enqueue(encoder.encode(sse({ type: 'result', code })))
-        controller.enqueue(encoder.encode(sse({ type: 'done' })))
-        controller.close()
-      } catch (e) {
-        controller.enqueue(encoder.encode(sse({ type: 'error', message: (e as Error).message ?? 'Failed to generate prototype' })))
-        controller.close()
-      }
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-    },
-  })
+Return JSON:
+{
+  "screens": [
+    {
+      "id": "slug-of-label",
+      "label": "Screen Name",
+      "type": "new|modified|removed|existing",
+      "component_code": "function Component() { var el = React.createElement; ... return el('div', ...); }"
+    }
+  ]
 }
 
+CRITICAL: component_code must use React.createElement() not JSX.
+CRITICAL: Each component must be named "Component".
+CRITICAL: Return valid JSON only — no markdown fences.`
+
+  try {
+    const completion = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      temperature: 0.3,
+      system,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+
+    const text = completion.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('\n')
+      .trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+
+    const parsed = JSON.parse(text) as { screens?: ProtoScreen[] }
+    const resultScreens = Array.isArray(parsed.screens) ? parsed.screens : []
+
+    return NextResponse.json({ screens: resultScreens })
+  } catch (e) {
+    return NextResponse.json(
+      { error: (e as Error).message ?? 'Failed to generate prototype' },
+      { status: 500 }
+    )
+  }
+}

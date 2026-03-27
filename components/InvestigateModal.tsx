@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Loader2, ArrowRight, Pencil } from 'lucide-react'
-import { FlowDiagram, type FlowObject } from '@/components/investigate/FlowDiagram'
+import { X, Loader2, ArrowRight, Pencil, Check, Copy } from 'lucide-react'
+import { FlowDiagram, type FlowObject, type FlowNode } from '@/components/investigate/FlowDiagram'
+import { DynamicScreen } from '@/components/investigate/DynamicScreen'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -18,6 +19,13 @@ type Variation = {
   is_recommended: boolean
 }
 
+type ProtoScreen = {
+  id: string
+  label: string
+  type: 'new' | 'modified' | 'removed' | 'existing'
+  component_code: string
+}
+
 const RISK_COLORS: Record<string, { color: string; bg: string }> = {
   low:    { color: '#166534', bg: '#dcfce7' },
   medium: { color: '#92600a', bg: '#fef9c3' },
@@ -31,6 +39,19 @@ const PLAN_SUB_MESSAGES = [
   'Analyzing your product...',
   'Writing investigation plan...',
 ]
+
+const PROTO_SUB_MESSAGES = [
+  'Reading your plan...',
+  'Building screens...',
+  'Almost ready...',
+]
+
+const TYPE_BADGE: Record<string, { bg: string; color: string; text: string }> = {
+  new:      { bg: '#EEF6F1', color: '#4D9B6F', text: 'New' },
+  modified: { bg: '#FBF4E6', color: '#9B6D1A', text: 'Modified' },
+  removed:  { bg: '#FAEAEA', color: '#9B3030', text: 'Removed' },
+  existing: { bg: '#F7F7F5', color: '#9B9A97', text: 'Current' },
+}
 
 type Props = {
   title: string
@@ -61,6 +82,16 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const planSubMsgIdx = useRef(0)
   const [planSubMessage, setPlanSubMessage] = useState(PLAN_SUB_MESSAGES[0])
   const planEndRef = useRef<HTMLDivElement>(null)
+
+  // Step 3 (Preview) state
+  const [protoState, setProtoState] = useState<'idle' | 'generating' | 'ready' | 'error'>('idle')
+  const [protoScreens, setProtoScreens] = useState<ProtoScreen[]>([])
+  const [protoError, setProtoError] = useState<string | null>(null)
+  const [activeScreenId, setActiveScreenId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const protoSubMsgIdx = useRef(0)
+  const [protoSubMessage, setProtoSubMessage] = useState(PROTO_SUB_MESSAGES[0])
+  const screenScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -129,7 +160,19 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     return () => clearInterval(interval)
   }, [planState])
 
-  // Auto-scroll while streaming
+  // Sub-message rotation while generating prototype
+  useEffect(() => {
+    if (protoState !== 'generating') return
+    protoSubMsgIdx.current = 0
+    setProtoSubMessage(PROTO_SUB_MESSAGES[0])
+    const interval = setInterval(() => {
+      protoSubMsgIdx.current = (protoSubMsgIdx.current + 1) % PROTO_SUB_MESSAGES.length
+      setProtoSubMessage(PROTO_SUB_MESSAGES[protoSubMsgIdx.current])
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [protoState])
+
+  // Auto-scroll while streaming plan
   useEffect(() => {
     if (planState === 'streaming') {
       planEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -187,8 +230,76 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     }
   }
 
+  // ── PROTOTYPE ─────────────────────────────────────────────────────────────
+  const startPrototype = async () => {
+    setProtoState('generating')
+    setProtoScreens([])
+    setProtoError(null)
+    setActiveScreenId(null)
+
+    try {
+      const variation = variations[selectedIdx ?? 0]
+      const flowNodes = activeFlow?.proposed_flow ?? []
+
+      const res = await fetch(`/api/opportunities/${opportunityId}/prototype`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan_markdown: planMarkdown,
+          variation: variation ?? {},
+          flow_nodes: flowNodes,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' })) as { error?: string }
+        throw new Error(err.error ?? 'Prototype generation failed')
+      }
+
+      const data = await res.json() as { screens?: ProtoScreen[] }
+      const screens = data.screens ?? []
+      if (screens.length === 0) throw new Error('No screens generated')
+
+      setProtoScreens(screens)
+      setActiveScreenId(screens[0]?.id ?? null)
+      setProtoState('ready')
+    } catch (err: unknown) {
+      setProtoError(err instanceof Error ? err.message : 'Prototype generation failed')
+      setProtoState('error')
+    }
+  }
+
+  const scrollToScreen = (id: string) => {
+    setActiveScreenId(id)
+    const el = document.getElementById(`proto-screen-${id}`)
+    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }
+
+  const copyPromptForCursor = async () => {
+    const variation = variations[selectedIdx ?? 0]
+    const prompt = `# Implementation Task
+
+## Product Context
+Goal: ${goal ?? ''}
+Opportunity: ${title}
+Variation: ${variation?.name ?? ''}
+Pattern: ${variation?.pattern ?? ''}
+
+## Plan
+${planMarkdown}
+
+## Prototype Screens
+${protoScreens.map(s => `### ${s.label} (${s.type})\n\`\`\`jsx\n${s.component_code}\n\`\`\``).join('\n\n')}
+
+## Instructions
+Implement the changes described in the plan above. The prototype screens show what each screen should look like. Match the design closely.`
+
+    await navigator.clipboard.writeText(prompt)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   // ── SECTION EDITING ───────────────────────────────────────────────────────
-  // Split markdown into h2 sections for inline editing
   const splitSections = (md: string) => {
     const parts: { heading: string; content: string }[] = []
     const lines = md.split('\n')
@@ -201,7 +312,6 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
       } else if (current) {
         current.lines.push(line)
       } else {
-        // Content before first h2 (like # title)
         if (parts.length === 0 && !current) {
           parts.push({ heading: '', content: line })
         } else if (parts.length > 0 && !parts[parts.length - 1].heading) {
@@ -235,9 +345,87 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     setEditValue('')
   }
 
-  // ── RENDER ─────────────────────────────────────────────────────────────────
+  // ── LEFT PANEL ────────────────────────────────────────────────────────────
   const renderLeftPanel = () => {
-    // Flow diagram stays throughout
+    // Step 3: Prototype display
+    if (currentStep === 3) {
+      if (protoState === 'generating') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <Loader2 style={{ width: 24, height: 24, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 13, color: '#9B9A97' }}>Generating your prototype...</span>
+            <span style={{ fontSize: 12, color: '#C9C8C5' }}>{protoSubMessage}</span>
+          </div>
+        )
+      }
+
+      if (protoState === 'error') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <p style={{ fontSize: 13, color: '#9B3030' }}>Could not generate prototype</p>
+            <button
+              type="button"
+              onClick={() => startPrototype()}
+              style={{ background: 'transparent', border: '1px solid #E5E3DD', borderRadius: 6, padding: '6px 16px', fontSize: 13, color: '#1A1A1A', cursor: 'pointer' }}
+            >
+              Try again
+            </button>
+          </div>
+        )
+      }
+
+      if (protoState === 'ready' && protoScreens.length > 0) {
+        return (
+          <div ref={screenScrollRef} style={{ display: 'flex', flexDirection: 'row', gap: 24, padding: 32, overflowX: 'auto', height: '100%', alignItems: 'flex-start' }}>
+            {protoScreens.map((screen, i) => {
+              const badge = TYPE_BADGE[screen.type] ?? TYPE_BADGE.existing
+              const isActive = activeScreenId === screen.id
+              return (
+                <div key={screen.id} style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0 }}>
+                  <div
+                    id={`proto-screen-${screen.id}`}
+                    onClick={() => setActiveScreenId(screen.id)}
+                    style={{ width: 320, flexShrink: 0, cursor: 'pointer' }}
+                  >
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>{screen.label}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: badge.color, background: badge.bg, borderRadius: 20, padding: '2px 8px' }}>
+                        {badge.text}
+                      </span>
+                    </div>
+                    {/* Screen frame */}
+                    <div style={{
+                      height: 500, border: isActive ? '2px solid #6B4FBB' : '1px solid #E5E3DD',
+                      borderRadius: 8, overflow: 'hidden', background: '#ffffff', position: 'relative',
+                    }}>
+                      <div style={{ width: '100%', height: '100%', overflow: 'auto' }}>
+                        <DynamicScreen code={screen.component_code} />
+                      </div>
+                      {screen.type === 'removed' && (
+                        <div style={{
+                          position: 'absolute', inset: 0, background: 'rgba(155, 48, 48, 0.1)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: '#9B3030', background: 'rgba(255,255,255,0.9)', padding: '4px 12px', borderRadius: 4 }}>
+                            Removed
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {i < protoScreens.length - 1 && (
+                    <span style={{ color: '#C9C8C5', fontSize: 18, margin: '0 4px', alignSelf: 'center', marginTop: 260, flexShrink: 0 }}>→</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )
+      }
+    }
+
+    // Steps 1 & 2: Flow diagram
     if (variationsLoading || (flowsLoading && !activeFlow)) {
       return <FlowDiagram currentFlow={[]} proposedFlow={[]}
         summary={{ removed_count: 0, added_count: 0, changed_count: 0, key_change: '' }}
@@ -259,7 +447,9 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     )
   }
 
+  // ── RIGHT PANEL ───────────────────────────────────────────────────────────
   const renderRightPanel = () => {
+    // Step 1 — Approach
     if (currentStep === 1) {
       return (
         <>
@@ -345,109 +535,187 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     }
 
     // Step 2 — Plan
-    if (planState === 'generating') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
-          <Loader2 style={{ width: 24, height: 24, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
-          <span style={{ fontSize: 13, color: '#9B9A97' }}>Building your investigation plan...</span>
-          <span style={{ fontSize: 12, color: '#C9C8C5' }}>{planSubMessage}</span>
-        </div>
-      )
-    }
-
-    if (planState === 'error') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
-          <p style={{ fontSize: 13, color: '#9B3030' }}>{planError}</p>
-          <button
-            type="button"
-            onClick={() => startPlan()}
-            style={{
-              background: 'transparent', border: '1px solid #E5E3DD', borderRadius: 6,
-              padding: '6px 16px', fontSize: 13, color: '#1A1A1A', cursor: 'pointer',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6B4FBB' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E3DD' }}
-          >
-            Try again
-          </button>
-        </div>
-      )
-    }
-
-    if (planState === 'streaming' || planState === 'complete') {
-      const sections = splitSections(planMarkdown)
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
-            {sections.map((section, i) => (
-              <div key={i} style={{ position: 'relative' }}>
-                {section.heading && editingSection !== i && (
-                  <button
-                    type="button"
-                    onClick={() => handleSectionEdit(i)}
-                    style={{
-                      position: 'absolute', top: 0, right: 0, background: 'none', border: 'none',
-                      cursor: 'pointer', padding: 4, color: '#C9C8C5', transition: 'color 0.15s',
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B4FBB' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#C9C8C5' }}
-                  >
-                    <Pencil style={{ width: 12, height: 12 }} />
-                  </button>
-                )}
-                {editingSection === i ? (
-                  <div>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                      {section.heading}
-                    </ReactMarkdown>
-                    <textarea
-                      value={editValue}
-                      onChange={e => setEditValue(e.target.value)}
-                      onBlur={() => handleSectionSave()}
-                      autoFocus
-                      style={{
-                        width: '100%', minHeight: 120, border: '1px solid #6B4FBB', borderRadius: 6,
-                        padding: '10px 12px', fontSize: 13, color: '#444', lineHeight: 1.6,
-                        fontFamily: 'inherit', resize: 'vertical', outline: 'none',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                    {section.heading ? section.heading + '\n' + section.content : section.content}
-                  </ReactMarkdown>
-                )}
-              </div>
-            ))}
-            {planState === 'streaming' && (
-              <span style={{ display: 'inline-block', width: 6, height: 14, background: '#6B4FBB', animation: 'blink 1s step-end infinite', verticalAlign: 'text-bottom', marginLeft: 2 }} />
-            )}
-            <div ref={planEndRef} />
+    if (currentStep === 2) {
+      if (planState === 'generating') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <Loader2 style={{ width: 24, height: 24, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 13, color: '#9B9A97' }}>Building your investigation plan...</span>
+            <span style={{ fontSize: 12, color: '#C9C8C5' }}>{planSubMessage}</span>
           </div>
+        )
+      }
 
-          {planState === 'complete' && (
-            <div style={{ borderTop: '1px solid #E5E3DD', padding: '12px 20px', background: '#ffffff' }}>
+      if (planState === 'error') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <p style={{ fontSize: 13, color: '#9B3030' }}>{planError}</p>
+            <button
+              type="button"
+              onClick={() => startPlan()}
+              style={{ background: 'transparent', border: '1px solid #E5E3DD', borderRadius: 6, padding: '6px 16px', fontSize: 13, color: '#1A1A1A', cursor: 'pointer' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6B4FBB' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E3DD' }}
+            >
+              Try again
+            </button>
+          </div>
+        )
+      }
+
+      if (planState === 'streaming' || planState === 'complete') {
+        const sections = splitSections(planMarkdown)
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
+              {sections.map((section, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  {section.heading && editingSection !== i && (
+                    <button
+                      type="button"
+                      onClick={() => handleSectionEdit(i)}
+                      style={{
+                        position: 'absolute', top: 0, right: 0, background: 'none', border: 'none',
+                        cursor: 'pointer', padding: 4, color: '#C9C8C5', transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B4FBB' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#C9C8C5' }}
+                    >
+                      <Pencil style={{ width: 12, height: 12 }} />
+                    </button>
+                  )}
+                  {editingSection === i ? (
+                    <div>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                        {section.heading}
+                      </ReactMarkdown>
+                      <textarea
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        onBlur={() => handleSectionSave()}
+                        autoFocus
+                        style={{
+                          width: '100%', minHeight: 120, border: '1px solid #6B4FBB', borderRadius: 6,
+                          padding: '10px 12px', fontSize: 13, color: '#444', lineHeight: 1.6,
+                          fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {section.heading ? section.heading + '\n' + section.content : section.content}
+                    </ReactMarkdown>
+                  )}
+                </div>
+              ))}
+              {planState === 'streaming' && (
+                <span style={{ display: 'inline-block', width: 6, height: 14, background: '#6B4FBB', animation: 'blink 1s step-end infinite', verticalAlign: 'text-bottom', marginLeft: 2 }} />
+              )}
+              <div ref={planEndRef} />
+            </div>
+
+            {planState === 'complete' && (
+              <div style={{ borderTop: '1px solid #E5E3DD', padding: '12px 20px', background: '#ffffff' }}>
+                <button
+                  type="button"
+                  onClick={() => { setCurrentStep(3); startPrototype() }}
+                  style={{
+                    width: '100%', height: 36, borderRadius: 6, border: 'none',
+                    background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
+                >
+                  Build prototype →
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      return null
+    }
+
+    // Step 3 — Preview
+    if (currentStep === 3) {
+      if (protoState === 'generating') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <Loader2 style={{ width: 24, height: 24, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 13, color: '#9B9A97' }}>Generating screens...</span>
+          </div>
+        )
+      }
+
+      if (protoState === 'error') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+            <p style={{ fontSize: 13, color: '#9B3030' }}>{protoError}</p>
+            <button
+              type="button"
+              onClick={() => startPrototype()}
+              style={{ background: 'transparent', border: '1px solid #E5E3DD', borderRadius: 6, padding: '6px 16px', fontSize: 13, color: '#1A1A1A', cursor: 'pointer' }}
+            >
+              Try again
+            </button>
+          </div>
+        )
+      }
+
+      if (protoState === 'ready') {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                Prototype screens
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {protoScreens.map(screen => {
+                  const badge = TYPE_BADGE[screen.type] ?? TYPE_BADGE.existing
+                  const isActive = activeScreenId === screen.id
+                  return (
+                    <div
+                      key={screen.id}
+                      onClick={() => scrollToScreen(screen.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                        borderRadius: 6, cursor: 'pointer',
+                        background: isActive ? '#F0ECFA' : 'transparent',
+                        border: isActive ? '1px solid #D4C8F0' : '1px solid transparent',
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: badge.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: '#1A1A1A', flex: 1 }}>{screen.label}</span>
+                      <span style={{ fontSize: 10, color: badge.color }}>{badge.text}</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div style={{ margin: '20px 0', borderTop: '1px solid #E5E3DD' }} />
+
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#9B9A97', marginBottom: 12 }}>What&apos;s next</div>
+
               <button
                 type="button"
-                onClick={() => setCurrentStep(3)}
+                onClick={() => copyPromptForCursor()}
                 style={{
-                  width: '100%', height: 36, borderRadius: 6, border: 'none',
-                  background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  width: '100%', height: 36, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  background: '#1A1A1A', color: '#ffffff', fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none',
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#333333' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1A1A1A' }}
               >
-                Build prototype →
+                {copied ? <><Check style={{ width: 13, height: 13 }} /> Copied!</> : <><Copy style={{ width: 13, height: 13 }} /> Copy prompt for Cursor →</>}
               </button>
             </div>
-          )}
-        </div>
-      )
+          </div>
+        )
+      }
     }
 
-    // idle fallback (shouldn't happen)
     return null
   }
 
@@ -511,7 +779,11 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           </div>
 
           {/* Right panel (40%) */}
-          <div style={{ width: '40%', height: '100%', overflowY: currentStep === 2 ? 'hidden' : 'auto', padding: currentStep === 2 ? 0 : '24px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
+          <div style={{
+            width: '40%', height: '100%', background: '#ffffff', display: 'flex', flexDirection: 'column',
+            overflowY: currentStep === 2 ? 'hidden' : 'auto',
+            padding: currentStep === 2 ? 0 : '24px 20px',
+          }}>
             {renderRightPanel()}
           </div>
         </div>
@@ -520,7 +792,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         <div style={{ height: 56, flexShrink: 0, background: '#ffffff', borderTop: '1px solid #E5E3DD', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10 }}>
           <input
             type="text"
-            placeholder="Ask anything about this step..."
+            placeholder={currentStep === 3 ? "Describe a change... e.g. 'Make the CTA button larger'" : 'Ask anything about this step...'}
             style={{ flex: 1, height: 36, background: '#F7F7F5', border: '1px solid #E5E3DD', borderRadius: 6, fontSize: 13, color: '#1A1A1A', padding: '0 12px', outline: 'none' }}
             onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB'; e.currentTarget.style.boxShadow = '0 0 0 2px #6B4FBB20' }}
             onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD'; e.currentTarget.style.boxShadow = 'none' }}
