@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { url?: string }
+  let body: { url?: string; email?: string; password?: string }
   try {
     body = await request.json()
   } catch {
@@ -32,6 +32,8 @@ export async function POST(request: Request) {
   }
 
   const url = typeof body.url === 'string' ? body.url.trim() : ''
+  const email = typeof body.email === 'string' ? body.email.trim() : ''
+  const password = typeof body.password === 'string' ? body.password : ''
   if (!url) {
     return NextResponse.json({ error: 'url is required' }, { status: 400 })
   }
@@ -49,6 +51,40 @@ export default async ({ page }) => {
   await page.setViewport({ width: 1440, height: 900 });
   await page.goto(${JSON.stringify(url)}, { waitUntil: 'networkidle0', timeout: 30000 });
   await new Promise(r => setTimeout(r, 1000));
+
+  // If credentials provided, try to log in
+  ${email ? `
+  try {
+    // Look for email/username input
+    const emailSel = await page.$('input[type="email"], input[name="email"], input[name="username"], input[type="text"][autocomplete="email"], input[type="text"][autocomplete="username"], input[placeholder*="email" i], input[placeholder*="username" i]');
+    const passSel = await page.$('input[type="password"]');
+    if (emailSel && passSel) {
+      await emailSel.click({ clickCount: 3 });
+      await emailSel.type(${JSON.stringify(email)}, { delay: 30 });
+      await passSel.click({ clickCount: 3 });
+      await passSel.type(${JSON.stringify(password)}, { delay: 30 });
+      // Click submit
+      const submitBtn = await page.$('button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login")');
+      if (submitBtn) {
+        await submitBtn.click();
+      } else {
+        await passSel.press('Enter');
+      }
+      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 15000 }).catch(() => {});
+      await new Promise(r => setTimeout(r, 2000));
+
+      // If the target URL is different from current (e.g. login redirected to dashboard), navigate to target
+      const currentUrl = page.url();
+      if (!currentUrl.includes(${JSON.stringify(new URL(url).pathname)})) {
+        await page.goto(${JSON.stringify(url)}, { waitUntil: 'networkidle0', timeout: 15000 }).catch(() => {});
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  } catch (e) {
+    // Login failed, continue with whatever page we're on
+  }
+  ` : ''}
+
   const screenshot = await page.screenshot({ type: 'png', fullPage: false, encoding: 'base64' });
   const elements = await page.evaluate(() => {
     const selectors = ['a[href]', 'button', 'input[type="submit"]', '[onclick]', '[role="button"]'];
