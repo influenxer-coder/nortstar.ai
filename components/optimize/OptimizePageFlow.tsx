@@ -57,6 +57,8 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
   type NavData = { next_page: string; nav_count: number }
   const [pageAnalytics, setPageAnalytics] = useState<{
     available: boolean
+    provider?: string
+    note?: string
     total_pageviews: number
     top_clicks: ClickData[]
     top_navigation: NavData[]
@@ -517,7 +519,9 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
                   <div style={{ border: '1px solid #E5E3DD', borderRadius: 8, overflow: 'hidden' }}>
                     {/* Header */}
                     <div style={{ padding: '10px 14px', background: '#F7F7F5', borderBottom: '1px solid #E5E3DD', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>Analytics (last 30 days)</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>
+                        {pageAnalytics.provider === 'posthog' ? 'PostHog' : pageAnalytics.provider === 'mixpanel' ? 'Mixpanel' : pageAnalytics.provider === 'ga4' ? 'Google Analytics' : 'Analytics'} (last 30 days)
+                      </span>
                       {pageAnalytics.total_pageviews > 0 && (
                         <span style={{ fontSize: 11, color: '#9B9A97' }}>{pageAnalytics.total_pageviews.toLocaleString()} pageviews</span>
                       )}
@@ -581,6 +585,12 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9B9A97' }}>
                     <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />
                     Loading analytics...
+                  </div>
+                )}
+
+                {pageAnalytics?.note && (
+                  <div style={{ padding: '8px 12px', background: '#FBF4E6', borderRadius: 6, border: '1px solid #f0e0b8', fontSize: 12, color: '#92600a' }}>
+                    {pageAnalytics.note}
                   </div>
                 )}
 
