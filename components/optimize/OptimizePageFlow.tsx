@@ -52,6 +52,17 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
   const [selectedElement, setSelectedElement] = useState<CrawlElement | null>(null)
   const [screenshotScale, setScreenshotScale] = useState<{ scaleX: number; scaleY: number } | null>(null)
 
+  // Page analytics
+  type ClickData = { element_text: string; tag_name: string; click_count: number; pct: number }
+  type NavData = { next_page: string; nav_count: number }
+  const [pageAnalytics, setPageAnalytics] = useState<{
+    available: boolean
+    total_pageviews: number
+    top_clicks: ClickData[]
+    top_navigation: NavData[]
+  } | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
   // Submit
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +110,21 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
       .catch(() => setAnalyticsChecked(true))
       .finally(() => setAnalyticsDetecting(false))
   }, [step, analyticsChecked, pageUrl])
+
+  // Fetch page-level analytics when entering CTA step
+  useEffect(() => {
+    if (step !== 'cta' || !pageUrl || pageAnalytics) return
+    setAnalyticsLoading(true)
+    fetch('/api/page-analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page_url: pageUrl }),
+    })
+      .then(r => r.json())
+      .then(data => setPageAnalytics(data))
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false))
+  }, [step, pageUrl, pageAnalytics])
 
   // Start background crawl when URL is confirmed (moving past step 1)
   useEffect(() => {
@@ -453,22 +479,109 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
                       ))}
                     </div>
 
-                    {/* Element chips */}
+                    {/* Element chips with click counts */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {crawlData.elements.map((el, i) => (
-                        <button key={i} type="button" onClick={() => setSelectedElement(el)}
-                          style={{
-                            padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-                            border: 'none', cursor: 'pointer',
-                            background: selectedElement === el ? '#6B4FBB' : '#F7F7F5',
-                            color: selectedElement === el ? '#fff' : '#1A1A1A',
-                            transition: 'background 0.15s, color 0.15s',
-                          }}>
-                          {el.text || `${el.type} ${i + 1}`}
-                        </button>
-                      ))}
+                      {crawlData.elements.map((el, i) => {
+                        const clickInfo = pageAnalytics?.top_clicks?.find(c =>
+                          c.element_text.toLowerCase() === (el.text || '').toLowerCase()
+                        )
+                        return (
+                          <button key={i} type="button" onClick={() => setSelectedElement(el)}
+                            style={{
+                              padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                              border: 'none', cursor: 'pointer',
+                              background: selectedElement === el ? '#6B4FBB' : '#F7F7F5',
+                              color: selectedElement === el ? '#fff' : '#1A1A1A',
+                              transition: 'background 0.15s, color 0.15s',
+                              display: 'flex', alignItems: 'center', gap: 5,
+                            }}>
+                            {el.text || `${el.type} ${i + 1}`}
+                            {clickInfo && (
+                              <span style={{
+                                fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 10,
+                                background: selectedElement === el ? 'rgba(255,255,255,0.25)' : '#E5E3DD',
+                                color: selectedElement === el ? '#fff' : '#9B9A97',
+                              }}>
+                                {clickInfo.click_count}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
                   </>
+                )}
+
+                {/* Analytics insights panel */}
+                {pageAnalytics?.available && (pageAnalytics.top_clicks.length > 0 || pageAnalytics.top_navigation.length > 0) && (
+                  <div style={{ border: '1px solid #E5E3DD', borderRadius: 8, overflow: 'hidden' }}>
+                    {/* Header */}
+                    <div style={{ padding: '10px 14px', background: '#F7F7F5', borderBottom: '1px solid #E5E3DD', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>Analytics (last 30 days)</span>
+                      {pageAnalytics.total_pageviews > 0 && (
+                        <span style={{ fontSize: 11, color: '#9B9A97' }}>{pageAnalytics.total_pageviews.toLocaleString()} pageviews</span>
+                      )}
+                    </div>
+
+                    {/* Top clicked elements */}
+                    {pageAnalytics.top_clicks.length > 0 && (
+                      <div style={{ padding: '10px 14px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                          Most clicked
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {pageAnalytics.top_clicks.slice(0, 6).map((c, i) => (
+                            <div key={i}
+                              onClick={() => {
+                                const match = crawlData?.elements.find(el =>
+                                  (el.text || '').toLowerCase() === c.element_text.toLowerCase()
+                                )
+                                if (match) setSelectedElement(match)
+                              }}
+                              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 0' }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {c.element_text}
+                                </div>
+                                <div style={{
+                                  height: 3, borderRadius: 2, marginTop: 3,
+                                  background: `linear-gradient(to right, #6B4FBB ${c.pct}%, #F7F7F5 ${c.pct}%)`,
+                                }} />
+                              </div>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: '#6B4FBB', flexShrink: 0 }}>
+                                {c.click_count.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Top navigation paths */}
+                    {pageAnalytics.top_navigation.length > 0 && (
+                      <div style={{ padding: '10px 14px', borderTop: '1px solid #F7F7F5' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#9B9A97', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                          Where users go next
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {pageAnalytics.top_navigation.slice(0, 5).map((n, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '3px 0' }}>
+                              <span style={{ color: '#6B4FBB' }}>→</span>
+                              <span style={{ color: '#1A1A1A', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.next_page}</span>
+                              <span style={{ fontSize: 11, color: '#9B9A97', flexShrink: 0 }}>{n.nav_count.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {analyticsLoading && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9B9A97' }}>
+                    <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />
+                    Loading analytics...
+                  </div>
                 )}
 
                 {/* Selected element display */}
@@ -476,6 +589,16 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
                   <div style={{ padding: '10px 14px', background: '#F0ECFA', borderRadius: 8, border: '1px solid #D4C8F0', fontSize: 13 }}>
                     <span style={{ fontWeight: 500, color: '#6B4FBB' }}>Selected:</span>{' '}
                     <span style={{ color: '#1A1A1A' }}>{selectedElement.text || selectedElement.type}</span>
+                    {(() => {
+                      const clickInfo = pageAnalytics?.top_clicks?.find(c =>
+                        c.element_text.toLowerCase() === (selectedElement.text || '').toLowerCase()
+                      )
+                      return clickInfo ? (
+                        <span style={{ fontSize: 11, color: '#9B9A97', marginLeft: 8 }}>
+                          {clickInfo.click_count.toLocaleString()} clicks in 30d
+                        </span>
+                      ) : null
+                    })()}
                   </div>
                 )}
 
