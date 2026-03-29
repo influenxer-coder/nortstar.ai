@@ -41,9 +41,23 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const body = await req.json().catch(() => ({})) as { variation?: Record<string, unknown> }
-  const variation = body.variation
-  if (!variation) return new Response('Missing variation', { status: 400 })
+  const body = await req.json().catch(() => ({})) as {
+    variation?: Record<string, unknown>
+    hypothesis_context?: {
+      hypothesis_id?: string
+      title?: string
+      hypothesis?: string
+      suggested_change?: string
+      source?: string
+      impact_score?: number
+      agent_url?: string
+      agent_name?: string
+      agent_context_summary?: string
+      target_element?: { type?: string; text?: string }
+    }
+  }
+  const variation = body.variation ?? {}
+  const hypCtx = body.hypothesis_context
 
   // Fetch opportunity
   const { data: opportunity } = await supabase
@@ -132,7 +146,19 @@ ${competitors.map(c => {
 }).join('\n')}
 
 HOMEPAGE CONTENT (public):
-${pageText?.slice(0, 2000) ?? 'Not available'}`
+${pageText?.slice(0, 2000) ?? 'Not available'}
+${hypCtx ? `
+HYPOTHESIS CONTEXT (from page optimization analysis):
+HYPOTHESIS: ${hypCtx.hypothesis ?? ''}
+SUGGESTED CHANGE: ${hypCtx.suggested_change ?? ''}
+SOURCE: ${hypCtx.source ?? ''}
+IMPACT SCORE: ${hypCtx.impact_score ?? '?'}/5
+PAGE BEING OPTIMIZED: ${hypCtx.agent_url ?? ''}
+PAGE NAME: ${hypCtx.agent_name ?? ''}
+TARGET ELEMENT: ${hypCtx.target_element?.text ?? ''}
+AGENT ANALYSIS SUMMARY:
+${hypCtx.agent_context_summary?.slice(0, 1500) ?? 'Not available'}
+` : ''}`
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return new Response('ANTHROPIC_API_KEY not configured', { status: 500 })

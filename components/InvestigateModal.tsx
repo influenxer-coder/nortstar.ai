@@ -70,18 +70,33 @@ const TYPE_BADGE: Record<string, { bg: string; color: string; text: string }> = 
   existing: { bg: '#F7F7F5', color: '#9B9A97', text: 'Current' },
 }
 
+type HypothesisContext = {
+  hypothesis_id?: string
+  title?: string
+  hypothesis?: string
+  suggested_change?: string
+  source?: string
+  impact_score?: number
+  agent_url?: string
+  agent_name?: string
+  agent_context_summary?: string
+  target_element?: { type?: string; text?: string }
+}
+
 type Props = {
   title: string
   opportunityId: string
   projectId: string
   productUrl: string
   goal: string | null
+  hypothesisContext?: Record<string, unknown>
   onClose: () => void
 }
 
 type GitHubRepo = { full_name: string; name: string; private: boolean }
 
-export function InvestigateModal({ title, opportunityId, projectId, productUrl, goal, onClose }: Props) {
+export function InvestigateModal({ title, opportunityId, projectId, productUrl, goal, hypothesisContext, onClose }: Props) {
+  const hypCtx = hypothesisContext as HypothesisContext | undefined
   // GitHub connection state (gate before Step 1)
   const [githubStatus, setGithubStatus] = useState<'loading' | 'not_connected' | 'picking_repos' | 'connected'>('loading')
   const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([])
@@ -198,6 +213,10 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           setPlanMarkdown(savedPlan)
           setPlanState('complete')
           setCurrentStep(2)
+        } else if (hypCtx) {
+          // Hypothesis context present, no saved plan — skip to Step 2 and auto-start plan
+          setCurrentStep(2)
+          // Plan will be started via the useEffect below after state settles
         }
 
         // Restore saved GitHub repos — or fetch from API if none saved
@@ -261,6 +280,15 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     }).catch(() => {})
   }, [opportunityId, selectedIdx, savedIdxLoaded])
 
+  // Auto-start plan when hypothesis context is present and we're on Step 2 with no plan
+  const autoStartedRef = useRef(false)
+  useEffect(() => {
+    if (hypCtx && currentStep === 2 && planState === 'idle' && !autoStartedRef.current) {
+      autoStartedRef.current = true
+      startPlan()
+    }
+  }, [currentStep, planState, hypCtx])
+
   // Sub-message rotation while generating plan
   useEffect(() => {
     if (planState !== 'generating') return
@@ -314,12 +342,15 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
 
     try {
       const variation = variations[selectedIdx ?? 0]
-      if (!variation) throw new Error('No variation selected')
+      if (!variation && !hypCtx) throw new Error('No variation selected')
 
       const res = await fetch(`/api/opportunities/${opportunityId}/plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variation }),
+        body: JSON.stringify({
+          variation: variation ?? {},
+          ...(hypCtx ? { hypothesis_context: hypCtx } : {}),
+        }),
       })
 
       if (!res.ok || !res.body) throw new Error('Plan generation failed')

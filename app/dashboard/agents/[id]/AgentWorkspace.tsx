@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import type { Agent, Hypothesis } from '@/lib/types'
 import AgentAnalysisLogs from './AgentAnalysisLogs'
 import SimulationPanel from './SimulationPanel'
+import { InvestigateModal } from '@/components/InvestigateModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,12 +92,22 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
   // ── Preview state ──────────────────────────────────────────────────────────
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState('')
-  const [previewLoading, setPreviewLoading] = useState<string | null>(null) // hid being loaded
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null)
   const [previewHypId, setPreviewHypId] = useState<string | null>(null)
   const [previewRegenerating, setPreviewRegenerating] = useState(false)
   const [previewChatInput, setPreviewChatInput] = useState('')
   const [previewChatLoading, setPreviewChatLoading] = useState(false)
   const previewChatEndRef = useRef<HTMLDivElement>(null)
+
+  // ── Implement (InvestigateModal) state ────────────────────────────────────
+  const [implementOpen, setImplementOpen] = useState<{
+    opportunityId: string
+    projectId: string
+    productUrl: string
+    goal: string
+    title: string
+    hypothesisContext: Record<string, unknown>
+  } | null>(null)
 
   // ── PostHog connect state ──────────────────────────────────────────────────
   const resolvedPhKey = agent.posthog_api_key ?? agent.analytics_config?.posthog?.api_key ?? null
@@ -171,28 +182,30 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
     }
   }
 
-  // ── Preview ────────────────────────────────────────────────────────────────
+  // ── Implement (opens InvestigateModal with hypothesis context) ──────────
   const handlePreview = async (hid: string, title: string) => {
     if (previewLoading) return
     setPreviewLoading(hid)
-    setPreviewHypId(hid)
-    setPreviewTitle(title)
-    setPreviewHtml(null)
-    void title // kept for API compat
-    // Load chat history for this hypothesis if not already loaded
-    if (!chatHistory[hid]) {
-      try {
-        const res = await fetch(`/api/agents/${agent.id}/hypotheses/${hid}/chat`)
-        const data = await res.json()
-        if (data.messages?.length) setChatHistory(prev => ({ ...prev, [hid]: data.messages }))
-      } catch { /* silent */ }
-    }
     try {
-      const res = await fetch(`/api/agents/${agent.id}/hypotheses/${hid}/preview`, { method: 'POST' })
-      const data = await res.json()
-      setPreviewHtml(data.html ?? '<p>No preview generated.</p>')
+      const res = await fetch(`/api/agents/${agent.id}/hypotheses/${hid}/implement`, { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to create implementation')
+      const data = await res.json() as {
+        opportunity_id: string
+        project_id: string | null
+        product_url: string
+        goal: string | null
+        hypothesis_context: Record<string, unknown>
+      }
+      setImplementOpen({
+        opportunityId: data.opportunity_id,
+        projectId: data.project_id ?? '',
+        productUrl: data.product_url,
+        goal: data.goal ?? '',
+        title,
+        hypothesisContext: data.hypothesis_context,
+      })
     } catch {
-      setPreviewHtml('<p style="color:red">Failed to generate preview.</p>')
+      // Fallback: still try to open with basic info
     } finally {
       setPreviewLoading(null)
     }
@@ -682,6 +695,18 @@ export default function AgentWorkspace({ agent, initialHypotheses }: Props) {
       </div>
     )}
 
+    {/* ── Implement modal (InvestigateModal with hypothesis context) ── */}
+    {implementOpen && (
+      <InvestigateModal
+        title={implementOpen.title}
+        opportunityId={implementOpen.opportunityId}
+        projectId={implementOpen.projectId}
+        productUrl={implementOpen.productUrl}
+        goal={implementOpen.goal}
+        hypothesisContext={implementOpen.hypothesisContext}
+        onClose={() => setImplementOpen(null)}
+      />
+    )}
 </>
   )
 }
@@ -891,14 +916,10 @@ function HypothesisCard({
 
           {/* CTAs */}
           <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t border-gray-200/60">
-            <button onClick={e => { e.stopPropagation(); onToggleAsk() }}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${isAsking ? 'border-violet-600 bg-violet-500/10 text-violet-400' : 'border-gray-300 text-gray-500 hover:border-violet-600 hover:text-violet-400'}`}>
-              <Sparkles className="h-3 w-3" /> Update
-            </button>
             <button onClick={e => { e.stopPropagation(); onPreview() }} disabled={previewLoading}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:border-blue-600 hover:text-blue-400 transition-colors disabled:opacity-40">
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-violet-300 text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors disabled:opacity-40 font-medium">
               {previewLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
-              {previewLoading ? 'Generating…' : 'Preview'}
+              {previewLoading ? 'Loading…' : 'Implement'}
             </button>
             {h.status === 'proposed' && (
               <button onClick={e => { e.stopPropagation(); onAccept() }}
