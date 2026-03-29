@@ -58,6 +58,7 @@ export async function POST(request: Request) {
     type?: string
     goal?: string
     main_kpi?: string
+    copy_analytics_from_existing?: boolean
   }
   try {
     body = await request.json()
@@ -92,6 +93,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
   }
 
+  // Copy PostHog credentials from existing agents if requested and not provided
+  let finalPhKey = posthog_api_key
+  let finalPhProjectId = posthog_project_id
+  if (body.copy_analytics_from_existing && (!finalPhKey || !finalPhProjectId)) {
+    const { data: existingAgents } = await supabase
+      .from('agents')
+      .select('posthog_api_key, posthog_project_id')
+      .eq('user_id', user.id)
+      .limit(20)
+    const donor = existingAgents?.find(a => a.posthog_api_key && a.posthog_project_id)
+    if (donor) {
+      finalPhKey = finalPhKey || (donor.posthog_api_key as string)
+      finalPhProjectId = finalPhProjectId || (donor.posthog_project_id as string)
+    }
+  }
+
   const { data, error } = await supabase
     .from('agents')
     .insert({
@@ -100,8 +117,8 @@ export async function POST(request: Request) {
       name,
       url: url || null,
       github_repo,
-      posthog_api_key,
-      posthog_project_id,
+      posthog_api_key: finalPhKey,
+      posthog_project_id: finalPhProjectId,
       target_element,
       status,
       step,

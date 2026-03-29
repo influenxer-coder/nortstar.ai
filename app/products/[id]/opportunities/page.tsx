@@ -21,6 +21,7 @@ export default async function OpportunitiesPage({ params }: Params) {
   const ctx = ((project.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
   const goal = (ctx?.goal as string) ?? null
   const productName = (ctx?.product_name as string) ?? project.name ?? 'Product'
+  const productId = (ctx?.created_product_id as string) ?? null
   const match = ((project.strategy_json as Record<string, unknown>)?.match as Record<string, unknown> | undefined) ?? {}
   const subverticalId = (match.subvertical_id as string) ?? null
 
@@ -50,6 +51,7 @@ export default async function OpportunitiesPage({ params }: Params) {
   return (
     <OpportunitiesFeed
       projectId={project.id}
+      productId={productId}
       projectName={project.name ?? 'Product'}
       productName={productName}
       productUrl={project.url ?? ''}

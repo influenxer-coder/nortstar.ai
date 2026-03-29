@@ -27,6 +27,7 @@ type CommitRow = { sha: string; message: string; date: string; formattedDate: st
 
 type Props = {
   projectId: string
+  productId?: string | null
   projectName: string
   productName: string
   productUrl: string
@@ -47,7 +48,7 @@ const SIGNAL_SOURCES = [
   { icon: Zap,           label: 'Rage Shakes',               active: false },
 ]
 
-export default function OpportunitiesFeed({ projectId, projectName, productName, productUrl, goal, subverticalId, recentCommits = [] }: Props) {
+export default function OpportunitiesFeed({ projectId, productId, projectName, productName, productUrl, goal, subverticalId, recentCommits = [] }: Props) {
   const productMeta = getProductMeta(productName)
   const goalMeta = getGoalLabel(goal)
   const resolved = productMeta ?? goalMeta
@@ -562,6 +563,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
       {optimizeOpen && (
         <OptimizePageFlow
           projectId={projectId}
+          productId={productId ?? undefined}
           productUrl={productUrl}
           goal={goal ?? ''}
           onClose={() => setOptimizeOpen(false)}

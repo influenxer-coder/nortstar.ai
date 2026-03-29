@@ -19,6 +19,7 @@ type CrawlData = {
 
 type Props = {
   projectId: string
+  productId?: string
   productUrl: string
   goal: string
   onClose: () => void
@@ -27,7 +28,7 @@ type Props = {
 
 type StepId = 'url' | 'github' | 'analytics' | 'cta'
 
-export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onComplete }: Props) {
+export function OptimizePageFlow({ projectId, productId, productUrl, goal, onClose, onComplete }: Props) {
   const [step, setStep] = useState<StepId>('url')
   const [pageUrl, setPageUrl] = useState('')
   const [pageName, setPageName] = useState('')
@@ -184,9 +185,11 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
           type: 'page_optimization',
           goal,
           project_id: projectId,
+          product_id: productId ?? null,
           analytics_config: {
             detected_tools: detectedTools.filter(t => t.detected),
           },
+          copy_analytics_from_existing: true,
         }),
       })
 
