@@ -63,14 +63,32 @@ export default async ({ page }) => {
       await emailSel.type(${JSON.stringify(email)}, { delay: 30 });
       await passSel.click({ clickCount: 3 });
       await passSel.type(${JSON.stringify(password)}, { delay: 30 });
-      // Click submit
-      const submitBtn = await page.$('button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login")');
-      if (submitBtn) {
-        await submitBtn.click();
-      } else {
-        await passSel.press('Enter');
+      // Click submit — find the button by type or by text content
+      let submitBtn = await page.$('button[type="submit"], input[type="submit"]');
+      if (!submitBtn) {
+        // Fallback: find button by text content
+        submitBtn = await page.evaluateHandle(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          return buttons.find(b => {
+            const t = (b.textContent || '').trim().toLowerCase();
+            return ['sign in', 'log in', 'login', 'submit', 'continue'].includes(t);
+          }) || null;
+        });
+        if (submitBtn && !(await submitBtn.evaluate(el => el !== null).catch(() => false))) {
+          submitBtn = null;
+        }
       }
-      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 15000 }).catch(() => {});
+      if (submitBtn) {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 15000 }).catch(() => {}),
+          submitBtn.click(),
+        ]);
+      } else {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 15000 }).catch(() => {}),
+          passSel.press('Enter'),
+        ]);
+      }
       await new Promise(r => setTimeout(r, 2000));
 
       // If the target URL is different from current (e.g. login redirected to dashboard), navigate to target
