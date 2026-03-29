@@ -31,6 +31,8 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
   const [step, setStep] = useState<StepId>('url')
   const [pageUrl, setPageUrl] = useState('')
   const [pageName, setPageName] = useState('')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
 
   // GitHub
   const [githubConnected, setGithubConnected] = useState(false)
@@ -105,7 +107,10 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
     fetch('/api/crawl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: pageUrl }),
+      body: JSON.stringify({
+        url: pageUrl,
+        ...(loginEmail ? { email: loginEmail, password: loginPassword } : {}),
+      }),
     })
       .then(r => r.json())
       .then(data => {
@@ -236,6 +241,31 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
                   onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
                   onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
                 />
+
+                {/* Login credentials (for pages behind auth) */}
+                <div style={{ border: '1px solid #E5E3DD', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', fontSize: 13, color: '#9B9A97', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Page behind login?</span>
+                    <span style={{ fontSize: 11, color: '#C9C8C5' }}>Optional</span>
+                  </div>
+                  <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <input
+                      type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
+                      placeholder="Test account email"
+                      style={{ width: '100%', height: 38, border: '1px solid #E5E3DD', borderRadius: 6, fontSize: 13, padding: '0 12px', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
+                    />
+                    <input
+                      type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)}
+                      placeholder="Password"
+                      style={{ width: '100%', height: 38, border: '1px solid #E5E3DD', borderRadius: 6, fontSize: 13, padding: '0 12px', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
+                    />
+                    <p style={{ fontSize: 11, color: '#C9C8C5', margin: 0 }}>Used only for screenshots. Never stored.</p>
+                  </div>
+                </div>
                 <button type="button" disabled={!isUrlValid} onClick={nextStep}
                   style={{
                     width: '100%', height: 44, borderRadius: 8, border: 'none',
