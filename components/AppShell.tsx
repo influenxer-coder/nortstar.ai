@@ -21,7 +21,7 @@ export async function AppShell({
 
   const [{ data: products }, { data: agents }, { data: completedProjects }] = await Promise.all([
     supabase.from('products').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
-    supabase.from('agents').select('id, name, status, product_id').eq('user_id', user.id).neq('status', 'draft').order('created_at', { ascending: false }),
+    supabase.from('agents').select('id, name, status, product_id, type, url').eq('user_id', user.id).neq('status', 'draft').order('created_at', { ascending: false }),
     supabase.from('projects').select('id, url, strategy_json').eq('user_id', user.id).eq('onboarding_completed', true),
   ])
 
@@ -39,7 +39,7 @@ export async function AppShell({
   const agentsByProduct = new Map<string, { id: string; name: string; status: string | null }[]>()
   const ungrouped: { id: string; name: string; status: string | null }[] = []
   for (const agent of agents ?? []) {
-    const stub = { id: agent.id, name: agent.name, status: agent.status }
+    const stub = { id: agent.id, name: agent.name, status: agent.status, type: (agent as Record<string, unknown>).type as string | null }
     if (agent.product_id) {
       const list = agentsByProduct.get(agent.product_id) ?? []
       list.push(stub)

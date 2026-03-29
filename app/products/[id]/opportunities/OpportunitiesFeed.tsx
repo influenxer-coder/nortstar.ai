@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight } from 'lucide-react'
+import { RefreshCw, Loader2, ArrowLeft, Lightbulb, GitCommit, Activity, MessageSquare, Globe, TrendingUp, Megaphone, Star, FlaskConical, Zap, ChevronRight, Plus } from 'lucide-react'
 import { getProductMeta, getGoalLabel } from '@/lib/product-meta'
 import OpportunityCard, { type IdeaWithImpact } from '@/components/OpportunityCard'
 import AddOpportunityDialog from '@/components/AddOpportunityDialog'
 import { InvestigateModal } from '@/components/InvestigateModal'
+import { OptimizePageFlow } from '@/components/optimize/OptimizePageFlow'
 
 
 const C = {
@@ -61,6 +62,9 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [investigateOpen, setInvestigateOpen] = useState<{ id: string; title: string } | null>(null)
+  const [activeTab, setActiveTab] = useState<'features' | 'pages'>('features')
+  const [optimizeOpen, setOptimizeOpen] = useState(false)
+  const [pageOptimizations, setPageOptimizations] = useState<{ id: string; name: string; url: string; status: string; target_element?: { text?: string } }[]>([])
   const hasFetched = useRef(false)
   const searchParams = useSearchParams()
   const handledInvestigateParam = useRef(false)
@@ -227,6 +231,13 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
     if (hasFetched.current) return
     hasFetched.current = true
     void loadFromDB()
+    // Load page optimizations for this project + goal
+    fetch(`/api/agents?project_id=${encodeURIComponent(projectId)}&type=page_optimization&goal=${encodeURIComponent(goal ?? '')}`)
+      .then(r => r.json())
+      .then((data: { agents?: { id: string; name: string; url: string; status: string; target_element?: { text?: string } }[] }) => {
+        setPageOptimizations(data.agents ?? [])
+      })
+      .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -350,8 +361,79 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           </div>
         )}
 
-        {/* Loading / error */}
-        {loading ? (
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: `1px solid ${C.border}` }}>
+          {([
+            { id: 'features' as const, label: 'Feature Opportunities' },
+            { id: 'pages' as const, label: 'Page Optimizations' },
+          ]).map(tab => (
+            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
+              style={{
+                fontSize: 13, fontWeight: 500, padding: '8px 16px',
+                color: activeTab === tab.id ? C.text : C.muted,
+                borderBottom: activeTab === tab.id ? '2px solid #1f2328' : '2px solid transparent',
+                background: 'none', border: 'none', borderBottomStyle: 'solid',
+                cursor: 'pointer', transition: 'color 0.15s',
+              }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Page Optimizations tab */}
+        {activeTab === 'pages' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button type="button" onClick={() => setOptimizeOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px',
+                border: `1px dashed ${C.border}`, borderRadius: 12, background: C.surface,
+                cursor: 'pointer', width: '100%', fontSize: 13, color: C.blue, fontWeight: 500,
+              }}>
+              <Plus style={{ width: 14, height: 14 }} />
+              Optimize a page
+            </button>
+
+            {pageOptimizations.length === 0 && (
+              <div style={{ padding: 32, textAlign: 'center', borderRadius: 12, border: `1px dashed ${C.border}`, background: C.surface }}>
+                <p style={{ fontSize: 14, color: C.muted, marginBottom: 4 }}>No page optimizations yet</p>
+                <p style={{ fontSize: 12, color: C.muted }}>Pick a page and a key action to optimize</p>
+              </div>
+            )}
+
+            {pageOptimizations.map(opt => (
+              <Link
+                key={opt.id}
+                href={`/dashboard/agents/${opt.id}`}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                  border: `1px solid ${C.border}`, borderRadius: 12, background: C.surface,
+                  textDecoration: 'none', boxShadow: C.cardShadow, transition: 'border-color 0.15s',
+                }}
+                className="hover-row"
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F0ECFA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Globe style={{ width: 16, height: 16, color: '#6B4FBB' }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.text }}>{opt.name}</div>
+                  <div style={{ fontSize: 12, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {opt.url} {opt.target_element?.text ? `· ${opt.target_element.text}` : ''}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                  ...(opt.status === 'Analyzing' ? { color: '#92600a', background: '#fef9c3' } : { color: '#166534', background: '#dcfce7' }),
+                }}>
+                  {opt.status}
+                </span>
+                <ChevronRight style={{ width: 14, height: 14, color: C.muted }} />
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Feature Opportunities tab */}
+        {activeTab !== 'pages' && loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '80px 0', color: C.muted }}>
             <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
             <span style={{ fontSize: 14 }}>Generating opportunities…</span>
@@ -367,7 +449,7 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
         ) : null}
 
         {/* Ranked section */}
-        {!loading && (
+        {activeTab !== 'pages' && !loading && (
           <>
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 48 }}>
@@ -474,6 +556,26 @@ export default function OpportunitiesFeed({ projectId, projectName, productName,
           productUrl={productUrl}
           goal={goal}
           onClose={() => setInvestigateOpen(null)}
+        />
+      )}
+
+      {optimizeOpen && (
+        <OptimizePageFlow
+          projectId={projectId}
+          productUrl={productUrl}
+          goal={goal ?? ''}
+          onClose={() => setOptimizeOpen(false)}
+          onComplete={(agentId) => {
+            setOptimizeOpen(false)
+            // Add to list and navigate
+            setPageOptimizations(prev => [...prev, {
+              id: agentId,
+              name: 'Analyzing...',
+              url: '',
+              status: 'Analyzing',
+            }])
+            setActiveTab('pages')
+          }}
         />
       )}
 

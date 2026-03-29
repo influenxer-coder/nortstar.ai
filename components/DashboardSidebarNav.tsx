@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight, Lightbulb } from 'lucide-react'
+import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight, Lightbulb, Globe } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { getProductMeta, faviconUrl } from '@/lib/product-meta'
 
 const AgentNavSection = dynamic(() => import('./AgentNavSection'), { ssr: false })
 
-export type AgentStub = { id: string; name: string; status: string | null }
+export type AgentStub = { id: string; name: string; status: string | null; type?: string | null }
 
 type ProductGroup = {
   id: string
@@ -232,7 +232,24 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
                 </span>
               </Link>
             )}
-            {product.agents.map((agent) => (
+            {/* Page optimizations under goal */}
+            {product.agents.filter(a => a.type === 'page_optimization').map(agent => (
+              <Link
+                key={agent.id}
+                href={`/dashboard/agents/${agent.id}`}
+                className={`flex items-center gap-2 pl-7 pr-2 rounded-md transition-colors ${
+                  pathname.includes(agent.id) ? 'bg-accent' : 'hover:bg-muted'
+                }`}
+                style={{ height: 26 }}
+              >
+                <Globe className="h-2.5 w-2.5 shrink-0 text-violet-500" />
+                <span className="hidden md:block truncate" style={{ fontSize: 12, color: pathname.includes(agent.id) ? '#1f2328' : '#535963' }}>
+                  {agent.name}
+                </span>
+              </Link>
+            ))}
+            {/* Regular agents */}
+            {product.agents.filter(a => a.type !== 'page_optimization').map((agent) => (
               <AgentTreeNode key={agent.id} agent={agent} isActive={pathname.includes(agent.id)} />
             ))}
             <button
