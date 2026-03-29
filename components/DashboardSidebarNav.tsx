@@ -281,25 +281,6 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
         </div>
       )}
 
-      {/* New agent */}
-      <div className="mt-3 pt-2 border-t border-border">
-        <button
-          className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          type="button"
-          onClick={() => {
-            try {
-              const id = localStorage.getItem('northstar_current_project_id')
-              if (!id) { router.push('/dashboard'); return }
-              router.push(`/products/${id}/opportunities`)
-            } catch {
-              router.push('/dashboard')
-            }
-          }}
-        >
-          <Plus className="h-3.5 w-3.5 shrink-0" />
-          <span className="hidden md:block">Improve</span>
-        </button>
-      </div>
     </div>
   )
 }
