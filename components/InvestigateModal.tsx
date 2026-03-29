@@ -392,6 +392,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
           plan_markdown: planMarkdown,
           variation: variation ?? {},
           flow_nodes: flowNodes,
+          ...(hypCtx ? { hypothesis_context: hypCtx } : {}),
         }),
       })
 

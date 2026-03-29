@@ -56,11 +56,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     plan_markdown?: string
     variation?: Record<string, unknown>
     flow_nodes?: FlowNode[]
+    hypothesis_context?: {
+      title?: string
+      suggested_change?: string
+      agent_url?: string
+      agent_name?: string
+      target_element?: { type?: string; text?: string }
+    }
   }
 
   const planMarkdown = body.plan_markdown ?? ''
   const variation = body.variation ?? {}
   const flowNodes = body.flow_nodes ?? []
+  const hypCtx = body.hypothesis_context
 
   const { data: opportunity } = await supabase
     .from('opportunities')
@@ -90,13 +98,29 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   }
 
-  // Build screen list from flow nodes
-  const screens = flowNodes.map(node => ({
-    id: slugify(node.label),
-    label: node.label,
-    type: nodeTypeToScreenType(node.type),
-    cta: node.cta,
-  }))
+  // For page-level optimizations (hypothesis context), generate only the single modified page
+  const screens: { id: string; label: string; type: ProtoScreen['type']; cta: string }[] = []
+
+  if (hypCtx) {
+    screens.push({
+      id: slugify(hypCtx.agent_name ?? hypCtx.title ?? 'page'),
+      label: hypCtx.agent_name ?? hypCtx.title ?? 'Page',
+      type: 'modified',
+      cta: hypCtx.target_element?.text ?? hypCtx.suggested_change?.slice(0, 40) ?? '',
+    })
+  }
+
+  // Build screen list from flow nodes (feature-level flow)
+  if (screens.length === 0) {
+    for (const node of flowNodes) {
+      screens.push({
+        id: slugify(node.label),
+        label: node.label,
+        type: nodeTypeToScreenType(node.type),
+        cta: node.cta,
+      })
+    }
+  }
 
   // Fallback: extract from plan markdown if no flow nodes
   if (screens.length === 0 && planMarkdown) {
