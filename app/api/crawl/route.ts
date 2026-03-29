@@ -46,8 +46,10 @@ export async function POST(request: Request) {
 
   const functionCode = `
 export default async ({ page }) => {
+  await page.setViewport({ width: 1440, height: 900 });
   await page.goto(${JSON.stringify(url)}, { waitUntil: 'networkidle0', timeout: 30000 });
-  const screenshot = await page.screenshot({ type: 'png', fullPage: true, encoding: 'base64' });
+  await new Promise(r => setTimeout(r, 1000));
+  const screenshot = await page.screenshot({ type: 'png', fullPage: false, encoding: 'base64' });
   const elements = await page.evaluate(() => {
     const selectors = ['a[href]', 'button', 'input[type="submit"]', '[onclick]', '[role="button"]'];
     const seen = new Set();
