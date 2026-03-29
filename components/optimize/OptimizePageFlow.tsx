@@ -5,6 +5,18 @@ import { X, Loader2, ArrowRight, Globe, Github, BarChart3, Target, CheckCircle2 
 
 type DetectedTool = { name: string; key: string; detected: boolean; snippet?: string }
 
+type CrawlElement = {
+  type: string
+  text: string
+  position: { x: number; y: number; width: number; height: number }
+}
+
+type CrawlData = {
+  screenshot: string
+  elements: CrawlElement[]
+  analytics: { detected: Record<string, boolean>; hasAny: boolean }
+}
+
 type Props = {
   projectId: string
   productUrl: string
@@ -32,10 +44,11 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
   const [detectedTools, setDetectedTools] = useState<DetectedTool[]>([])
   const [analyticsChecked, setAnalyticsChecked] = useState(false)
 
-  // CTA / target action
-  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
-  const [screenshotLoading, setScreenshotLoading] = useState(false)
-  const [targetCta, setTargetCta] = useState('')
+  // Crawl + CTA / target action
+  const [crawlData, setCrawlData] = useState<CrawlData | null>(null)
+  const [crawlRunning, setCrawlRunning] = useState(false)
+  const [selectedElement, setSelectedElement] = useState<CrawlElement | null>(null)
+  const [screenshotScale, setScreenshotScale] = useState<{ scaleX: number; scaleY: number } | null>(null)
 
   // Submit
   const [submitting, setSubmitting] = useState(false)
@@ -85,6 +98,27 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
       .finally(() => setAnalyticsDetecting(false))
   }, [step, analyticsChecked, pageUrl])
 
+  // Start background crawl when URL is confirmed (moving past step 1)
+  useEffect(() => {
+    if (step === 'url' || !pageUrl || crawlData || crawlRunning) return
+    setCrawlRunning(true)
+    fetch('/api/crawl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: pageUrl }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        setCrawlData({
+          screenshot: typeof data.screenshot === 'string' ? data.screenshot : '',
+          elements: Array.isArray(data.elements) ? data.elements : [],
+          analytics: data.analytics ?? { detected: {}, hasAny: false },
+        })
+      })
+      .catch(() => {})
+      .finally(() => setCrawlRunning(false))
+  }, [step, pageUrl, crawlData, crawlRunning])
+
   const nextStep = () => {
     const idx = stepIdx
     if (idx < STEPS.length - 1) {
@@ -102,6 +136,7 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
     setError(null)
     try {
       // Create page optimization agent
+      const elementText = selectedElement?.text || ''
       const res = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,8 +144,10 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
           name: pageName || new URL(pageUrl).pathname || 'Page Optimization',
           url: pageUrl,
           github_repo: selectedRepo ?? '',
-          main_kpi: targetCta || goal,
-          target_element: { type: 'cta', text: targetCta },
+          main_kpi: elementText || goal,
+          target_element: selectedElement
+            ? { type: selectedElement.type, text: selectedElement.text, position: selectedElement.position }
+            : null,
           type: 'page_optimization',
           goal,
           project_id: projectId,
@@ -172,7 +209,7 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
 
         {/* Body */}
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ maxWidth: 480, width: '100%' }}>
+          <div style={{ maxWidth: step === 'cta' ? 640 : 480, width: '100%', transition: 'max-width 0.2s' }}>
 
             {/* Step: URL */}
             {step === 'url' && (
@@ -331,31 +368,97 @@ export function OptimizePageFlow({ projectId, productUrl, goal, onClose, onCompl
             {step === 'cta' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F7F7F5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                    <Target style={{ width: 24, height: 24, color: '#1A1A1A' }} />
-                  </div>
                   <h2 style={{ fontSize: 18, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>What action matters most?</h2>
-                  <p style={{ fontSize: 13, color: '#9B9A97' }}>The key CTA or conversion action on this page</p>
+                  <p style={{ fontSize: 13, color: '#9B9A97' }}>Click on the element you want to optimize</p>
                 </div>
-                <input
-                  type="text" value={targetCta} onChange={e => setTargetCta(e.target.value)}
-                  placeholder="e.g. Sign up, Start free trial, Book a demo"
-                  autoFocus
-                  style={{ width: '100%', height: 44, border: '1px solid #E5E3DD', borderRadius: 8, fontSize: 14, padding: '0 14px', outline: 'none', boxSizing: 'border-box' }}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
-                  onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
-                />
+
+                {/* Crawl loading */}
+                {crawlRunning && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 40 }}>
+                    <Loader2 style={{ width: 16, height: 16, color: '#9B9A97', animation: 'spin 1s linear infinite' }} />
+                    <span style={{ fontSize: 13, color: '#9B9A97' }}>Scanning your page...</span>
+                  </div>
+                )}
+
+                {/* No screenshot */}
+                {!crawlRunning && crawlData && !crawlData.screenshot && (
+                  <div style={{ padding: 16, background: '#FBF4E6', borderRadius: 8, border: '1px solid #f0e0b8', fontSize: 13, color: '#92600a', textAlign: 'center' }}>
+                    Could not capture screenshot. You can type the action name below instead.
+                  </div>
+                )}
+
+                {/* Screenshot with clickable elements */}
+                {!crawlRunning && crawlData?.screenshot && (
+                  <>
+                    <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E3DD' }}>
+                      <img
+                        src={`data:image/png;base64,${crawlData.screenshot}`}
+                        alt="Page screenshot"
+                        style={{ width: '100%', height: 'auto', display: 'block' }}
+                        onLoad={(e) => {
+                          const target = e.target as HTMLImageElement
+                          if (target.naturalWidth && target.naturalHeight) {
+                            const rect = target.getBoundingClientRect()
+                            setScreenshotScale({
+                              scaleX: rect.width / target.naturalWidth,
+                              scaleY: rect.height / target.naturalHeight,
+                            })
+                          }
+                        }}
+                      />
+                      {screenshotScale && crawlData.elements.map((el, i) => (
+                        <button key={i} type="button" onClick={() => setSelectedElement(el)}
+                          style={{
+                            position: 'absolute',
+                            left: el.position.x * screenshotScale.scaleX,
+                            top: el.position.y * screenshotScale.scaleY,
+                            width: el.position.width * screenshotScale.scaleX,
+                            height: el.position.height * screenshotScale.scaleY,
+                            border: `2px solid ${selectedElement === el ? '#6B4FBB' : 'rgba(107, 79, 187, 0.3)'}`,
+                            backgroundColor: selectedElement === el ? 'rgba(107, 79, 187, 0.15)' : 'transparent',
+                            cursor: 'pointer', borderRadius: 2, padding: 0,
+                            transition: 'border-color 0.15s, background-color 0.15s',
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Element chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {crawlData.elements.map((el, i) => (
+                        <button key={i} type="button" onClick={() => setSelectedElement(el)}
+                          style={{
+                            padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                            border: 'none', cursor: 'pointer',
+                            background: selectedElement === el ? '#6B4FBB' : '#F7F7F5',
+                            color: selectedElement === el ? '#fff' : '#1A1A1A',
+                            transition: 'background 0.15s, color 0.15s',
+                          }}>
+                          {el.text || `${el.type} ${i + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Selected element display */}
+                {selectedElement && (
+                  <div style={{ padding: '10px 14px', background: '#F0ECFA', borderRadius: 8, border: '1px solid #D4C8F0', fontSize: 13 }}>
+                    <span style={{ fontWeight: 500, color: '#6B4FBB' }}>Selected:</span>{' '}
+                    <span style={{ color: '#1A1A1A' }}>{selectedElement.text || selectedElement.type}</span>
+                  </div>
+                )}
 
                 {error && (
                   <p style={{ fontSize: 12, color: '#9B3030', margin: 0 }}>{error}</p>
                 )}
 
-                <button type="button" disabled={!targetCta.trim() || submitting} onClick={handleSubmit}
+                <button type="button" disabled={!selectedElement || submitting} onClick={handleSubmit}
                   style={{
                     width: '100%', height: 44, borderRadius: 8, border: 'none',
-                    background: targetCta.trim() && !submitting ? '#1A1A1A' : '#E5E3DD', color: '#fff',
+                    background: selectedElement && !submitting ? '#1A1A1A' : '#E5E3DD', color: '#fff',
                     fontSize: 14, fontWeight: 500,
-                    cursor: targetCta.trim() && !submitting ? 'pointer' : 'not-allowed',
+                    cursor: selectedElement && !submitting ? 'pointer' : 'not-allowed',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}>
                   {submitting ? (
