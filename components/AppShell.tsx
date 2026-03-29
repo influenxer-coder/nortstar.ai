@@ -36,8 +36,8 @@ export async function AppShell({
     }
   }
 
-  const agentsByProduct = new Map<string, { id: string; name: string; status: string | null }[]>()
-  const ungrouped: { id: string; name: string; status: string | null }[] = []
+  const agentsByProduct = new Map<string, { id: string; name: string; status: string | null; type?: string | null }[]>()
+  const ungrouped: { id: string; name: string; status: string | null; type?: string | null }[] = []
   for (const agent of agents ?? []) {
     const stub = { id: agent.id, name: agent.name, status: agent.status, type: (agent as Record<string, unknown>).type as string | null }
     if (agent.product_id) {
