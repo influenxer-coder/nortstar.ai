@@ -14,7 +14,7 @@ export async function POST(
 
   const { data: agent } = await supabase
     .from('agents')
-    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, main_kpi')
+    .select('id, name, url, github_repo, posthog_api_key, posthog_project_id, target_element, main_kpi, project_id, goal')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single()

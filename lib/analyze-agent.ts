@@ -27,6 +27,19 @@ export interface AgentInfo {
   posthog_project_id?: string | null
   target_element: { type?: string; text?: string } | null
   main_kpi: string | null
+  project_id?: string | null
+  goal?: string | null
+}
+
+interface ProductContext {
+  productName: string
+  productUrl: string
+  description: string
+  icp: string
+  goal: string
+  northStarMetric: string
+  competitorSignals: string
+  subverticalNiche: string
 }
 
 // ── Log helpers ────────────────────────────────────────────────────────────────
@@ -98,7 +111,76 @@ export async function analyzeAgent(
   // Clear stale logs before re-running
   await supabase.from('agent_logs').delete().eq('agent_id', agentId)
 
-  // ── Step 1: Fetch GitHub commits ─────────────────────────────────────────────
+  // ── Step 0: Fetch product/project context ──────────────────────────────────
+  let productCtx: ProductContext = {
+    productName: agent.name, productUrl: agent.url ?? '', description: '',
+    icp: '', goal: agent.goal ?? '', northStarMetric: agent.main_kpi ?? '',
+    competitorSignals: '', subverticalNiche: '',
+  }
+
+  if (agent.project_id) {
+    try {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('name, url, description, icp, north_star_metric, strategy_json')
+        .eq('id', agent.project_id)
+        .single()
+
+      if (project) {
+        productCtx.productName = project.name ?? productCtx.productName
+        productCtx.productUrl = project.url ?? productCtx.productUrl
+        productCtx.description = project.description ?? ''
+        productCtx.icp = typeof project.icp === 'string' ? project.icp : JSON.stringify(project.icp ?? '')
+        productCtx.northStarMetric = project.north_star_metric ?? productCtx.northStarMetric
+
+        const strategy = (project.strategy_json ?? {}) as Record<string, unknown>
+        const ctx = (strategy.onboarding_context ?? {}) as Record<string, unknown>
+        productCtx.goal = (ctx.goal as string) ?? agent.goal ?? ''
+
+        const match = (strategy.match ?? {}) as Record<string, unknown>
+        const subverticalId = match.subvertical_id as string | undefined
+
+        if (subverticalId) {
+          const [{ data: subvertical }, { data: competitors }] = await Promise.all([
+            supabase.from('subverticals')
+              .select('evolutionary_niches, trending_features')
+              .eq('id', subverticalId).single(),
+            supabase.from('vertical_products')
+              .select('name, known_winning_features, changelog_signals')
+              .eq('subvertical_id', subverticalId).eq('is_active', true).limit(5),
+          ])
+
+          const niches = Array.isArray((subvertical as Record<string, unknown>)?.evolutionary_niches)
+            ? (subvertical as Record<string, unknown>).evolutionary_niches as Record<string, unknown>[]
+            : []
+          if (niches[0]) {
+            productCtx.subverticalNiche = `${niches[0].niche ?? ''}: ${niches[0].example_wedge ?? ''}`
+          }
+
+          if (competitors && competitors.length > 0) {
+            productCtx.competitorSignals = competitors.map(c => {
+              const cl = ((c as Record<string, unknown>).changelog_signals ?? {}) as Record<string, unknown>
+              const features = Array.isArray(cl.features_90d) ? (cl.features_90d as string[]).slice(0, 2).join(', ') : ''
+              return `${(c as Record<string, unknown>).name}: ${features || 'no recent features'}`
+            }).join('\n')
+          }
+        }
+      }
+    } catch { /* continue without product context */ }
+  }
+
+  const productContextBlock = `
+PRODUCT: ${productCtx.productName}
+URL: ${productCtx.productUrl}
+DESCRIPTION: ${productCtx.description}
+ICP: ${productCtx.icp}
+GOAL: ${productCtx.goal}
+NORTH STAR METRIC: ${productCtx.northStarMetric}
+${productCtx.subverticalNiche ? `MARKET NICHE: ${productCtx.subverticalNiche}` : ''}
+${productCtx.competitorSignals ? `COMPETITORS:\n${productCtx.competitorSignals}` : ''}
+`.trim()
+
+  // ── Step 1: Fetch GitHub commits (kept for code context, NOT for hypotheses) ─
   let commitContext = ''
   if (agent.github_repo && githubToken) {
     const logId = await addLog(
@@ -205,22 +287,22 @@ export async function analyzeAgent(
       const prodResp = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 500,
-        system: `You are a product analyst. Write a concise, specific product profile from the data provided. Ground every sentence in the commit messages and event names given — no generic statements. Return plain text, 2–3 short paragraphs.`,
+        system: `You are a product analyst. Write a concise, specific product profile grounded in the product data, user behavior, and market context provided. Return plain text, 2–3 short paragraphs.`,
         messages: [{
           role: 'user',
-          content: `Agent name: ${agent.name}
-Product URL: ${agent.url ?? 'not provided'}
+          content: `${productContextBlock}
+
+Page being optimized: ${agent.url ?? 'not provided'}
 Target feature: ${targetDescProd}
 Primary success metric: ${agent.main_kpi ?? 'not specified'}
-${commitContext ? `Recent commit messages (infer what the product does from these):\n${commitContext.slice(0, 600)}` : ''}
-${posthogSummary ? `User behavior data (infer who uses it and how):\n${posthogSummary}` : ''}
+${posthogSummary ? `User behavior data (last 7 days):\n${posthogSummary}` : ''}
 
 Write 2–3 paragraphs covering:
-1. What this product does and who uses it — inferred from the events and commits, not generic
+1. What this product does and who uses it — use the ICP, description, and behavior data
 2. What the target feature (${targetDescProd}) does within the product and why users interact with it
-3. What moving ${agent.main_kpi ?? 'the primary KPI'} means for the business in concrete terms
+3. What the competitive landscape looks like and what moving ${agent.main_kpi ?? 'the primary KPI'} means for winning against competitors
 
-Be specific to THIS product. If you cannot infer something, say so briefly rather than guessing generically.`
+Be specific to THIS product and market.`
         }]
       })
       productUnderstanding = prodResp.content[0].type === 'text' ? prodResp.content[0].text : ''
@@ -290,10 +372,11 @@ Ignore database migrations, CI/CD, dependency bumps, and server-side-only change
         role: 'user',
         content: `I need you to brief an AI agent that will advise a product team on optimizing their page.
 
-Product URL: ${agent.url || 'a web product'}
+${productContextBlock}
+
+Page being optimized: ${agent.url || 'a web product'}
 Target: ${targetDesc}
 Primary metric: ${agent.main_kpi || 'conversion rate'}
-${agent.github_repo ? `Codebase: ${agent.github_repo}` : ''}
 
 Answer these four questions in structured bullet points:
 
@@ -345,13 +428,14 @@ The agent will use this brief to answer questions from the product team in Slack
           ? `"${agent.target_element.text}" (${agent.target_element.type || 'element'})`
           : 'the primary conversion element'
 
-        // Feed only data-derived context (product profile + behavior + commits).
-        // Deliberately exclude generic CRO research so hypotheses are grounded
-        // in THIS product's evidence, not industry best-practice templates.
+        // Feed product context + behavior data. Exclude commits from hypothesis
+        // sourcing — they produce generic ideas based on past work rather than
+        // forward-looking opportunities grounded in market/product strategy.
         const dataContext = [
-          productUnderstanding ? `## Product\n${productUnderstanding}` : null,
+          `## Product & Market Context\n${productContextBlock}`,
+          productUnderstanding ? `## Product Understanding\n${productUnderstanding}` : null,
           posthogSummary ? `## User behavior (last 7 days)\n${posthogSummary}` : null,
-          codeAnalysis ? `## Recent shipping activity\n${codeAnalysis}` : null,
+          productCtx.competitorSignals ? `## Competitor Activity\n${productCtx.competitorSignals}` : null,
         ].filter(Boolean).join('\n\n')
 
         const vertical = deriveVertical(agent.url ?? '')
@@ -368,25 +452,29 @@ The agent will use this brief to answer questions from the product team in Slack
           system: `You are a product optimization expert. Generate specific, testable hypotheses grounded in the actual data provided. Every hypothesis MUST cite a concrete data point — an event name, a commit message phrase, or a specific metric. Do not generate generic best-practice advice. Return ONLY a valid JSON array — no markdown, no explanation, no code fences.${brainCtx ? `\n\n${brainCtx}` : ''}`,
           messages: [{
             role: 'user',
-            content: `Product: ${agent.url ?? 'unknown'}
+            content: `Product: ${productCtx.productName} (${productCtx.productUrl})
+Page being optimized: ${agent.url ?? 'unknown'}
 Target: ${targetDesc}
 KPI: ${agent.main_kpi ?? 'conversion rate'}
+Goal: ${productCtx.goal}
 
 Data:
 ${dataContext || contextSummary}
 
 Generate 5–7 improvement hypotheses. Rules:
-- Each hypothesis MUST reference specific evidence from the data (quote an event name, a commit phrase, or a metric number)
+- Each hypothesis MUST reference specific evidence: a user behavior metric, a competitor's feature, an ICP insight, or a market gap
+- Do NOT reference commit messages or past code changes as evidence
 - Every suggested change must name the exact element, copy, or interaction to modify — no vague statements like "improve the CTA"
-- Scope strictly to the target feature (${targetDesc}): UI, copy, flow, or interaction changes the user sees
+- Consider what competitors are doing and what the ICP cares about
+- Scope strictly to the page being optimized (${agent.url ?? 'this page'}): UI, copy, flow, or interaction changes
 - Do NOT suggest backend refactors, database changes, or infrastructure work
 - Order by impact_score descending
 
 Return a JSON array where each item has exactly:
 {
   "title": "Verb-first title max 8 words",
-  "source": "PostHog data | GitHub commits | Behavior analysis",
-  "hypothesis": "2–3 sentences: (1) what specific evidence (cite it) shows this problem, (2) what change fixes it, (3) which metric moves and in which direction",
+  "source": "User behavior | Competitor analysis | Market insight | ICP research",
+  "hypothesis": "2–3 sentences: (1) what specific evidence shows this opportunity, (2) what change captures it, (3) which metric moves and in which direction",
   "suggested_change": "Exact change — specific copy wording, element name, layout detail, or interaction. Quote current state vs proposed state where possible.",
   "impact_score": 1-5
 }`
