@@ -37,10 +37,16 @@ type ScreenComment = {
 }
 
 type CommentBox = {
+  id: string
   screenId: string
   x: number
   y: number
   elementContext: string
+  posX: number
+  posY: number
+  text: string
+  applied: boolean
+  applying: boolean
 }
 
 const RISK_COLORS: Record<string, { color: string; bg: string }> = {
@@ -143,14 +149,10 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [isDragging, setIsDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   // Comment / edit state
-  const [commentBox, setCommentBox] = useState<CommentBox | null>(null)
-  const [commentText, setCommentText] = useState('')
-  const [isApplyingEdit, setIsApplyingEdit] = useState(false)
+  const [commentBoxes, setCommentBoxes] = useState<CommentBox[]>([])
   const [screenComments, setScreenComments] = useState<ScreenComment[]>([])
   const [pendingHtml, setPendingHtml] = useState<{ screenId: string; html: string } | null>(null)
-  const [commentPos, setCommentPos] = useState<{ x: number; y: number } | null>(null)
-  const commentDragRef = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 })
-  const commentInputRef = useRef<HTMLTextAreaElement>(null)
+  const commentDragRef = useRef({ dragging: false, boxId: '', startX: 0, startY: 0, origX: 0, origY: 0 })
   const protoSubMsgIdx = useRef(0)
   const [protoSubMessage, setProtoSubMessage] = useState(PROTO_SUB_MESSAGES[0])
   const screenScrollRef = useRef<HTMLDivElement>(null)
@@ -468,49 +470,58 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     const screenEl = document.getElementById(`proto-screen-${screenId}`)
     if (!screenEl) return
     const rect = screenEl.getBoundingClientRect()
-    setCommentBox({
+    const boxId = `cb-${Date.now()}`
+    const newBox: CommentBox = {
+      id: boxId,
       screenId,
       x: info.x,
       y: info.y,
       elementContext: `<${info.elementTag}> "${info.elementText}"${info.elementClasses ? ` class="${info.elementClasses}"` : ''}`,
-    })
-    // Position the floating chat box near the click, in viewport coordinates
-    setCommentPos({
-      x: rect.left + info.x * canvasZoom + 20,
-      y: rect.top + info.y * canvasZoom,
-    })
-    setCommentText('')
+      posX: rect.left + info.x * canvasZoom + 20,
+      posY: rect.top + info.y * canvasZoom,
+      text: '',
+      applied: false,
+      applying: false,
+    }
+    setCommentBoxes(prev => [...prev, newBox])
     setActiveScreenId(screenId)
-    setTimeout(() => commentInputRef.current?.focus(), 50)
   }
 
-  const submitComment = async () => {
-    if (!commentBox || !commentText.trim()) return
-    const screen = protoScreens.find(s => s.id === commentBox.screenId)
+  const updateBoxText = (boxId: string, text: string) => {
+    setCommentBoxes(prev => prev.map(b => b.id === boxId ? { ...b, text } : b))
+  }
+
+  const closeBox = (boxId: string) => {
+    setCommentBoxes(prev => prev.filter(b => b.id !== boxId))
+  }
+
+  const submitBoxComment = async (boxId: string) => {
+    const box = commentBoxes.find(b => b.id === boxId)
+    if (!box || !box.text.trim()) return
+    const screen = protoScreens.find(s => s.id === box.screenId)
     if (!screen) return
 
     const comment: ScreenComment = {
       id: `c-${Date.now()}`,
-      screenId: commentBox.screenId,
+      screenId: box.screenId,
       screenLabel: screen.label,
-      instruction: commentText.trim(),
-      elementContext: commentBox.elementContext,
+      instruction: box.text.trim(),
+      elementContext: box.elementContext,
       timestamp: Date.now(),
       applied: false,
     }
 
-    setIsApplyingEdit(true)
-    const savedBox = { ...commentBox }
+    setCommentBoxes(prev => prev.map(b => b.id === boxId ? { ...b, applying: true } : b))
 
     try {
       const res = await fetch(`/api/opportunities/${opportunityId}/prototype/edit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          screen_id: savedBox.screenId,
+          screen_id: box.screenId,
           current_html: screen.component_code,
-          instruction: commentText.trim(),
-          element_context: savedBox.elementContext,
+          instruction: box.text.trim(),
+          element_context: box.elementContext,
           plan_markdown: planMarkdown,
         }),
       })
@@ -518,21 +529,14 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
       if (!res.ok) throw new Error('Edit failed')
       const data = await res.json() as { html: string; screen_id: string }
 
-      // Store pending HTML for accept/reject
-      setPendingHtml({ screenId: data.screen_id, html: data.html })
       setScreenComments(prev => [...prev, { ...comment, applied: true }])
-      // Apply immediately (user can still see history)
       setProtoScreens(prev => prev.map(s =>
         s.id === data.screen_id ? { ...s, component_code: data.html } : s
       ))
-      setCommentBox(null)
-      setCommentPos(null)
-      setCommentText('')
+      // Mark as applied, keep box open so user sees what was done
+      setCommentBoxes(prev => prev.map(b => b.id === boxId ? { ...b, applying: false, applied: true, text: '' } : b))
     } catch {
-      // Keep comment box open on error
-    } finally {
-      setIsApplyingEdit(false)
-      setPendingHtml(null)
+      setCommentBoxes(prev => prev.map(b => b.id === boxId ? { ...b, applying: false } : b))
     }
   }
 
@@ -802,16 +806,16 @@ Implement the changes described in the plan above. The prototype screens show wh
                         }}>
                           <DynamicScreen code={screen.component_code} index={i} viewMode={viewMode}
                             onElementClick={(info) => handleScreenClick(screen.id, info)} />
-                          {/* Click anchor dot */}
-                          {commentBox?.screenId === screen.id && (
-                            <div style={{
+                          {/* Click anchor dots for open comment boxes */}
+                          {commentBoxes.filter(b => b.screenId === screen.id).map(b => (
+                            <div key={b.id} style={{
                               position: 'absolute',
-                              left: commentBox.x - 5, top: commentBox.y - 5,
+                              left: b.x - 5, top: b.y - 5,
                               width: 10, height: 10, borderRadius: '50%',
-                              background: '#6B4FBB', border: '2px solid #fff',
-                              boxShadow: '0 0 0 2px #6B4FBB', zIndex: 15,
+                              background: b.applied ? '#4D9B6F' : '#6B4FBB', border: '2px solid #fff',
+                              boxShadow: `0 0 0 2px ${b.applied ? '#4D9B6F' : '#6B4FBB'}`, zIndex: 15,
                             }} />
-                          )}
+                          ))}
                           {/* Comment dots for this screen */}
                           {screenComments.filter(c => c.screenId === screen.id).length > 0 && (
                             <div style={{ position: 'absolute', top: 6, left: 6, display: 'flex', gap: 3 }}>
@@ -832,16 +836,18 @@ Implement the changes described in the plan above. The prototype screens show wh
               </div>
             </div>
 
-            {/* Floating draggable comment chat box */}
-            {commentBox && commentPos && (
-              <div
+            {/* Floating draggable comment chat boxes */}
+            {commentBoxes.map(box => (
+              <div key={box.id}
                 style={{
                   position: 'fixed',
-                  left: commentPos.x, top: commentPos.y,
+                  left: box.posX, top: box.posY,
                   zIndex: 30,
-                  width: 280, minHeight: 140,
-                  background: '#ffffff', border: '1px solid #6B4FBB', borderRadius: 12,
-                  boxShadow: '0 8px 24px rgba(107, 79, 187, 0.2)',
+                  width: 280, minHeight: 120,
+                  background: '#ffffff',
+                  border: `1px solid ${box.applied ? '#4D9B6F' : '#6B4FBB'}`,
+                  borderRadius: 12,
+                  boxShadow: `0 8px 24px rgba(${box.applied ? '77,155,111' : '107,79,187'}, 0.2)`,
                   display: 'flex', flexDirection: 'column',
                   overflow: 'hidden',
                 }}
@@ -850,18 +856,21 @@ Implement the changes described in the plan above. The prototype screens show wh
                 {/* Drag handle + element info */}
                 <div
                   style={{
-                    padding: '8px 12px', background: '#F9F8FC', borderBottom: '1px solid #E5E3DD',
+                    padding: '8px 12px',
+                    background: box.applied ? '#F0FAF4' : '#F9F8FC',
+                    borderBottom: '1px solid #E5E3DD',
                     cursor: 'grab', userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 4,
                   }}
                   onMouseDown={e => {
                     e.stopPropagation()
-                    commentDragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: commentPos.x, origY: commentPos.y }
+                    commentDragRef.current = { dragging: true, boxId: box.id, startX: e.clientX, startY: e.clientY, origX: box.posX, origY: box.posY }
                     const onMove = (ev: MouseEvent) => {
                       if (!commentDragRef.current.dragging) return
-                      setCommentPos({
-                        x: commentDragRef.current.origX + (ev.clientX - commentDragRef.current.startX),
-                        y: commentDragRef.current.origY + (ev.clientY - commentDragRef.current.startY),
-                      })
+                      setCommentBoxes(prev => prev.map(b => b.id === commentDragRef.current.boxId ? {
+                        ...b,
+                        posX: commentDragRef.current.origX + (ev.clientX - commentDragRef.current.startX),
+                        posY: commentDragRef.current.origY + (ev.clientY - commentDragRef.current.startY),
+                      } : b))
                     }
                     const onUp = () => {
                       commentDragRef.current.dragging = false
@@ -874,25 +883,27 @@ Implement the changes described in the plan above. The prototype screens show wh
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6B4FBB' }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#6B4FBB' }}>Comment</span>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: box.applied ? '#4D9B6F' : '#6B4FBB' }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: box.applied ? '#4D9B6F' : '#6B4FBB' }}>
+                        {box.applied ? 'Applied' : 'Comment'}
+                      </span>
                     </div>
-                    <button type="button" onClick={() => { setCommentBox(null); setCommentPos(null) }}
+                    <button type="button" onClick={() => closeBox(box.id)}
                       style={{ width: 20, height: 20, borderRadius: 4, border: 'none', background: 'transparent', color: '#9B9A97', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                       <X style={{ width: 12, height: 12 }} />
                     </button>
                   </div>
                   <div style={{ fontSize: 11, color: '#9B9A97', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {commentBox.elementContext}
+                    {box.elementContext}
                   </div>
                 </div>
 
-                {/* Chat area — past comments for this screen */}
-                {screenComments.filter(c => c.screenId === commentBox.screenId).length > 0 && (
-                  <div style={{ maxHeight: 100, overflowY: 'auto', padding: '8px 12px', borderBottom: '1px solid #F7F7F5' }}>
-                    {screenComments.filter(c => c.screenId === commentBox.screenId).map(c => (
-                      <div key={c.id} style={{ fontSize: 12, color: '#444', marginBottom: 4, lineHeight: 1.4 }}>
-                        <span style={{ color: '#6B4FBB', fontWeight: 500 }}>You:</span> {c.instruction}
+                {/* Past applied comments for this element */}
+                {screenComments.filter(c => c.screenId === box.screenId && c.elementContext === box.elementContext).length > 0 && (
+                  <div style={{ maxHeight: 80, overflowY: 'auto', padding: '6px 12px', borderBottom: '1px solid #F7F7F5' }}>
+                    {screenComments.filter(c => c.screenId === box.screenId && c.elementContext === box.elementContext).map(c => (
+                      <div key={c.id} style={{ fontSize: 12, color: '#166534', marginBottom: 3, lineHeight: 1.4, display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                        <span style={{ color: '#4D9B6F', flexShrink: 0 }}>✓</span> {c.instruction}
                       </div>
                     ))}
                   </div>
@@ -900,7 +911,7 @@ Implement the changes described in the plan above. The prototype screens show wh
 
                 {/* Input area */}
                 <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {isApplyingEdit ? (
+                  {box.applying ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0' }}>
                       <Loader2 style={{ width: 14, height: 14, color: '#6B4FBB', animation: 'spin 1s linear infinite' }} />
                       <span style={{ fontSize: 12, color: '#9B9A97' }}>Applying change...</span>
@@ -908,11 +919,10 @@ Implement the changes described in the plan above. The prototype screens show wh
                   ) : (
                     <>
                       <textarea
-                        ref={commentInputRef}
-                        value={commentText}
-                        onChange={e => setCommentText(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentText.trim()) { e.preventDefault(); submitComment() } if (e.key === 'Escape') { setCommentBox(null); setCommentPos(null) } }}
-                        placeholder="What should change here?"
+                        value={box.text}
+                        onChange={e => updateBoxText(box.id, e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && box.text.trim()) { e.preventDefault(); submitBoxComment(box.id) } if (e.key === 'Escape') closeBox(box.id) }}
+                        placeholder={box.applied ? 'Another change?' : 'What should change here?'}
                         rows={3}
                         style={{
                           width: '100%', border: '1px solid #E5E3DD', borderRadius: 6, outline: 'none',
@@ -922,12 +932,12 @@ Implement the changes described in the plan above. The prototype screens show wh
                         onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
                         onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
                       />
-                      <button type="button" onClick={() => submitComment()} disabled={!commentText.trim()}
+                      <button type="button" onClick={() => submitBoxComment(box.id)} disabled={!box.text.trim()}
                         style={{
                           width: '100%', height: 32, borderRadius: 6, border: 'none',
-                          background: commentText.trim() ? '#6B4FBB' : '#E5E3DD',
+                          background: box.text.trim() ? '#6B4FBB' : '#E5E3DD',
                           color: '#fff', fontSize: 12, fontWeight: 500,
-                          cursor: commentText.trim() ? 'pointer' : 'not-allowed',
+                          cursor: box.text.trim() ? 'pointer' : 'not-allowed',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                         }}>
                         <Send style={{ width: 12, height: 12 }} /> Apply change
@@ -936,7 +946,7 @@ Implement the changes described in the plan above. The prototype screens show wh
                   )}
                 </div>
               </div>
-            )}
+            ))}
           </div>
         )
       }
