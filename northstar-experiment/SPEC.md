@@ -24,117 +24,125 @@ Rising competitor ships zero-friction onboarding to capture the segment incumben
 
 ## The Hypothesis
 
-Solo founders and pre-seed teams represent a high-urgency, unserved whitespace segment that every current incumbent explicitly fails to convert. The failure mode is consistent and structural: **pricing complexity plus required PM expertise creates a zero-to-one barrier** that eliminates the segment before they reach value.
+Solo founders and pre-seed teams represent a high-urgency, unserved segment that every incumbent has structurally abandoned. Chisel requires PM methodology fluency to configure boards. Canny surfaces blank-slate setup with no guidance. Amplitude's newly shipped AI Feedback and Amplitude Agent are explicitly positioned at 200+ person companies with a Head of Growth or Product Analytics in the seat. Productboard's recent Required Fields and Streamlined Navigation updates signal a push *further* into Series C and enterprise, not toward early-stage. PostHog — the one competitor validated as a pattern match for this variation — wins with Product Engineers and Growth PMs at 50+ person companies, meaning even the most developer-friendly tool in the space has a floor that excludes the pre-seed solo founder.
 
-Chisel wins with "Head of Product or Product Manager at a Series B/C company" — meaning their product is architected for someone who already knows what a prioritization framework is. ProdPad wins with "Head of Product at a Series C company." Amplitude wins at "200+ person companies." The pattern is universal: every competitor has optimized their onboarding for practitioners, not builders.
+The whitespace is structural, not accidental. No incumbent can move downmarket without destroying their enterprise pricing narrative. Agent NorthStar has no such constraint.
 
-PostHog is the closest exception — they win with "Product Engineer or Head of Product at a Series C or enterprise company" and have shipped a substantial feature surface (new dashboard, improved analytics, enhanced security in the last 90 days), suggesting rapid iteration velocity. They are the most dangerous validator of the zero-friction thesis, not a threat to this specific segment play.
-
-Agent NorthStar's current homepage speaks to the same ICP gap: "Run NorthStar on my product →" assumes the visitor already has a product with trackable flows and a PM to approve specs. A solo founder at pre-seed has none of that scaffolding. The opportunity is to intercept them **before they bounce on the blank-slate problem**, using a conversational AI wizard that produces a real artifact — not a demo, not a tour — in under 5 minutes.
-
-If a user lands, answers 3–5 plain-language questions, and leaves with a configured roadmap + prioritization view, the marginal cost of "not getting it" collapses to zero. That is the bet.
+A conversational AI onboarding wizard that produces a usable artifact in under 5 minutes — with no PM jargon, no blank-slate setup, and no required integrations — will convert solo founders and pre-seed teams at a rate incumbents cannot match because incumbents cannot ship this without cannibalizing their ICP positioning. The expected conversion lift is **+18–34%** for this segment based on validated patterns from Chisel and PostHog's own zero-friction onboarding moves.
 
 ---
 
 ## What We're Building
 
-A **Conversational AI Onboarding Wizard** — a new, distinct entry path on the Agent NorthStar sign-up or post-auth flow that replaces the blank-slate dashboard with a guided 3–5 question sequence.
+A **conversational AI onboarding wizard** inserted between the post-authentication redirect and the main product dashboard. This is a full-screen, modal-style guided flow — not a tooltip tour, not a checklist — that replaces the current blank-slate first session.
 
-**Specific changes:**
+**The flow asks 3–5 plain-language questions:**
 
-- **New CTA on homepage hero**: Add a secondary button below the primary "Run NorthStar on my product →" reading: **"Just starting out? Set up in 5 minutes →"** — targeting the pre-seed / solo founder who self-identifies as not-yet-a-PM.
-- **New onboarding route** (`/onboarding/guided`): A full-screen conversational step sequence, one question per screen, no sidebar navigation, no empty tables, no integration prompts.
-- **Question sequence** (plain language, no jargon):
-  1. "What are you building?" *(free text, 1–2 sentences)*
-  2. "Who is it for?" *(free text or optional category pills: consumers / small businesses / developers / internal teams)*
-  3. "What's your biggest unknown right now?" *(pills: Will people pay for it? / Are they using the right features? / Why are users dropping off? / What to build next?)*
-  4. "How many people are on your team?" *(1 / 2–5 / 6–15 / 16+)*
-  5. *(Conditional)* "Do you have any users yet?" *(Yes — some / Yes — hundreds+ / Not yet)*
-- **Auto-generated artifact**: On completion, NorthStar's AI synthesizes answers and produces:
-  - A named **starter roadmap** (3 pre-populated hypotheses derived from their stated unknown)
-  - A **feedback board** with 2–3 seeded questions to ask their first users
-  - A **first prioritization view** ranked by the stated unknown
-- The artifact screen headline reads: **"Here's your starting point. You can change anything."** — removing the terror of the blank slate.
+1. *"What are you building?"* — free text, with 4 example chips (e.g., "B2B SaaS", "Consumer app", "Dev tool", "Marketplace")
+2. *"Who are your users?"* — free text, with persona chips (e.g., "SMB buyers", "Developers", "End consumers")
+3. *"What's your biggest unknown right now?"* — free text, with intent chips (e.g., "Whether users want this", "Which feature to build first", "Why users are churning")
+4. *(Conditional)* *"Do you have any competitors in mind?"* — optional, text input with skip affordance
+5. *(Conditional)* *"What does success look like in 30 days?"* — optional, text input with skip affordance
+
+On completion, the agent auto-configures and renders:
+
+- A **starter roadmap** pre-populated with 3–5 hypothesis cards relevant to the answers given
+- A **feedback board** with labeled columns matching the stated user segment
+- A **first prioritization view** ranked by the stated "biggest unknown"
+
+The CTA on the final screen reads: **"Your first experiment is ready — review it now →"** not "Go to dashboard."
+
+**No integrations required. No PM jargon. No empty states.**
 
 ---
 
 ## The New Screens
 
-### Screen 1 — Homepage Hero (modified)
-**What changes:** Add a second CTA button beneath the existing primary CTA.
-- Current: `[Run NorthStar on my product →]`
-- Add: `[Just starting out? Set up in 5 minutes →]` — lower visual weight (outlined, not filled), positioned directly below.
-- **Why:** Creates a self-selection fork. The existing ICP (VP/Head of Product at Series B–D) continues on the current path. The new segment self-routes without polluting the primary conversion funnel.
+### Screen 1 — Onboarding Entry Gate
+**Screen name:** `/onboarding/start`
+**What changes:** This is a net-new screen. After `auth/login` completes and the session is confirmed, users who have zero prior product data are redirected here instead of the main dashboard. Full-screen layout, centered card, Agent NorthStar wordmark at top. Single headline: *"Let's set up your first experiment in under 5 minutes."* Subtext: *"No PM experience required. No integrations needed today."* Single CTA button: **"Let's go →"**
+**Why:** Establishes zero-friction framing immediately. Signals this is different from every tool they've bounced off before. Removes decision paralysis before the first question.
 
 ---
 
-### Screen 2 — Onboarding Entry Gate (`/onboarding/guided`)
-**What changes:** New screen, full-page, no app chrome.
-- Headline: **"Let's build your first product map."**
-- Subhead: **"Answer 3–5 questions. We'll set everything up."**
-- Single "Start →" button.
-- Progress indicator: 5 dots, none filled yet.
-- **Why:** Signals low commitment, establishes the 5-minute contract, removes the cognitive load of a feature-heavy dashboard appearing all at once.
+### Screen 2 — Question Flow (Steps 1–5)
+**Screen name:** `/onboarding/wizard` (single route, step state managed client-side)
+**What changes:** Net-new screen. Conversational single-question-per-screen layout. Progress indicator at top (e.g., "Step 2 of 4"). Each question renders in large, friendly type — no form labels, no field borders, conversational tone. Answer chips render below the text input as optional accelerators. "Back" affordance visible but de-emphasized. "Skip" affordance on conditional questions only.
+**Why:** Single-question-per-screen is the PostHog-validated pattern for reducing cognitive load during onboarding. Chip accelerators reduce time-to-answer without removing free-text flexibility. This mirrors the conversational AI interaction model users already associate with tools like ChatGPT — no learning curve.
 
 ---
 
-### Screen 3–7 — Question Steps (`/onboarding/guided/step/[1–5]`)
-**What changes:** Five sequential full-screen question cards, one per route step.
-- Each card: question in large type (24–28px), input method appropriate to question (free text or pill selection), "Continue →" CTA, back chevron top-left.
-- No progress bar percentage — just dot indicators (reduces anxiety about length).
-- Step 3 (biggest unknown): pill answers only — no free text — to reduce drop-off from open-ended paralysis.
-- **Why:** Pill-based answers on the pivotal question (biggest unknown) mirror how PostHog reduced onboarding friction through opinionated defaults. Forces completion over reflection.
+### Screen 3 — AI Processing Interstitial
+**Screen name:** `/onboarding/generating`
+**What changes:** Net-new screen. Full-screen animated state shown for 3–8 seconds while the AI configures the workspace. Copy cycles through: *"Mapping your competitive landscape…"* → *"Generating your first hypotheses…"* → *"Building your prioritization view…"* Agent NorthStar logo animates (pulse or orbit motion). No progress bar — motion implies activity without implying a wait.
+**Why:** Frames the AI as doing real work, not just redirecting. Sets expectation that what appears next was built for them specifically — not a generic template. This moment is the "aha" setup.
 
 ---
 
-### Screen 8 — Generating Artifact (`/onboarding/guided/generating`)
-**What changes:** New interstitial screen shown for 4–8 seconds while AI configures the workspace.
-- Animated visual: three cards assembling (roadmap / feedback board / prioritization view) with labels appearing.
-- Copy cycling through: *"Mapping your unknowns…" → "Building your first roadmap…" → "Setting up your feedback board…"*
-- **Why:** Creates perceived value of AI work. Raises the psychological worth of the artifact before the user sees it. Borrowed from Chisel's pattern of making setup feel effortful on the system's side, not the user's.
+### Screen 4 — First Experiment Ready
+**Screen name:** `/onboarding/ready`
+**What changes:** Net-new screen. Renders the auto-configured artifact: starter roadmap (3–5 hypothesis cards), feedback board column headers, first prioritization view. Layout is a preview/summary — not the full product UI. Overlaid with a light highlight state and copy: *"Based on what you told us, here's where we'd start."* Primary CTA: **"Run my first experiment →"** Secondary CTA: *"Edit this setup"* (links into full dashboard).
+**Why:** The user's first moment in the product is a usable artifact, not an empty state. This is the exact pattern PostHog used to validate zero-friction onboarding. The artifact creates immediate perceived value before the user has done any "real" product work.
 
 ---
 
-### Screen 9 — Artifact Reveal (`/onboarding/guided/result`)
-**What changes:** New screen — the first real dashboard view, but pre-populated.
-- Headline: **"Here's your starting point. You can change anything."**
-- Three panels visible above the fold:
-  - **Roadmap panel**: 3 hypothesis cards, each titled with an assumption derived from their stated unknown (e.g., if they said "Will people pay for it?" → cards like "Test willingness to pay at $X/mo", "Validate core use case with 5 users", "Identify the moment they'd pay vs. leave").
-  - **Feedback board**: 2–3 pre-seeded user questions.
-  - **Prioritization view**: Ranked list, pre-labeled with their product name from Question 1.
-- Persistent bottom bar: **"Invite a collaborator"** (single email field) and **"Connect your first data source"** — both optional, neither blocking.
-- **Why:** The artifact exists before they have to do anything. The blank-slate problem is eliminated. Optionality (invite / connect) is presented after value is delivered, not before — inverting the standard SaaS onboarding mistake.
-
----
-
-### Screen 10 — Homepage `/` (secondary modification)
-**What changes:** Add a minimal social proof line beneath the new secondary CTA.
-- Copy: **"Used by 200+ early-stage builders with no PM background."** *(update number as real data accrues)*
-- **Why:** Reduces self-selection anxiety for the target segment. Signals "this is for you" without repositioning the primary brand message.
+### Screen 5 — Dashboard Entry (Modified)
+**Screen name:** `/dashboard` (existing screen, modified)
+**What changes:** For users who completed the wizard, the dashboard loads with the auto-configured data pre-populated. An inline dismissible banner reads: *"Your starter setup is live — here's what NorthStar configured for you."* with a link to review or regenerate. Empty state components are suppressed for users with wizard-generated data.
+**Why:** Prevents the "I did all that and now I see nothing" deflation moment. Ensures the wizard output persists into the core product loop.
 
 ---
 
 ## Files To Change
 
-Based on standard Next.js App Router structure:
+Based on a standard Next.js App Router structure:
 
 ```
-/app
-  /page.tsx                                  # Homepage — add secondary CTA button + social proof line
+app/
+  auth/
+    login/
+      page.tsx                        # Modify post-auth redirect logic
+                                      # Route to /onboarding/start if no prior data
 
-  /onboarding
-    /guided
-      /page.tsx                              # Onboarding entry gate (Screen 2)
-      /step
-        /[step]
-          /page.tsx                          # Dynamic question step renderer (Screens 3–7)
-      /generating
-        /page.tsx                            # Artifact generation interstitial (Screen 8)
-      /result
-        /page.tsx                            #
+  onboarding/
+    start/
+      page.tsx                        # NEW — Onboarding entry gate screen
+    wizard/
+      page.tsx                        # NEW — Multi-step question flow
+      components/
+        QuestionStep.tsx              # NEW — Single question + chip component
+        WizardProgress.tsx            # NEW — Step indicator component
+        ChipSelector.tsx              # NEW — Answer chip accelerator component
+    generating/
+      page.tsx                        # NEW — AI processing interstitial
+    ready/
+      page.tsx                        # NEW — First experiment ready screen
+
+  dashboard/
+    page.tsx                          # Modify — suppress empty states for wizard users
+                                      # Add dismissible wizard-completion banner
+
+lib/
+  onboarding/
+    generateStarterWorkspace.ts       # NEW — AI logic: maps wizard answers to
+                                      # roadmap cards, feedback board config,
+                                      # prioritization view
+    wizardSchema.ts                   # NEW — Zod schema for wizard answer validation
+
+hooks/
+  useOnboardingState.ts               # NEW — Client-side step state management
+  useWizardRedirect.ts                # NEW — Guards: skip wizard if already onboarded
+
+middleware.ts                         # Modify — add /onboarding route group to
+                                      # protected routes, handle wizard completion flag
+
+types/
+  onboarding.ts                       # NEW — Types for wizard answers, generated
+                                      # workspace
 
 ## PM Iterations
-- **Sign Up:** chaneg this to start now
+- **Sign Up:** Onboard in 2 mins
+- **Sign Up:** Onboard now
 
 ## Prototype Screens
 See `prototypes/` directory for HTML prototypes of each screen.
