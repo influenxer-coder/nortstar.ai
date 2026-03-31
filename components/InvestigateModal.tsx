@@ -148,7 +148,9 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
   const [isApplyingEdit, setIsApplyingEdit] = useState(false)
   const [screenComments, setScreenComments] = useState<ScreenComment[]>([])
   const [pendingHtml, setPendingHtml] = useState<{ screenId: string; html: string } | null>(null)
-  const commentInputRef = useRef<HTMLInputElement>(null)
+  const [commentPos, setCommentPos] = useState<{ x: number; y: number } | null>(null)
+  const commentDragRef = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 })
+  const commentInputRef = useRef<HTMLTextAreaElement>(null)
   const protoSubMsgIdx = useRef(0)
   const [protoSubMessage, setProtoSubMessage] = useState(PROTO_SUB_MESSAGES[0])
   const screenScrollRef = useRef<HTMLDivElement>(null)
@@ -466,12 +468,16 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
     const screenEl = document.getElementById(`proto-screen-${screenId}`)
     if (!screenEl) return
     const rect = screenEl.getBoundingClientRect()
-    // Position comment box relative to the screen card
     setCommentBox({
       screenId,
       x: info.x,
       y: info.y,
       elementContext: `<${info.elementTag}> "${info.elementText}"${info.elementClasses ? ` class="${info.elementClasses}"` : ''}`,
+    })
+    // Position the floating chat box near the click, in viewport coordinates
+    setCommentPos({
+      x: rect.left + info.x * canvasZoom + 20,
+      y: rect.top + info.y * canvasZoom,
     })
     setCommentText('')
     setActiveScreenId(screenId)
@@ -520,6 +526,7 @@ export function InvestigateModal({ title, opportunityId, projectId, productUrl, 
         s.id === data.screen_id ? { ...s, component_code: data.html } : s
       ))
       setCommentBox(null)
+      setCommentPos(null)
       setCommentText('')
     } catch {
       // Keep comment box open on error
@@ -795,59 +802,15 @@ Implement the changes described in the plan above. The prototype screens show wh
                         }}>
                           <DynamicScreen code={screen.component_code} index={i} viewMode={viewMode}
                             onElementClick={(info) => handleScreenClick(screen.id, info)} />
-                          {/* Inline comment box */}
+                          {/* Click anchor dot */}
                           {commentBox?.screenId === screen.id && (
                             <div style={{
                               position: 'absolute',
-                              left: Math.min(commentBox.x, cardW - 220),
-                              top: Math.min(commentBox.y + 8, cardH - 50),
-                              zIndex: 20,
-                              display: 'flex', alignItems: 'center', gap: 4,
-                              background: '#ffffff', border: '1px solid #6B4FBB', borderRadius: 8,
-                              padding: '4px 6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                              minWidth: 200,
-                            }}
-                              onClick={e => e.stopPropagation()}
-                              onMouseDown={e => e.stopPropagation()}
-                            >
-                              {isApplyingEdit ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px' }}>
-                                  <Loader2 style={{ width: 13, height: 13, color: '#6B4FBB', animation: 'spin 1s linear infinite' }} />
-                                  <span style={{ fontSize: 12, color: '#9B9A97' }}>Applying...</span>
-                                </div>
-                              ) : (
-                                <>
-                                  <input
-                                    ref={commentInputRef}
-                                    value={commentText}
-                                    onChange={e => setCommentText(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter' && commentText.trim()) submitComment(); if (e.key === 'Escape') setCommentBox(null) }}
-                                    placeholder="Describe the change..."
-                                    style={{
-                                      flex: 1, border: 'none', outline: 'none', fontSize: 12,
-                                      color: '#1A1A1A', padding: '4px 2px', background: 'transparent',
-                                    }}
-                                  />
-                                  <button type="button" onClick={() => submitComment()} disabled={!commentText.trim()}
-                                    style={{
-                                      width: 24, height: 24, borderRadius: 4, border: 'none',
-                                      background: commentText.trim() ? '#6B4FBB' : '#E5E3DD',
-                                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      cursor: commentText.trim() ? 'pointer' : 'not-allowed', flexShrink: 0,
-                                    }}>
-                                    <Send style={{ width: 11, height: 11 }} />
-                                  </button>
-                                  <button type="button" onClick={() => setCommentBox(null)}
-                                    style={{
-                                      width: 24, height: 24, borderRadius: 4, border: 'none',
-                                      background: 'transparent', color: '#9B9A97', display: 'flex',
-                                      alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
-                                    }}>
-                                    <X style={{ width: 11, height: 11 }} />
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                              left: commentBox.x - 5, top: commentBox.y - 5,
+                              width: 10, height: 10, borderRadius: '50%',
+                              background: '#6B4FBB', border: '2px solid #fff',
+                              boxShadow: '0 0 0 2px #6B4FBB', zIndex: 15,
+                            }} />
                           )}
                           {/* Comment dots for this screen */}
                           {screenComments.filter(c => c.screenId === screen.id).length > 0 && (
@@ -868,6 +831,112 @@ Implement the changes described in the plan above. The prototype screens show wh
                 })}
               </div>
             </div>
+
+            {/* Floating draggable comment chat box */}
+            {commentBox && commentPos && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: commentPos.x, top: commentPos.y,
+                  zIndex: 30,
+                  width: 280, minHeight: 140,
+                  background: '#ffffff', border: '1px solid #6B4FBB', borderRadius: 12,
+                  boxShadow: '0 8px 24px rgba(107, 79, 187, 0.2)',
+                  display: 'flex', flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Drag handle + element info */}
+                <div
+                  style={{
+                    padding: '8px 12px', background: '#F9F8FC', borderBottom: '1px solid #E5E3DD',
+                    cursor: 'grab', userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 4,
+                  }}
+                  onMouseDown={e => {
+                    e.stopPropagation()
+                    commentDragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: commentPos.x, origY: commentPos.y }
+                    const onMove = (ev: MouseEvent) => {
+                      if (!commentDragRef.current.dragging) return
+                      setCommentPos({
+                        x: commentDragRef.current.origX + (ev.clientX - commentDragRef.current.startX),
+                        y: commentDragRef.current.origY + (ev.clientY - commentDragRef.current.startY),
+                      })
+                    }
+                    const onUp = () => {
+                      commentDragRef.current.dragging = false
+                      document.removeEventListener('mousemove', onMove)
+                      document.removeEventListener('mouseup', onUp)
+                    }
+                    document.addEventListener('mousemove', onMove)
+                    document.addEventListener('mouseup', onUp)
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6B4FBB' }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#6B4FBB' }}>Comment</span>
+                    </div>
+                    <button type="button" onClick={() => { setCommentBox(null); setCommentPos(null) }}
+                      style={{ width: 20, height: 20, borderRadius: 4, border: 'none', background: 'transparent', color: '#9B9A97', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                      <X style={{ width: 12, height: 12 }} />
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9B9A97', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {commentBox.elementContext}
+                  </div>
+                </div>
+
+                {/* Chat area — past comments for this screen */}
+                {screenComments.filter(c => c.screenId === commentBox.screenId).length > 0 && (
+                  <div style={{ maxHeight: 100, overflowY: 'auto', padding: '8px 12px', borderBottom: '1px solid #F7F7F5' }}>
+                    {screenComments.filter(c => c.screenId === commentBox.screenId).map(c => (
+                      <div key={c.id} style={{ fontSize: 12, color: '#444', marginBottom: 4, lineHeight: 1.4 }}>
+                        <span style={{ color: '#6B4FBB', fontWeight: 500 }}>You:</span> {c.instruction}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input area */}
+                <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {isApplyingEdit ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0' }}>
+                      <Loader2 style={{ width: 14, height: 14, color: '#6B4FBB', animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: 12, color: '#9B9A97' }}>Applying change...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <textarea
+                        ref={commentInputRef}
+                        value={commentText}
+                        onChange={e => setCommentText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentText.trim()) { e.preventDefault(); submitComment() } if (e.key === 'Escape') { setCommentBox(null); setCommentPos(null) } }}
+                        placeholder="What should change here?"
+                        rows={3}
+                        style={{
+                          width: '100%', border: '1px solid #E5E3DD', borderRadius: 6, outline: 'none',
+                          fontSize: 13, color: '#1A1A1A', padding: '8px 10px', resize: 'none',
+                          fontFamily: 'inherit', boxSizing: 'border-box', lineHeight: 1.5,
+                        }}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#6B4FBB' }}
+                        onBlur={e => { e.currentTarget.style.borderColor = '#E5E3DD' }}
+                      />
+                      <button type="button" onClick={() => submitComment()} disabled={!commentText.trim()}
+                        style={{
+                          width: '100%', height: 32, borderRadius: 6, border: 'none',
+                          background: commentText.trim() ? '#6B4FBB' : '#E5E3DD',
+                          color: '#fff', fontSize: 12, fontWeight: 500,
+                          cursor: commentText.trim() ? 'pointer' : 'not-allowed',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        }}>
+                        <Send style={{ width: 12, height: 12 }} /> Apply change
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )
       }
