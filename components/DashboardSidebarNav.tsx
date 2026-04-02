@@ -18,6 +18,7 @@ type ProductGroup = {
   projectId?: string | null
   goal?: string | null
   productUrl?: string | null
+  selectedOkrs?: Array<{ objective: string }>
 }
 
 type Props = {
@@ -215,7 +216,25 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
             )}
           </div>
           <div className="mt-0.5 space-y-0.5">
-            {product.projectId && product.goal && (
+            {/* OKR goal nodes (when CI selected multiple goals) */}
+            {product.projectId && product.selectedOkrs && product.selectedOkrs.length > 0 ? (
+              product.selectedOkrs.map((okr, idx) => (
+                <Link
+                  key={`okr-${idx}`}
+                  href={`/products/${product.projectId}/opportunities?okr=${idx}`}
+                  className={`flex items-center gap-2 pl-5 pr-2 rounded-md transition-colors ${
+                    pathname === `/products/${product.projectId}/opportunities` ? 'hover:bg-muted' : 'hover:bg-muted'
+                  }`}
+                  style={{ height: 28 }}
+                >
+                  <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
+                  <span className="hidden md:block truncate"
+                    style={{ fontSize: 12, fontWeight: 500, color: '#535963', maxWidth: 150 }}>
+                    {okr.objective.length > 35 ? okr.objective.slice(0, 35) + '…' : okr.objective}
+                  </span>
+                </Link>
+              ))
+            ) : product.projectId && product.goal ? (
               <Link
                 href={`/products/${product.projectId}/opportunities`}
                 className={`flex items-center gap-2 pl-5 pr-2 rounded-md transition-colors ${
@@ -224,14 +243,12 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
                 style={{ height: 28 }}
               >
                 <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
-                <span
-                  className="hidden md:block truncate"
-                  style={{ fontSize: 13, fontWeight: 500, color: pathname === `/products/${product.projectId}/opportunities` ? '#1f2328' : '#535963' }}
-                >
+                <span className="hidden md:block truncate"
+                  style={{ fontSize: 13, fontWeight: 500, color: pathname === `/products/${product.projectId}/opportunities` ? '#1f2328' : '#535963' }}>
                   {product.goal}
                 </span>
               </Link>
-            )}
+            ) : null}
             {/* Page optimizations under goal */}
             {product.agents.filter(a => a.type === 'page_optimization').map(agent => (
               <Link

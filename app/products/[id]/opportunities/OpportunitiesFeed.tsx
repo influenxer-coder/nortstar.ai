@@ -34,6 +34,7 @@ type Props = {
   goal: string | null
   subverticalId: string | null
   recentCommits?: CommitRow[]
+  selectedOkrs?: Array<{ objective?: string }>
 }
 
 const SIGNAL_SOURCES = [
@@ -48,7 +49,7 @@ const SIGNAL_SOURCES = [
   { icon: Zap,           label: 'Rage Shakes',               active: false },
 ]
 
-export default function OpportunitiesFeed({ projectId, productId, projectName, productName, productUrl, goal, subverticalId, recentCommits = [] }: Props) {
+export default function OpportunitiesFeed({ projectId, productId, projectName, productName, productUrl, goal, subverticalId, recentCommits = [], selectedOkrs = [] }: Props) {
   const productMeta = getProductMeta(productName)
   const goalMeta = getGoalLabel(goal)
   const resolved = productMeta ?? goalMeta

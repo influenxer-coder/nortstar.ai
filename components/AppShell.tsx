@@ -27,12 +27,15 @@ export async function AppShell({
 
   const projectIdByProductId = new Map<string, string>()
   const goalByProductId = new Map<string, string>()
+  const okrsByProductId = new Map<string, Array<{ objective: string }>>()
   for (const proj of completedProjects ?? []) {
     const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
     const cpid = ctx?.created_product_id
     if (typeof cpid === 'string' && cpid) {
       projectIdByProductId.set(cpid, proj.id)
       if (typeof ctx?.goal === 'string' && ctx.goal) goalByProductId.set(cpid, ctx.goal)
+      const okrs = Array.isArray(ctx?.selected_okrs) ? ctx.selected_okrs as Array<{ objective?: string }> : []
+      if (okrs.length > 0) okrsByProductId.set(cpid, okrs.filter(o => o.objective).map(o => ({ objective: String(o.objective) })))
     }
   }
 
@@ -66,6 +69,7 @@ export async function AppShell({
     projectId: projectIdByProductId.get(p.id) ?? null,
     goal: goalByProductId.get(p.id) ?? null,
     productUrl: urlByProductId.get(p.id) ?? null,
+    selectedOkrs: okrsByProductId.get(p.id) ?? [],
   }))
 
   const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()

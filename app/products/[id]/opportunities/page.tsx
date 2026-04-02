@@ -22,6 +22,7 @@ export default async function OpportunitiesPage({ params }: Params) {
   const goal = (ctx?.goal as string) ?? null
   const productName = (ctx?.product_name as string) ?? project.name ?? 'Product'
   const productId = (ctx?.created_product_id as string) ?? null
+  const selectedOkrs = Array.isArray(ctx?.selected_okrs) ? ctx.selected_okrs as Array<{ objective?: string }> : []
   const match = ((project.strategy_json as Record<string, unknown>)?.match as Record<string, unknown> | undefined) ?? {}
   const subverticalId = (match.subvertical_id as string) ?? null
 
@@ -58,6 +59,7 @@ export default async function OpportunitiesPage({ params }: Params) {
       goal={goal}
       subverticalId={subverticalId}
       recentCommits={recentCommits}
+      selectedOkrs={selectedOkrs}
     />
   )
 }
