@@ -186,33 +186,37 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     }).catch(() => { /* non-critical */ })
   }
 
-  // Build 3 tier ideas from the opportunity row's easy_idea / medium_idea / full_idea columns
-  const buildTierIdeas = (opp: Record<string, unknown>) => {
-    const oppId = String(opp.id ?? '')
-    const impactScore = Number(opp.impact_score ?? 0)
+  // Build 3 tier ideas from ci_data.design.easy_tier / medium_tier / full_tier
+  const buildTierIdeas = (oppId: string, ciData: Record<string, unknown>) => {
+    const okr = ciData.okr as Record<string, unknown> | undefined
+    const design = ciData.design as Record<string, unknown> | undefined
+    if (!design) return []
 
-    const tiers: Array<{ text: string | undefined; tierName: string; tierLabel: string; effort: 'low' | 'medium' | 'high'; badge: Idea['decision_badge'] }> = [
-      { text: opp.easy_idea as string | undefined,   tierName: 'easy',   tierLabel: 'Easy — ~2 weeks',   effort: 'low',    badge: 'quick_win' },
-      { text: opp.medium_idea as string | undefined,  tierName: 'medium', tierLabel: 'Medium — ~6 weeks',  effort: 'medium', badge: 'worth_bet' },
-      { text: opp.full_idea as string | undefined,    tierName: 'full',   tierLabel: 'Full — ~12 weeks',   effort: 'high',   badge: 'do_first' },
+    const impactScore = Number(okr?.impact_score ?? 0)
+    const feasScore = Number(okr?.feasibility_score ?? 0)
+
+    const tiers: Array<{ tier: Record<string, unknown> | undefined; tierName: string; tierLabel: string; effort: 'low' | 'medium' | 'high'; badge: Idea['decision_badge'] }> = [
+      { tier: design.easy_tier as Record<string, unknown> | undefined,   tierName: 'easy',   tierLabel: 'Easy — ~2 weeks',   effort: 'low',    badge: 'quick_win' },
+      { tier: design.medium_tier as Record<string, unknown> | undefined, tierName: 'medium', tierLabel: 'Medium — ~6 weeks',  effort: 'medium', badge: 'worth_bet' },
+      { tier: design.full_tier as Record<string, unknown> | undefined,   tierName: 'full',   tierLabel: 'Full — ~12 weeks',   effort: 'high',   badge: 'do_first' },
     ]
 
-    return tiers.filter(t => t.text).map(t => ({
-      title: t.text!,
+    return tiers.filter(t => t.tier?.hypothesis).map(t => ({
+      title: String(t.tier!.hypothesis),
       goal: goal ?? '',
       effort: t.effort,
-      evidence: String(opp.use_case ?? ''),
+      evidence: String(design.use_case ?? design.hypothesis ?? ''),
       winning_pattern: '',
       expected_lift_low: Math.round(impactScore * 0.6),
       expected_lift_high: impactScore,
-      confidence: (impactScore >= 85 ? 'high' : impactScore >= 50 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+      confidence: (feasScore >= 85 ? 'high' : feasScore >= 50 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
       confidence_reason: null,
-      impact_score: impactScore,
+      impact_score: Math.round((impactScore * feasScore) / 100),
       decision_badge: t.badge,
       human_number: null,
       tier: t.tierName,
       tier_label: t.tierLabel,
-      risk: '',
+      risk: String(t.tier!.risk ?? ''),
       _oppId: oppId,
     }))
   }
@@ -233,15 +237,13 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
         const matchingOpp = saved.find(s =>
           s.title === activeOkr.objective
         )
-        if (matchingOpp) {
-          const oppRecord = matchingOpp as unknown as Record<string, unknown>
-          if (oppRecord.easy_idea || oppRecord.medium_idea || oppRecord.full_idea) {
-            setCiTierIdeas(buildTierIdeas(oppRecord))
-            // Populate OKR context card from ci_data if available
-            const ciData = matchingOpp.ci_data as { okr?: Record<string, unknown> } | undefined
-            if (ciData?.okr) {
-              setCiOkrContext(ciData.okr)
-            }
+        if (matchingOpp?.ci_data) {
+          const ciData = matchingOpp.ci_data as Record<string, unknown>
+          const tiers = buildTierIdeas(matchingOpp.id ?? '', ciData)
+          if (tiers.length > 0) {
+            setCiTierIdeas(tiers)
+            const okr = ciData.okr as Record<string, unknown> | undefined
+            if (okr) setCiOkrContext(okr)
           }
         }
         setLoading(false)
