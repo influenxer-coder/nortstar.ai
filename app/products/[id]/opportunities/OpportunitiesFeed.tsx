@@ -230,7 +230,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       const data = await res.json() as { ideas?: (Idea & { id?: string; ci_data?: Record<string, unknown> })[] }
       const saved = data.ideas ?? []
 
-      // Check if we're viewing a specific OKR and the matching opportunity has CI build tiers
+      // When viewing a specific OKR, only show that OKR's own ci_data tiers — never fall through to the generic list
       if (activeOkr && saved.length > 0) {
         const matchingOpp = saved.find(s =>
           s.title === activeOkr.objective
@@ -241,11 +241,18 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
           const okr = ciData.okr as Record<string, unknown> | undefined
           if (design && okr) {
             setCiOkrContext(okr)
-            setCiTierIdeas(buildTierIdeas(matchingOpp.id ?? '', okr, design))
-            setLoading(false)
-            return
+            const tiers = buildTierIdeas(matchingOpp.id ?? '', okr, design)
+            setCiTierIdeas(tiers)
+            // Persist tier ideas so they survive without rebuilding each time
+            const tierTitles = new Set(tiers.map(t => t.title))
+            const alreadySaved = saved.some(s => tierTitles.has(s.title) && s.title !== matchingOpp.title)
+            if (!alreadySaved) {
+              void saveIdeas(tiers)
+            }
           }
         }
+        setLoading(false)
+        return
       }
 
       if (saved.length > 0) {
