@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink, ChevronDown, ChevronUp, TrendingUp, Minus, TrendingDown, ArrowRight } from 'lucide-react'
+import { CiIntelligenceSections } from './CiIntelligenceSections'
 
 // ─── Design tokens (matches DashboardHome) ────────────────────────────────────
 const C = {
@@ -401,6 +402,14 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
             </div>
           )}
         </div>
+
+        {/* ── CI INTELLIGENCE SECTIONS (when ci_enriched) ─────────────── */}
+        {(strategy as Record<string, unknown>).ci_enriched === true && (
+          <CiIntelligenceSections
+            projectId={project.id}
+            productName={product.product_name ?? project.name ?? 'Product'}
+          />
+        )}
 
         {/* ── SECTION 2 — MARKET POSITION ─────────────────────────────── */}
         <Section label="Market Position">
