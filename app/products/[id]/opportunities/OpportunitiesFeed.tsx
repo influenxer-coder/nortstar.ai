@@ -66,7 +66,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
   const [rankedIdeas, setRankedIdeas] = useState<Idea[]>([])
   const [backlogIdeas, setBacklogIdeas] = useState<Idea[]>([])
   const [ciOkrContext, setCiOkrContext] = useState<Record<string, unknown> | null>(null)
-  const [ciTierIdeas, setCiTierIdeas] = useState<(Idea & { tier?: string; tier_label?: string; risk?: string })[] | null>(null)
+  const [ciTierIdeas, setCiTierIdeas] = useState<(Idea & { tier?: string; tier_label?: string; risk?: string; _oppId?: string })[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -187,7 +187,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
   }
 
   // Build 3 tier ideas from CI phase10 design data
-  const buildTierIdeas = (_oppId: string, okr: Record<string, unknown>, design: Record<string, unknown>) => {
+  const buildTierIdeas = (oppId: string, okr: Record<string, unknown>, design: Record<string, unknown>) => {
     const impactScore = Number(okr.impact_score ?? 0)
     const feasScore = Number(okr.feasibility_score ?? 0)
     const refs = Array.isArray(design.reference_implementations) ? design.reference_implementations as Array<{ company?: string; quantified_result?: string }> : []
@@ -215,6 +215,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       tier: t.tierName,
       tier_label: t.tierLabel,
       risk: String(t.tier?.risk ?? ''),
+      _oppId: oppId,
     }))
   }
 
@@ -232,7 +233,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       // Check if we're viewing a specific OKR and the matching opportunity has CI build tiers
       if (activeOkr && saved.length > 0) {
         const matchingOpp = saved.find(s =>
-          s.title === activeOkr.objective || s.ci_data?.okr
+          s.title === activeOkr.objective
         )
         if (matchingOpp?.ci_data) {
           const ciData = matchingOpp.ci_data as { okr?: Record<string, unknown>; design?: Record<string, unknown> }
@@ -545,10 +546,9 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
                     idea={idea}
                     featured={idx === 0}
                     onInvestigate={() => {
-                      const id = (idea as unknown as { id?: string }).id
-                      if (id) setInvestigateOpen({ id, title: idea.title })
+                      if (idea._oppId) setInvestigateOpen({ id: idea._oppId, title: idea.title })
                     }}
-                    investigateDisabled={false}
+                    investigateDisabled={!idea._oppId}
                     investigateLabel="Investigate"
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
