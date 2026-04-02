@@ -265,10 +265,17 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                 const { enrichment } = await ciRes.json() as { enrichment: {
                   ci_analysis_id: string; ci_enriched: true
                   competitors: Array<{ name: string; one_line: string; is_direct: boolean }>
-                  competitive_intensity: string; position_summary: string
+                  competitive_intensity: string; position_summary: string | null
                   okrs: unknown[]; designs: unknown[]
+                  product_override: { product_name: string | null; one_liner: string | null; target_customer: string | null } | null
                 } | null }
                 if (enrichment) {
+                  const modalProduct = (rawData.product as Record<string, unknown> | undefined) ?? {}
+                  const modalProductUnknown =
+                    !modalProduct.product_name ||
+                    modalProduct.product_name === 'unknown' ||
+                    modalProduct.product_name === ''
+
                   enrichedData = {
                     ...rawData,
                     competitors: enrichment.competitors.length
@@ -280,6 +287,14 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                       position_summary: enrichment.position_summary
                         || (rawData.position as Record<string, unknown>)?.position_summary,
                     },
+                    product: modalProductUnknown && enrichment.product_override
+                      ? {
+                          ...modalProduct,
+                          product_name: enrichment.product_override.product_name || modalProduct.product_name,
+                          one_liner: enrichment.product_override.one_liner || modalProduct.one_liner,
+                          target_customer: enrichment.product_override.target_customer || modalProduct.target_customer,
+                        }
+                      : rawData.product,
                     ci_analysis_id: enrichment.ci_analysis_id,
                     ci_enriched: true,
                     ci_okrs: enrichment.okrs,
