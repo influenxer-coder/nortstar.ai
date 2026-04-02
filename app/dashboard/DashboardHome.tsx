@@ -251,7 +251,49 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
               requestAnimationFrame(() => resolve())
             })
           } else if (event.type === 'result') {
-            const data = event.data as Record<string, unknown>
+            const rawData = event.data as Record<string, unknown>
+
+            // ── CI Enrichment (non-blocking) ──────────────────────────
+            let enrichedData = rawData
+            try {
+              const ciRes = await fetch('/api/ci-lookup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: parsedUrl }),
+              })
+              if (ciRes.ok) {
+                const { enrichment } = await ciRes.json() as { enrichment: {
+                  ci_analysis_id: string; ci_enriched: true
+                  competitors: Array<{ name: string; one_line: string; is_direct: boolean }>
+                  competitive_intensity: string; position_summary: string
+                  okrs: unknown[]; designs: unknown[]
+                } | null }
+                if (enrichment) {
+                  enrichedData = {
+                    ...rawData,
+                    competitors: enrichment.competitors.length
+                      ? enrichment.competitors
+                      : rawData.competitors,
+                    competitive_intensity: enrichment.competitive_intensity,
+                    position: {
+                      ...(rawData.position as Record<string, unknown> ?? {}),
+                      position_summary: enrichment.position_summary
+                        || (rawData.position as Record<string, unknown>)?.position_summary,
+                    },
+                    ci_analysis_id: enrichment.ci_analysis_id,
+                    ci_enriched: true,
+                    ci_okrs: enrichment.okrs,
+                    ci_designs: enrichment.designs,
+                  }
+                  setStreamMessages(prev => [...prev, '✓ Enriched with competitive intelligence'])
+                }
+              }
+            } catch {
+              // Proceed without CI enrichment
+            }
+            // ── End CI Enrichment ─────────────────────────────────────
+
+            const data = enrichedData
             const competitors = (data.competitors as Array<{ id: string }>) ?? []
             const product = (data.product as Record<string, unknown> | undefined) ?? {}
             const inferredName =

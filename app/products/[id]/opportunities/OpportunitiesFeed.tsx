@@ -205,7 +205,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     if (!subverticalId || !goal) return
     try {
       const res = await fetch(
-        `/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(subverticalId)}&goal=${encodeURIComponent(goal)}`
+        `/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(subverticalId)}&goal=${encodeURIComponent(goal)}&project_id=${encodeURIComponent(projectId)}`
       )
       if (!res.ok) throw new Error('Failed to generate opportunities')
       const data = await res.json() as { ideas?: Idea[] }

@@ -85,22 +85,27 @@ export async function POST(req: NextRequest) {
     await deleteQuery
   }
 
-  const rows = ideas.map((idea) => ({
-    user_id:            user.id,
-    project_id,
-    title:              idea.title,
-    goal:               idea.goal,
-    effort:             idea.effort,
-    evidence:           idea.evidence,
-    winning_pattern:    idea.winning_pattern,
-    expected_lift_low:  idea.expected_lift_low,
-    expected_lift_high: idea.expected_lift_high,
-    confidence:         idea.confidence,
-    confidence_reason:  idea.confidence_reason,
-    impact_score:       idea.impact_score,
-    decision_badge:     idea.decision_badge,
-    human_number:       idea.human_number,
-  }))
+  const rows = ideas.map((idea) => {
+    // Strip _ci_data from the idea and write it to the ci_data column
+    const { _ci_data, ...fields } = idea as typeof idea & { _ci_data?: unknown }
+    return {
+      user_id:            user.id,
+      project_id,
+      title:              fields.title,
+      goal:               fields.goal,
+      effort:             fields.effort,
+      evidence:           fields.evidence,
+      winning_pattern:    fields.winning_pattern,
+      expected_lift_low:  fields.expected_lift_low,
+      expected_lift_high: fields.expected_lift_high,
+      confidence:         fields.confidence,
+      confidence_reason:  fields.confidence_reason,
+      impact_score:       fields.impact_score,
+      decision_badge:     fields.decision_badge,
+      human_number:       fields.human_number,
+      ci_data:            _ci_data ?? null,
+    }
+  })
 
   const { error } = await supabase.from('opportunities').insert(rows)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

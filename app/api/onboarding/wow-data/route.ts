@@ -92,42 +92,78 @@ export type NormalizedIdea = {
   impact_score: number
   decision_badge: 'do_first' | 'worth_bet' | 'quick_win' | 'plan_sprint'
   human_number: string | null
+  _ci_data?: {
+    okr: unknown
+    design: unknown | null
+    analysis_id: string
+  }
 }
 
-export async function GET(req: NextRequest) {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+// ── CI ideas from OKRs ────────────────────────────────────────────────────
 
-  const subverticalId = req.nextUrl.searchParams.get('subvertical_id')
-  const goal = req.nextUrl.searchParams.get('goal')
-  if (!subverticalId || !goal) {
-    return NextResponse.json({ error: 'Missing required query params: subvertical_id and goal' }, { status: 400 })
-  }
+function scoreToBadge(impact: number, feasibility: number): NormalizedIdea['decision_badge'] {
+  if (impact >= 85 && feasibility >= 80) return 'do_first'
+  if (impact >= 80 && feasibility < 70)  return 'worth_bet'
+  if (impact < 75 && feasibility >= 85)  return 'quick_win'
+  return 'plan_sprint'
+}
 
-  const { data: synthesis, error: synthesisError } = await supabase
-    .from('subverticals')
-    .select('evolutionary_niches, whitespace, fitness_map, competitive_intensity, trending_features')
-    .eq('id', subverticalId)
-    .single()
+function buildCiIdeas(
+  okrs: Array<Record<string, unknown>>,
+  designs: Array<Record<string, unknown>>,
+  goal: string,
+  ciAnalysisId: string
+): NormalizedIdea[] {
+  if (!okrs?.length) return []
 
-  if (synthesisError || !synthesis) {
-    return NextResponse.json({ error: 'Could not load market synthesis data' }, { status: 404 })
-  }
+  const designByRank = Object.fromEntries(
+    (designs || []).map((d) => [d.gap_rank, d])
+  )
 
-  const { data: competitors, error: competitorsError } = await supabase
-    .from('vertical_products')
-    .select('name, known_winning_features, changelog_signals, icp_signals')
-    .eq('subvertical_id', subverticalId)
-    .eq('is_active', true)
-    .limit(8)
+  const sorted = [...okrs]
+    .sort((a, b) =>
+      ((b.impact_score as number ?? 0) * (b.feasibility_score as number ?? 0)) -
+      ((a.impact_score as number ?? 0) * (a.feasibility_score as number ?? 0))
+    )
+    .slice(0, 3)
 
-  if (competitorsError) {
-    return NextResponse.json({ error: 'Could not load competitor data' }, { status: 500 })
-  }
+  return sorted.map((okr, i) => ({
+    title: String(okr.objective ?? `Opportunity ${i + 1}`),
+    goal,
+    effort: (okr.feasibility_score as number ?? 0) >= 85 ? 'low' as const
+          : (okr.feasibility_score as number ?? 0) >= 75 ? 'medium' as const
+          : 'high' as const,
+    evidence: String(okr.gap_description ?? ''),
+    winning_pattern: String(okr.differentiation_mechanism ?? ''),
+    expected_lift_low: Math.round(((okr.impact_score as number) ?? 0) * 0.6),
+    expected_lift_high: (okr.impact_score as number) ?? null,
+    confidence: (okr.feasibility_score as number ?? 0) >= 85 ? 'high' as const
+              : (okr.feasibility_score as number ?? 0) >= 75 ? 'medium' as const
+              : 'low' as const,
+    confidence_reason: String(okr.key_risk ?? '') || null,
+    impact_score: Math.round(
+      (((okr.impact_score as number) ?? 0) * ((okr.feasibility_score as number) ?? 0)) / 100
+    ),
+    decision_badge: scoreToBadge(
+      (okr.impact_score as number) ?? 0,
+      (okr.feasibility_score as number) ?? 0
+    ),
+    human_number: null,
+    _ci_data: {
+      okr,
+      design: designByRank[i + 1] ?? null,
+      analysis_id: ciAnalysisId,
+    },
+  }))
+}
 
-  let ideas: NormalizedIdea[] = []
+// ── VI DB + Claude generation (existing logic, extracted into function) ────
 
+async function generateViDbIdeas(
+  synthesis: Record<string, unknown>,
+  competitors: Record<string, unknown>[] | null,
+  goal: string
+): Promise<NormalizedIdea[]> {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured')
@@ -174,15 +210,15 @@ export async function GET(req: NextRequest) {
       .replace(/\s*```$/i, '')
       .trim()
     const parsed = JSON.parse(cleaned) as unknown
-    ideas = normalizeIdeas(parsed, goal)
+    return normalizeIdeas(parsed, goal)
   } catch {
     const fallback = (competitors ?? []).slice(0, 3)
-    ideas = normalizeIdeas({
+    return normalizeIdeas({
       ideas: fallback.map((c, idx) => ({
-        title: `Build a differentiated ${goal.replaceAll('_', ' ')} play around ${c.name ?? 'market leader'} signals`,
+        title: `Build a differentiated ${goal.replaceAll('_', ' ')} play around ${(c as Record<string, unknown>).name ?? 'market leader'} signals`,
         goal,
         effort: idx === 0 ? 'medium' : idx === 1 ? 'low' : 'high',
-        evidence: `Recent feature and changelog signals from ${c.name ?? 'top competitors'} suggest this area is actively contested and still improving.`,
+        evidence: `Recent feature and changelog signals from ${(c as Record<string, unknown>).name ?? 'top competitors'} suggest this area is actively contested and still improving.`,
         winning_pattern: 'Winning pattern in your vertical: teams that pair clearer onboarding moments with measurable in-product value events.',
         expected_lift_low: 10 + idx * 5,
         expected_lift_high: 20 + idx * 5,
@@ -191,6 +227,78 @@ export async function GET(req: NextRequest) {
         human_number: 'Could move the needle by ~30–60 activations per week at typical B2B SaaS scale.',
       })),
     }, goal)
+  }
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────
+
+export async function GET(req: NextRequest) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const subverticalId = req.nextUrl.searchParams.get('subvertical_id')
+  const goal = req.nextUrl.searchParams.get('goal')
+  if (!subverticalId || !goal) {
+    return NextResponse.json({ error: 'Missing required query params: subvertical_id and goal' }, { status: 400 })
+  }
+
+  // Check if the user's current project has CI data
+  let ciAnalysisId: string | null = null
+  let ciOkrs: Array<Record<string, unknown>> = []
+  let ciDesigns: Array<Record<string, unknown>> = []
+
+  try {
+    const projectId = req.nextUrl.searchParams.get('project_id')
+    if (projectId) {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('strategy_json')
+        .eq('id', projectId)
+        .eq('user_id', user.id)
+        .single()
+
+      const strategyJson = (project?.strategy_json ?? {}) as Record<string, unknown>
+      ciAnalysisId = (strategyJson.ci_analysis_id as string) ?? null
+      if (ciAnalysisId) {
+        ciOkrs = Array.isArray(strategyJson.ci_okrs) ? strategyJson.ci_okrs as Array<Record<string, unknown>> : []
+        ciDesigns = Array.isArray(strategyJson.ci_designs) ? strategyJson.ci_designs as Array<Record<string, unknown>> : []
+      }
+    }
+  } catch { /* proceed without CI */ }
+
+  const { data: synthesis, error: synthesisError } = await supabase
+    .from('subverticals')
+    .select('evolutionary_niches, whitespace, fitness_map, competitive_intensity, trending_features')
+    .eq('id', subverticalId)
+    .single()
+
+  if (synthesisError || !synthesis) {
+    return NextResponse.json({ error: 'Could not load market synthesis data' }, { status: 404 })
+  }
+
+  const { data: competitors, error: competitorsError } = await supabase
+    .from('vertical_products')
+    .select('name, known_winning_features, changelog_signals, icp_signals')
+    .eq('subvertical_id', subverticalId)
+    .eq('is_active', true)
+    .limit(8)
+
+  if (competitorsError) {
+    return NextResponse.json({ error: 'Could not load competitor data' }, { status: 500 })
+  }
+
+  // ── Generate ideas: CI path first, VI DB fallback ─────────────────────
+  let ideas: NormalizedIdea[]
+
+  if (ciAnalysisId && ciOkrs.length > 0) {
+    ideas = buildCiIdeas(ciOkrs, ciDesigns, goal, ciAnalysisId)
+    // If CI returned empty (shouldn't happen due to guard above), fall back
+    if (!ideas.length) {
+      ideas = await generateViDbIdeas(synthesis, competitors, goal)
+    }
+  } else {
+    ideas = await generateViDbIdeas(synthesis, competitors, goal)
   }
 
   return NextResponse.json({

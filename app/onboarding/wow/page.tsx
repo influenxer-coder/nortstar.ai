@@ -97,7 +97,7 @@ export default function WowPage() {
       // Keep flow usable even if this non-critical heartbeat update fails.
     })
 
-    fetch(`/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(parsed.subvertical_id)}&goal=${encodeURIComponent(parsed.goal)}`)
+    fetch(`/api/onboarding/wow-data?subvertical_id=${encodeURIComponent(parsed.subvertical_id)}&goal=${encodeURIComponent(parsed.goal)}${parsed.project_id ? `&project_id=${encodeURIComponent(parsed.project_id)}` : ''}`)
       .then(async (r) => {
         if (!r.ok) {
           const j = await r.json().catch(() => ({}))
