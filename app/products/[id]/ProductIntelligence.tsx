@@ -310,6 +310,7 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
   const position = strategy.position ?? {}
   const ctx = strategy.onboarding_context ?? {}
   const goal = ctx.goal
+  const ciEnriched = (project.strategy_json as Record<string, unknown> | null)?.ci_enriched === true
 
   const northStar = project.north_star_metric ?? ctx.north_star_metric
   const currentVal = project.north_star_current
@@ -411,8 +412,8 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
           />
         )}
 
-        {/* ── SECTION 2 — MARKET POSITION ─────────────────────────────── */}
-        <Section label="Market Position">
+        {/* ── SECTION 2 — MARKET POSITION (hidden when CI enriched) ──── */}
+        {!ciEnriched && <Section label="Market Position">
           <div style={{
             background: '#eef4ff',
             border: '1px solid #b8d0f7',
@@ -458,10 +459,10 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
               </div>
             </div>
           </div>
-        </Section>
+        </Section>}
 
-        {/* ── SECTION 3 — COMPETITORS ──────────────────────────────────── */}
-        <Section label={`Competitors · ${competitors.length} in your space`}>
+        {/* ── SECTION 3 — COMPETITORS (hidden when CI enriched) ──────── */}
+        {!ciEnriched && <Section label={`Competitors · ${competitors.length} in your space`}>
           {competitors.length === 0 ? (
             <div style={{ padding: '24px', textAlign: 'center', borderRadius: 10, border: `1px dashed ${C.border}`, background: C.surface }}>
               <p style={{ fontSize: 13, color: C.muted }}>No competitor data available</p>
@@ -500,10 +501,10 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
               </div>
             </>
           )}
-        </Section>
+        </Section>}
 
-        {/* ── SECTION 4 — EVOLUTIONARY NICHES ─────────────────────────── */}
-        <Section label="Market Opportunities">
+        {/* ── SECTION 4 — EVOLUTIONARY NICHES (hidden when CI enriched) ─ */}
+        {!ciEnriched && <Section label="Market Opportunities">
           {!subvertical ? (
             <div style={{ padding: 24, textAlign: 'center', borderRadius: 10, border: `1px dashed ${C.border}`, background: C.surface }}>
               <p style={{ fontSize: 13, color: C.muted }}>Market analysis data not available</p>
@@ -613,7 +614,7 @@ export default function ProductIntelligence({ project, subvertical, agents }: Pr
               )}
             </>
           )}
-        </Section>
+        </Section>}
 
       </div>
 
