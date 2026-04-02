@@ -186,35 +186,33 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     }).catch(() => { /* non-critical */ })
   }
 
-  // Build 3 tier ideas from CI phase10 design data
-  const buildTierIdeas = (oppId: string, okr: Record<string, unknown>, design: Record<string, unknown>) => {
-    const impactScore = Number(okr.impact_score ?? 0)
-    const feasScore = Number(okr.feasibility_score ?? 0)
-    const refs = Array.isArray(design.reference_implementations) ? design.reference_implementations as Array<{ company?: string; quantified_result?: string }> : []
-    const hypothesis = String(design.hypothesis ?? '')
+  // Build 3 tier ideas from the opportunity row's easy_idea / medium_idea / full_idea columns
+  const buildTierIdeas = (opp: Record<string, unknown>) => {
+    const oppId = String(opp.id ?? '')
+    const impactScore = Number(opp.impact_score ?? 0)
 
-    const tiers: Array<{ key: string; tier: Record<string, unknown> | undefined; tierName: string; tierLabel: string; effort: 'low' | 'medium' | 'high'; badge: Idea['decision_badge']; refIdx: number }> = [
-      { key: 'easy', tier: design.easy_tier as Record<string, unknown> | undefined, tierName: 'easy', tierLabel: 'Easy — ~2 weeks', effort: 'low', badge: 'quick_win', refIdx: 0 },
-      { key: 'medium', tier: design.medium_tier as Record<string, unknown> | undefined, tierName: 'medium', tierLabel: 'Medium — ~6 weeks', effort: 'medium', badge: 'worth_bet', refIdx: 1 },
-      { key: 'full', tier: design.full_tier as Record<string, unknown> | undefined, tierName: 'full', tierLabel: 'Full — ~12 weeks', effort: 'high', badge: 'do_first', refIdx: 2 },
+    const tiers: Array<{ text: string | undefined; tierName: string; tierLabel: string; effort: 'low' | 'medium' | 'high'; badge: Idea['decision_badge'] }> = [
+      { text: opp.easy_idea as string | undefined,   tierName: 'easy',   tierLabel: 'Easy — ~2 weeks',   effort: 'low',    badge: 'quick_win' },
+      { text: opp.medium_idea as string | undefined,  tierName: 'medium', tierLabel: 'Medium — ~6 weeks',  effort: 'medium', badge: 'worth_bet' },
+      { text: opp.full_idea as string | undefined,    tierName: 'full',   tierLabel: 'Full — ~12 weeks',   effort: 'high',   badge: 'do_first' },
     ]
 
-    return tiers.filter(t => t.tier).map(t => ({
-      title: String(t.tier?.hypothesis ?? ''),
+    return tiers.filter(t => t.text).map(t => ({
+      title: t.text!,
       goal: goal ?? '',
       effort: t.effort,
-      evidence: hypothesis,
-      winning_pattern: refs[t.refIdx] ? `${refs[t.refIdx].company}: ${refs[t.refIdx].quantified_result}` : '',
+      evidence: String(opp.use_case ?? ''),
+      winning_pattern: '',
       expected_lift_low: Math.round(impactScore * 0.6),
       expected_lift_high: impactScore,
-      confidence: (feasScore >= 85 ? 'high' : feasScore >= 75 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+      confidence: (impactScore >= 85 ? 'high' : impactScore >= 50 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
       confidence_reason: null,
-      impact_score: Math.round((impactScore * feasScore) / 100),
+      impact_score: impactScore,
       decision_badge: t.badge,
       human_number: null,
       tier: t.tierName,
       tier_label: t.tierLabel,
-      risk: String(t.tier?.risk ?? ''),
+      risk: '',
       _oppId: oppId,
     }))
   }
@@ -230,24 +228,19 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       const data = await res.json() as { ideas?: (Idea & { id?: string; ci_data?: Record<string, unknown> })[] }
       const saved = data.ideas ?? []
 
-      // When viewing a specific OKR, only show that OKR's own ci_data tiers — never fall through to the generic list
+      // When viewing a specific OKR, only show that OKR's own tier ideas — never fall through to the generic list
       if (activeOkr && saved.length > 0) {
         const matchingOpp = saved.find(s =>
           s.title === activeOkr.objective
         )
-        if (matchingOpp?.ci_data) {
-          const ciData = matchingOpp.ci_data as { okr?: Record<string, unknown>; design?: Record<string, unknown> }
-          const design = ciData.design as Record<string, unknown> | undefined
-          const okr = ciData.okr as Record<string, unknown> | undefined
-          if (design && okr) {
-            setCiOkrContext(okr)
-            const tiers = buildTierIdeas(matchingOpp.id ?? '', okr, design)
-            setCiTierIdeas(tiers)
-            // Persist tier ideas so they survive without rebuilding each time
-            const tierTitles = new Set(tiers.map(t => t.title))
-            const alreadySaved = saved.some(s => tierTitles.has(s.title) && s.title !== matchingOpp.title)
-            if (!alreadySaved) {
-              void saveIdeas(tiers)
+        if (matchingOpp) {
+          const oppRecord = matchingOpp as unknown as Record<string, unknown>
+          if (oppRecord.easy_idea || oppRecord.medium_idea || oppRecord.full_idea) {
+            setCiTierIdeas(buildTierIdeas(oppRecord))
+            // Populate OKR context card from ci_data if available
+            const ciData = matchingOpp.ci_data as { okr?: Record<string, unknown> } | undefined
+            if (ciData?.okr) {
+              setCiOkrContext(ciData.okr)
             }
           }
         }
@@ -520,29 +513,31 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
         ) : null}
 
         {/* CI OKR context + tier ideas */}
-        {activeTab !== 'pages' && !loading && ciTierIdeas && ciOkrContext && (
+        {activeTab !== 'pages' && !loading && ciTierIdeas && (
           <>
-            {/* OKR context card */}
-            <div style={{ background: '#eef4ff', border: '1px solid #b8d0f7', borderRadius: 12, padding: '16px 20px', marginBottom: 20, boxShadow: C.cardShadow }}>
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.blue, marginBottom: 6 }}>GOAL</p>
-              <p style={{ fontSize: 15, fontWeight: 600, color: C.text, lineHeight: 1.4, marginBottom: 12 }}>{String(ciOkrContext.objective ?? '')}</p>
-              {Array.isArray(ciOkrContext.key_results) && (ciOkrContext.key_results as Array<Record<string, unknown>>).length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, marginBottom: 6 }}>KEY RESULTS</p>
-                  {(ciOkrContext.key_results as Array<Record<string, unknown>>).map((kr, ki) => (
-                    <div key={ki} style={{ marginBottom: 6, paddingLeft: 10, borderLeft: `2px solid ${kr.kr_type === 'leading' ? C.blue : '#059669'}` }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: C.text }}>[{String(kr.kr_type)}] {String(kr.metric_name ?? '')}</p>
-                      <p style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(kr.kr_text ?? '')}</p>
-                      {!!kr.logging_event && <p style={{ fontSize: 10, color: C.muted }}>Measured by: {String(kr.logging_event)}</p>}
-                      {kr.kr_type === 'lagging' && !!kr.causal_chain && <p style={{ fontSize: 10, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Chain: {String(kr.causal_chain)}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p style={{ fontSize: 11, color: C.muted }}>
-                Impact: <strong>{String(ciOkrContext.impact_score ?? '—')}</strong> · Feasibility: <strong>{String(ciOkrContext.feasibility_score ?? '—')}</strong> · Quality: <strong>{String(ciOkrContext.okr_quality_score ?? '—')}</strong>/100
-              </p>
-            </div>
+            {/* OKR context card (shown when ci_data.okr is available) */}
+            {ciOkrContext && (
+              <div style={{ background: '#eef4ff', border: '1px solid #b8d0f7', borderRadius: 12, padding: '16px 20px', marginBottom: 20, boxShadow: C.cardShadow }}>
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.blue, marginBottom: 6 }}>GOAL</p>
+                <p style={{ fontSize: 15, fontWeight: 600, color: C.text, lineHeight: 1.4, marginBottom: 12 }}>{String(ciOkrContext.objective ?? '')}</p>
+                {Array.isArray(ciOkrContext.key_results) && (ciOkrContext.key_results as Array<Record<string, unknown>>).length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, marginBottom: 6 }}>KEY RESULTS</p>
+                    {(ciOkrContext.key_results as Array<Record<string, unknown>>).map((kr, ki) => (
+                      <div key={ki} style={{ marginBottom: 6, paddingLeft: 10, borderLeft: `2px solid ${kr.kr_type === 'leading' ? C.blue : '#059669'}` }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: C.text }}>[{String(kr.kr_type)}] {String(kr.metric_name ?? '')}</p>
+                        <p style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(kr.kr_text ?? '')}</p>
+                        {!!kr.logging_event && <p style={{ fontSize: 10, color: C.muted }}>Measured by: {String(kr.logging_event)}</p>}
+                        {kr.kr_type === 'lagging' && !!kr.causal_chain && <p style={{ fontSize: 10, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Chain: {String(kr.causal_chain)}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p style={{ fontSize: 11, color: C.muted }}>
+                  Impact: <strong>{String(ciOkrContext.impact_score ?? '—')}</strong> · Feasibility: <strong>{String(ciOkrContext.feasibility_score ?? '—')}</strong> · Quality: <strong>{String(ciOkrContext.okr_quality_score ?? '—')}</strong>/100
+                </p>
+              </div>
+            )}
 
             {/* Tier ideas */}
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Build options — 3 tiers of implementation</p>
