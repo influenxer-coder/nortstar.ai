@@ -67,6 +67,7 @@ export default async function DashboardPage() {
   const projectIdByProductId = new Map<string, string>()
   const goalByProductId = new Map<string, string>()
   const urlByProductId = new Map<string, string>()
+  const okrsByProductId = new Map<string, Array<{ objective: string }>>()
   for (const proj of completedProjects ?? []) {
     const ctx = ((proj.strategy_json as Record<string, unknown>)?.onboarding_context as Record<string, unknown> | undefined)
     const createdProductId = ctx?.created_product_id
@@ -74,6 +75,8 @@ export default async function DashboardPage() {
       projectIdByProductId.set(createdProductId, proj.id)
       if (typeof ctx?.goal === 'string' && ctx.goal) goalByProductId.set(createdProductId, ctx.goal)
       if (typeof (proj as Record<string, unknown>).url === 'string') urlByProductId.set(createdProductId, (proj as Record<string, unknown>).url as string)
+      const okrs = Array.isArray(ctx?.selected_okrs) ? ctx.selected_okrs as Array<{ objective?: string }> : []
+      if (okrs.length > 0) okrsByProductId.set(createdProductId, okrs.filter(o => o.objective).map(o => ({ objective: String(o.objective) })))
     }
   }
 
@@ -85,6 +88,7 @@ export default async function DashboardPage() {
     projectId: projectIdByProductId.get(p.id) ?? null,
     goal: goalByProductId.get(p.id) ?? null,
     productUrl: urlByProductId.get(p.id) ?? null,
+    selectedOkrs: okrsByProductId.get(p.id) ?? [],
   }))
 
   return (

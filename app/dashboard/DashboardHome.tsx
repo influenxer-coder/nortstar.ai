@@ -16,6 +16,7 @@ export type ProductWithAgents = {
   projectId?: string | null
   goal?: string | null
   productUrl?: string | null
+  selectedOkrs?: Array<{ objective: string }>
 }
 
 export type UngroupedAgents = { id: string; name: string; status: string | null; url: string | null }[]
@@ -630,6 +631,25 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                                   Shipped so far: <strong style={{ color: '#2e7d32' }}>{resolved.reach} improvement</strong>
                                 </p>
                               </div>
+                            </div>
+                          )
+                        }
+                        if (product.selectedOkrs && product.selectedOkrs.length > 0) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {product.selectedOkrs.map((okr, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
+                                  {product.projectId ? (
+                                    <Link href={`/products/${product.projectId}/opportunities?okr=${idx}`}
+                                      style={{ fontSize: 13, fontWeight: 500, color: C.text, textDecoration: 'none', lineHeight: 1.4 }} className="hover:underline">
+                                      {okr.objective}
+                                    </Link>
+                                  ) : (
+                                    <p style={{ fontSize: 13, fontWeight: 500, color: C.text, lineHeight: 1.4 }}>{okr.objective}</p>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           )
                         }
