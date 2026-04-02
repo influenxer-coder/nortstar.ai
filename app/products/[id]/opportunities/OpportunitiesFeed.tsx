@@ -232,13 +232,39 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       const data = await res.json() as { ideas?: (Idea & { id?: string; ci_data?: Record<string, unknown> })[] }
       const saved = data.ideas ?? []
 
-      // When viewing a specific OKR, find its opportunity by matching ci_data.okr.objective
-      if (activeOkr && saved.length > 0) {
-        const matchingOpp = saved.find(s => {
+      // When viewing a specific OKR, find its opportunity row
+      if (okrIdx !== null && saved.length > 0) {
+        // Filter to only CI opportunities (those with ci_data containing tier designs)
+        const ciOpps = saved.filter(s => {
           if (!s.ci_data) return false
-          const ciOkr = (s.ci_data as Record<string, unknown>).okr as Record<string, unknown> | undefined
-          return ciOkr?.objective === activeOkr.objective
-        }) ?? saved.find(s => s.title === activeOkr.objective)
+          const design = (s.ci_data as Record<string, unknown>).design as Record<string, unknown> | undefined
+          return design?.easy_tier || design?.medium_tier || design?.full_tier
+        })
+
+        // Primary: match by ci_data.okr.objective
+        const objective = activeOkr?.objective
+        let matchingOpp = objective
+          ? ciOpps.find(s => {
+              const ciOkr = (s.ci_data as Record<string, unknown>).okr as Record<string, unknown> | undefined
+              return ciOkr?.objective === objective
+            })
+          : undefined
+
+        // Fallback: match by title
+        if (!matchingOpp && objective) {
+          matchingOpp = ciOpps.find(s => s.title === objective)
+        }
+
+        // Last resort: use index position (CI opps created in same order as selectedOkrs, sort by created_at)
+        if (!matchingOpp && ciOpps.length > 0) {
+          const sorted = [...ciOpps].sort((a, b) =>
+            String((a as unknown as Record<string, unknown>).created_at ?? '').localeCompare(String((b as unknown as Record<string, unknown>).created_at ?? ''))
+          )
+          const idx = Number(okrIdx)
+          if (idx >= 0 && idx < sorted.length) {
+            matchingOpp = sorted[idx]
+          }
+        }
 
         if (matchingOpp?.ci_data) {
           const ciData = matchingOpp.ci_data as Record<string, unknown>
