@@ -50,10 +50,18 @@ const SIGNAL_SOURCES = [
 ]
 
 export default function OpportunitiesFeed({ projectId, productId, projectName, productName, productUrl, goal, subverticalId, recentCommits = [], selectedOkrs = [] }: Props) {
+  const okrParams = useSearchParams()
+  const okrIdx = okrParams.get('okr')
+  const activeOkr = okrIdx !== null && selectedOkrs[Number(okrIdx)]
+    ? selectedOkrs[Number(okrIdx)]
+    : null
+
   const productMeta = getProductMeta(productName)
   const goalMeta = getGoalLabel(goal)
   const resolved = productMeta ?? goalMeta
-  const friendlyLabel = resolved?.label ?? goal ?? 'Opportunities'
+  const friendlyLabel = activeOkr?.objective
+    ? activeOkr.objective
+    : resolved?.label ?? goal ?? 'Opportunities'
   const reach = resolved?.reach ?? null
   const [rankedIdeas, setRankedIdeas] = useState<Idea[]>([])
   const [backlogIdeas, setBacklogIdeas] = useState<Idea[]>([])
