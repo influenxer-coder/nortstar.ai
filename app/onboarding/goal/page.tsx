@@ -65,9 +65,13 @@ const GOAL_OPTIONS: Array<{
 
 function preselectGoal(data: SavedData): GoalOption {
   const summary = data.analysis_result?.position?.position_summary?.toLowerCase() ?? ''
-  const intensity = data.analysis_result?.competitive_intensity?.toLowerCase() ?? ''
+  const intensity = (
+    (data.analysis_result as Record<string, unknown> | undefined)?.competitive_intensity as string ??
+    data.analysis_result?.competitive_intensity ??
+    ''
+  ).toLowerCase()
   if (summary.includes('activation') || summary.includes('onboarding')) return 'improve_activation'
-  if (intensity === 'high') return 'beat_competitor'
+  if (intensity === 'high' || intensity === 'medium') return 'beat_competitor'
   return 'improve_activation'
 }
 
