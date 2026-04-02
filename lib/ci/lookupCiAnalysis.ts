@@ -28,50 +28,56 @@ export async function lookupCiAnalysis(url: string): Promise<CiEnrichment | null
     const normalized = normalizeUrl(url)
     const domain = getDomain(url)
 
-    // Step 2 — Exact URL lookup (bidirectional contains)
-    let analysisId: string | null = null
+    // Step 2 — URL lookup: get up to 5 candidates, find first with phase9 output
+    let ciRow: { id: string } | null = null
 
-    const { data: exactMatches } = await supabase
+    const { data: candidates } = await supabase
       .from('competitive_intelligence_analyses')
-      .select('id, product_url')
-      .gte('phase_completed', 9)
+      .select('id, url, created_at')
+      .ilike('url', `%${normalized}%`)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(5)
 
-    if (exactMatches) {
-      const match = exactMatches.find(row => {
-        const rowNorm = normalizeUrl(row.product_url ?? '')
-        return rowNorm.includes(normalized) || normalized.includes(rowNorm)
-      })
-      if (match) analysisId = match.id
+    for (const candidate of (candidates ?? [])) {
+      const { data: p9 } = await supabase
+        .from('ci_phase_outputs')
+        .select('id')
+        .eq('analysis_id', candidate.id)
+        .eq('phase', 'phase9')
+        .single()
+      if (p9) {
+        ciRow = candidate
+        break
+      }
     }
 
-    // Step 3 — Domain fallback
-    if (!analysisId) {
-      if (exactMatches) {
-        const domainMatch = exactMatches.find(row => {
-          const rowNorm = normalizeUrl(row.product_url ?? '')
-          return rowNorm.includes(domain)
-        })
-        if (domainMatch) analysisId = domainMatch.id
-      }
+    // Step 3 — Domain fallback if no exact URL match
+    if (!ciRow) {
+      const { data: domainCandidates } = await supabase
+        .from('competitive_intelligence_analyses')
+        .select('id, url, created_at')
+        .ilike('url', `%${domain}%`)
+        .order('created_at', { ascending: false })
+        .limit(5)
 
-      // If the initial fetch didn't cover enough, query specifically by domain
-      if (!analysisId) {
-        const { data: domainMatches } = await supabase
-          .from('competitive_intelligence_analyses')
+      for (const candidate of (domainCandidates ?? [])) {
+        const { data: p9 } = await supabase
+          .from('ci_phase_outputs')
           .select('id')
-          .ilike('product_url', `%${domain}%`)
-          .gte('phase_completed', 9)
-          .order('created_at', { ascending: false })
-          .limit(1)
-
-        if (domainMatches?.[0]) analysisId = domainMatches[0].id
+          .eq('analysis_id', candidate.id)
+          .eq('phase', 'phase9')
+          .single()
+        if (p9) {
+          ciRow = candidate
+          break
+        }
       }
     }
 
     // Step 4 — No match found
-    if (!analysisId) return null
+    if (!ciRow) return null
+
+    const analysisId = ciRow.id
 
     // Step 5 — Load phase outputs
     const { data: phases } = await supabase
