@@ -34,7 +34,7 @@ export function RequestAccessForm() {
       return
     }
     const personalDomains = new Set([
-      'gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com',
+      'yahoo.com','hotmail.com','outlook.com','icloud.com',
       'protonmail.com','aol.com','live.com','me.com','mac.com','msn.com','ymail.com',
     ])
     const domain = email.trim().split('@')[1]?.toLowerCase()
