@@ -232,11 +232,14 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       const data = await res.json() as { ideas?: (Idea & { id?: string; ci_data?: Record<string, unknown> })[] }
       const saved = data.ideas ?? []
 
-      // When viewing a specific OKR, only show that OKR's own tier ideas — never fall through to the generic list
+      // When viewing a specific OKR, find its opportunity by matching ci_data.okr.objective
       if (activeOkr && saved.length > 0) {
-        const matchingOpp = saved.find(s =>
-          s.title === activeOkr.objective
-        )
+        const matchingOpp = saved.find(s => {
+          if (!s.ci_data) return false
+          const ciOkr = (s.ci_data as Record<string, unknown>).okr as Record<string, unknown> | undefined
+          return ciOkr?.objective === activeOkr.objective
+        }) ?? saved.find(s => s.title === activeOkr.objective)
+
         if (matchingOpp?.ci_data) {
           const ciData = matchingOpp.ci_data as Record<string, unknown>
           const tiers = buildTierIdeas(matchingOpp.id ?? '', ciData)
@@ -293,19 +296,26 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     setRefreshing(false)
   }
 
+  // Re-run when OKR selection changes (okrIdx from query param)
   useEffect(() => {
-    if (hasFetched.current) return
-    hasFetched.current = true
+    // Reset state so stale tier ideas from previous OKR don't persist
+    setCiTierIdeas(null)
+    setCiOkrContext(null)
+    setRankedIdeas([])
+    setBacklogIdeas([])
     void loadFromDB()
     // Load page optimizations for this project + goal
-    fetch(`/api/agents?project_id=${encodeURIComponent(projectId)}&type=page_optimization&goal=${encodeURIComponent(goal ?? '')}`)
-      .then(r => r.json())
-      .then((data: { agents?: { id: string; name: string; url: string; status: string; target_element?: { text?: string } }[] }) => {
-        setPageOptimizations(data.agents ?? [])
-      })
-      .catch(() => {})
+    if (!hasFetched.current) {
+      hasFetched.current = true
+      fetch(`/api/agents?project_id=${encodeURIComponent(projectId)}&type=page_optimization&goal=${encodeURIComponent(goal ?? '')}`)
+        .then(r => r.json())
+        .then((data: { agents?: { id: string; name: string; url: string; status: string; target_element?: { text?: string } }[] }) => {
+          setPageOptimizations(data.agents ?? [])
+        })
+        .catch(() => {})
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [okrIdx])
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, padding: '32px' }}>
