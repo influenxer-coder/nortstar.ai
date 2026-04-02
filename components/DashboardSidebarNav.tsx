@@ -230,7 +230,7 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
                   <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
                   <span className="hidden md:block truncate"
                     style={{ fontSize: 12, fontWeight: 500, color: '#535963', maxWidth: 150 }}>
-                    {okr.objective.length > 35 ? okr.objective.slice(0, 35) + '…' : okr.objective}
+                    {(() => { const words = okr.objective.split(' '); return words.length > 5 ? words.slice(0, 5).join(' ') + '…' : okr.objective })()}
                   </span>
                 </Link>
               ))

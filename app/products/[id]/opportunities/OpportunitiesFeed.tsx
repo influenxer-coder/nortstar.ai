@@ -65,6 +65,8 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
   const reach = resolved?.reach ?? null
   const [rankedIdeas, setRankedIdeas] = useState<Idea[]>([])
   const [backlogIdeas, setBacklogIdeas] = useState<Idea[]>([])
+  const [ciOkrContext, setCiOkrContext] = useState<Record<string, unknown> | null>(null)
+  const [ciTierIdeas, setCiTierIdeas] = useState<(Idea & { tier?: string; tier_label?: string; risk?: string })[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -184,6 +186,38 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     }).catch(() => { /* non-critical */ })
   }
 
+  // Build 3 tier ideas from CI phase10 design data
+  const buildTierIdeas = (_oppId: string, okr: Record<string, unknown>, design: Record<string, unknown>) => {
+    const impactScore = Number(okr.impact_score ?? 0)
+    const feasScore = Number(okr.feasibility_score ?? 0)
+    const refs = Array.isArray(design.reference_implementations) ? design.reference_implementations as Array<{ company?: string; quantified_result?: string }> : []
+    const hypothesis = String(design.hypothesis ?? '')
+
+    const tiers: Array<{ key: string; tier: Record<string, unknown> | undefined; tierName: string; tierLabel: string; effort: 'low' | 'medium' | 'high'; badge: Idea['decision_badge']; refIdx: number }> = [
+      { key: 'easy', tier: design.easy_tier as Record<string, unknown> | undefined, tierName: 'easy', tierLabel: 'Easy — ~2 weeks', effort: 'low', badge: 'quick_win', refIdx: 0 },
+      { key: 'medium', tier: design.medium_tier as Record<string, unknown> | undefined, tierName: 'medium', tierLabel: 'Medium — ~6 weeks', effort: 'medium', badge: 'worth_bet', refIdx: 1 },
+      { key: 'full', tier: design.full_tier as Record<string, unknown> | undefined, tierName: 'full', tierLabel: 'Full — ~12 weeks', effort: 'high', badge: 'do_first', refIdx: 2 },
+    ]
+
+    return tiers.filter(t => t.tier).map(t => ({
+      title: String(t.tier?.hypothesis ?? ''),
+      goal: goal ?? '',
+      effort: t.effort,
+      evidence: hypothesis,
+      winning_pattern: refs[t.refIdx] ? `${refs[t.refIdx].company}: ${refs[t.refIdx].quantified_result}` : '',
+      expected_lift_low: Math.round(impactScore * 0.6),
+      expected_lift_high: impactScore,
+      confidence: (feasScore >= 85 ? 'high' : feasScore >= 75 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+      confidence_reason: null,
+      impact_score: Math.round((impactScore * feasScore) / 100),
+      decision_badge: t.badge,
+      human_number: null,
+      tier: t.tierName,
+      tier_label: t.tierLabel,
+      risk: String(t.tier?.risk ?? ''),
+    }))
+  }
+
   // On mount: load from DB (instant, no Claude call)
   const loadFromDB = async () => {
     setLoading(true)
@@ -192,8 +226,27 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
       const goalQuery = goal ? `&goal=${encodeURIComponent(goal)}` : ''
       const res = await fetch(`/api/opportunities?project_id=${encodeURIComponent(projectId)}${goalQuery}`)
       if (!res.ok) throw new Error('Failed to load saved opportunities')
-      const data = await res.json() as { ideas?: Idea[] }
+      const data = await res.json() as { ideas?: (Idea & { id?: string; ci_data?: Record<string, unknown> })[] }
       const saved = data.ideas ?? []
+
+      // Check if we're viewing a specific OKR and the matching opportunity has CI build tiers
+      if (activeOkr && saved.length > 0) {
+        const matchingOpp = saved.find(s =>
+          s.title === activeOkr.objective || s.ci_data?.okr
+        )
+        if (matchingOpp?.ci_data) {
+          const ciData = matchingOpp.ci_data as { okr?: Record<string, unknown>; design?: Record<string, unknown> }
+          const design = ciData.design as Record<string, unknown> | undefined
+          const okr = ciData.okr as Record<string, unknown> | undefined
+          if (design && okr) {
+            setCiOkrContext(okr)
+            setCiTierIdeas(buildTierIdeas(matchingOpp.id ?? '', okr, design))
+            setLoading(false)
+            return
+          }
+        }
+      }
+
       if (saved.length > 0) {
         const { ranked, backlog } = applyStoredPriority(saved)
         setRankedIdeas(ranked)
@@ -458,8 +511,60 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
           </div>
         ) : null}
 
-        {/* Ranked section */}
-        {activeTab !== 'pages' && !loading && (
+        {/* CI OKR context + tier ideas */}
+        {activeTab !== 'pages' && !loading && ciTierIdeas && ciOkrContext && (
+          <>
+            {/* OKR context card */}
+            <div style={{ background: '#eef4ff', border: '1px solid #b8d0f7', borderRadius: 12, padding: '16px 20px', marginBottom: 20, boxShadow: C.cardShadow }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.blue, marginBottom: 6 }}>GOAL</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: C.text, lineHeight: 1.4, marginBottom: 12 }}>{String(ciOkrContext.objective ?? '')}</p>
+              {Array.isArray(ciOkrContext.key_results) && (ciOkrContext.key_results as Array<Record<string, unknown>>).length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, marginBottom: 6 }}>KEY RESULTS</p>
+                  {(ciOkrContext.key_results as Array<Record<string, unknown>>).map((kr, ki) => (
+                    <div key={ki} style={{ marginBottom: 6, paddingLeft: 10, borderLeft: `2px solid ${kr.kr_type === 'leading' ? C.blue : '#059669'}` }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: C.text }}>[{String(kr.kr_type)}] {String(kr.metric_name ?? '')}</p>
+                      <p style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(kr.kr_text ?? '')}</p>
+                      {!!kr.logging_event && <p style={{ fontSize: 10, color: C.muted }}>Measured by: {String(kr.logging_event)}</p>}
+                      {kr.kr_type === 'lagging' && !!kr.causal_chain && <p style={{ fontSize: 10, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Chain: {String(kr.causal_chain)}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p style={{ fontSize: 11, color: C.muted }}>
+                Impact: <strong>{String(ciOkrContext.impact_score ?? '—')}</strong> · Feasibility: <strong>{String(ciOkrContext.feasibility_score ?? '—')}</strong> · Quality: <strong>{String(ciOkrContext.okr_quality_score ?? '—')}</strong>/100
+              </p>
+            </div>
+
+            {/* Tier ideas */}
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Build options — 3 tiers of implementation</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 48 }}>
+              {ciTierIdeas.map((idea, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <OpportunityCard
+                    idea={idea}
+                    featured={idx === 0}
+                    onInvestigate={() => {
+                      const id = (idea as unknown as { id?: string }).id
+                      if (id) setInvestigateOpen({ id, title: idea.title })
+                    }}
+                    investigateDisabled={false}
+                    investigateLabel="Investigate"
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: idea.tier === 'easy' ? '#dcfce7' : idea.tier === 'medium' ? '#fef9c3' : '#e0f2fe', color: idea.tier === 'easy' ? '#166534' : idea.tier === 'medium' ? '#92600a' : '#075985' }}>
+                      {idea.tier_label}
+                    </span>
+                    {idea.risk && <span style={{ fontSize: 11, color: '#92600a' }}>Risk: {idea.risk}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Ranked section (standard, non-CI path) */}
+        {activeTab !== 'pages' && !loading && !ciTierIdeas && (
           <>
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Ideas ranked by impact and effort</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 48 }}>
