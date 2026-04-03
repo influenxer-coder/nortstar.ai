@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { Bot, Plus, FolderOpen, ChevronRight, ArrowRight, Trash2, X, Loader2, CheckCircle2 } from 'lucide-react'
-import { getProductMeta, faviconUrl, getGoalLabel, isLightColor } from '@/lib/product-meta'
+import { getProductMeta, faviconUrl, isLightColor } from '@/lib/product-meta'
 
 export type ProductWithAgents = {
   id: string
@@ -610,30 +610,7 @@ export default function DashboardHome({ products, ungroupedAgents, userDisplayNa
                   {product.agents.length === 0 ? (
                     <li style={{ padding: '20px 24px' }}>
                       {(() => {
-                        const goalMeta = getProductMeta(product.name)
-                        const goalLabel = getGoalLabel(product.goal)
-                        const resolved = goalMeta ?? goalLabel
                         const oppHref = product.projectId ? `/products/${product.projectId}/opportunities` : null
-                        if (resolved) {
-                          return (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
-                              <div>
-                                {oppHref ? (
-                                  <Link href={oppHref} style={{ fontSize: 13, fontWeight: 600, color: C.text, textDecoration: 'none', display: 'block', marginBottom: 4 }}
-                                    className="hover:underline">
-                                    {resolved.label}
-                                  </Link>
-                                ) : (
-                                  <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{resolved.label}</p>
-                                )}
-                                <p style={{ fontSize: 12, color: C.muted }}>
-                                  Shipped so far: <strong style={{ color: '#2e7d32' }}>{resolved.reach} improvement</strong>
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        }
                         if (product.selectedOkrs && product.selectedOkrs.length > 0) {
                           return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
