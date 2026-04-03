@@ -81,7 +81,6 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
   const [activeTab, setActiveTab] = useState<'features' | 'pages'>('features')
   const [optimizeOpen, setOptimizeOpen] = useState(false)
   const [expandedHypothesis, setExpandedHypothesis] = useState<Record<number, boolean>>({})
-  const [expandedEngineering, setExpandedEngineering] = useState<Record<number, boolean>>({})
   const [pageOptimizations, setPageOptimizations] = useState<{ id: string; name: string; url: string; status: string; target_element?: { text?: string } }[]>([])
   const hasFetched = useRef(false)
   const searchParams = useSearchParams()
@@ -603,7 +602,6 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
                 const badgeColorMap: Record<string, string> = { do_first: '#22c55e', worth_bet: '#3b82f6', quick_win: '#f59e0b', plan_sprint: '#9ca3af' }
                 const barColor = badgeColorMap[idea.decision_badge ?? ''] ?? '#9ca3af'
                 const hypExpanded = expandedHypothesis[idx] ?? false
-                const engExpanded = expandedEngineering[idx] ?? false
 
                 return (
                   <div key={idx} style={{
@@ -672,31 +670,6 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
                         </div>
                       )}
 
-                      {/* ENGINEERING SCOPE */}
-                      {(idea.backend || idea.frontend) && (
-                        <div style={{ marginBottom: 16 }}>
-                          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>ENGINEERING SCOPE</p>
-                          <div style={{
-                            fontSize: 12, color: C.muted, lineHeight: 1.6, fontFamily: 'monospace',
-                            ...(!engExpanded ? { overflow: 'hidden' } : {}),
-                          }}>
-                            {idea.backend && (
-                              <p style={{ margin: '0 0 2px', ...(!engExpanded ? { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { whiteSpace: 'pre-wrap' }) }}>
-                                <strong style={{ color: C.text }}>Backend:</strong> {idea.backend}
-                              </p>
-                            )}
-                            {idea.frontend && (
-                              <p style={{ margin: 0, ...(!engExpanded ? { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { whiteSpace: 'pre-wrap' }) }}>
-                                <strong style={{ color: C.text }}>Frontend:</strong> {idea.frontend}
-                              </p>
-                            )}
-                          </div>
-                          <button type="button" onClick={() => setExpandedEngineering(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                            style={{ fontSize: 11, fontWeight: 600, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 0', marginTop: 2 }}>
-                            {engExpanded ? 'Collapse' : 'Expand'}
-                          </button>
-                        </div>
-                      )}
 
                       {/* RISK */}
                       {idea.risk && (
