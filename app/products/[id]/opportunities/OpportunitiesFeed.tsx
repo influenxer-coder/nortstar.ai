@@ -81,6 +81,7 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
   const [activeTab, setActiveTab] = useState<'features' | 'pages'>('features')
   const [optimizeOpen, setOptimizeOpen] = useState(false)
   const [expandedHypothesis, setExpandedHypothesis] = useState<Record<number, boolean>>({})
+  const [expandedActivity, setExpandedActivity] = useState<Record<number, boolean>>({})
   const [ciRefs, setCiRefs] = useState<Array<{ company?: string; what_built?: string; quantified_result?: string }>>([])
   const [ciUseCase, setCiUseCase] = useState<string>('')
   const [marketCards, setMarketCards] = useState<Array<{
@@ -625,24 +626,38 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
           <>
             {/* OKR context card (shown when ci_data.okr is available) */}
             {ciOkrContext && (
-              <div style={{ background: '#eef4ff', border: '1px solid #b8d0f7', borderRadius: 12, padding: '16px 20px', marginBottom: 20, boxShadow: C.cardShadow }}>
-                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.blue, marginBottom: 6 }}>GOAL</p>
-                <p style={{ fontSize: 15, fontWeight: 600, color: C.text, lineHeight: 1.4, marginBottom: 12 }}>{String(ciOkrContext.objective ?? '')}</p>
+              <div style={{ background: '#eef4ff', border: '1px solid #b8d0f7', borderRadius: 14, padding: '20px 24px', marginBottom: 24, boxShadow: C.cardShadow }}>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: C.blue, textTransform: 'uppercase', marginBottom: 8 }}>GOAL</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: C.text, lineHeight: 1.35, letterSpacing: '-0.01em', marginBottom: 16 }}>{String(ciOkrContext.objective ?? '')}</p>
                 {Array.isArray(ciOkrContext.key_results) && (ciOkrContext.key_results as Array<Record<string, unknown>>).length > 0 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, marginBottom: 6 }}>KEY RESULTS</p>
+                  <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: C.muted, textTransform: 'uppercase', marginBottom: 0 }}>KEY RESULTS</p>
                     {(ciOkrContext.key_results as Array<Record<string, unknown>>).map((kr, ki) => (
-                      <div key={ki} style={{ marginBottom: 6, paddingLeft: 10, borderLeft: `2px solid ${kr.kr_type === 'leading' ? C.blue : '#059669'}` }}>
-                        <p style={{ fontSize: 11, fontWeight: 600, color: C.text }}>[{String(kr.kr_type)}] {String(kr.metric_name ?? '')}</p>
-                        <p style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(kr.kr_text ?? '')}</p>
-                        {!!kr.logging_event && <p style={{ fontSize: 10, color: C.muted }}>Measured by: {String(kr.logging_event)}</p>}
-                        {kr.kr_type === 'lagging' && !!kr.causal_chain && <p style={{ fontSize: 10, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Chain: {String(kr.causal_chain)}</p>}
+                      <div key={ki} style={{ paddingLeft: 12, borderLeft: `3px solid ${kr.kr_type === 'leading' ? C.blue : '#059669'}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: C.text, letterSpacing: '0.02em', margin: 0 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: kr.kr_type === 'leading' ? C.blue : '#059669', marginRight: 6 }}>{String(kr.kr_type)}</span>
+                            {String(kr.metric_name ?? '')}
+                          </p>
+                          {/* Mini sparkline */}
+                          <svg width="40" height="16" style={{ flexShrink: 0 }}>
+                            {Array.from({ length: 7 }, (_, bi) => {
+                              const seed = String(kr.metric_name ?? '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+                              const h = 4 + (((seed * (bi + 1) * 7 + bi * 13) % 12))
+                              const barFill = kr.kr_type === 'leading' ? C.blue : '#059669'
+                              return <rect key={bi} x={bi * 6} y={16 - h} width={4} height={h} rx={1} fill={barFill} opacity={0.6 + (bi / 7) * 0.4} />
+                            })}
+                          </svg>
+                        </div>
+                        <p style={{ fontSize: 14, color: '#3a3a3c', lineHeight: 1.5 }}>{String(kr.kr_text ?? '')}</p>
+                        {!!kr.logging_event && <p style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Measured by: <span style={{ fontFamily: 'var(--font-mono-dm, monospace)', fontSize: 11 }}>{String(kr.logging_event)}</span></p>}
+                        {kr.kr_type === 'lagging' && !!kr.causal_chain && <p style={{ fontSize: 12, color: C.muted, marginTop: 2, lineHeight: 1.4 }}>Chain: {String(kr.causal_chain)}</p>}
                       </div>
                     ))}
                   </div>
                 )}
-                <p style={{ fontSize: 11, color: C.muted }}>
-                  Impact: <strong>{String(ciOkrContext.impact_score ?? '—')}</strong> · Feasibility: <strong>{String(ciOkrContext.feasibility_score ?? '—')}</strong> · Quality: <strong>{String(ciOkrContext.okr_quality_score ?? '—')}</strong>/100
+                <p style={{ fontSize: 13, color: '#3a3a3c', borderTop: '1px solid #b8d0f7', paddingTop: 12, marginTop: 4 }}>
+                  Impact: <strong style={{ fontWeight: 600 }}>{String(ciOkrContext.impact_score ?? '—')}</strong> · Feasibility: <strong style={{ fontWeight: 600 }}>{String(ciOkrContext.feasibility_score ?? '—')}</strong> · Quality: <strong style={{ fontWeight: 600 }}>{String(ciOkrContext.okr_quality_score ?? '—')}</strong>/100
                 </p>
               </div>
             )}
@@ -667,6 +682,9 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
                     <div style={{ padding: '24px 24px 20px' }}>
                       {/* Top pills */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 30, color: C.muted, background: '#f0f0f0', border: `1px solid ${C.border}` }}>
+                          Not started
+                        </span>
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 30, color: effortStyle.color, background: effortStyle.bg }}>
                           {idea.effort} effort
                         </span>
@@ -776,6 +794,35 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
                         </button>
                       </div>
                     )}
+
+                    {/* Activity feed */}
+                    <div style={{ borderTop: `1px solid ${C.border}` }}>
+                      <button type="button"
+                        onClick={() => setExpandedActivity(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                          padding: '12px 24px', background: 'none', border: 'none', cursor: 'pointer',
+                        }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>Activity</span>
+                        <span style={{ fontSize: 11, color: C.muted }}>{expandedActivity[idx] ? '▾' : '▸'}</span>
+                      </button>
+                      {expandedActivity[idx] && (
+                        <div style={{ padding: '0 24px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {[
+                            { text: 'Signal detected from competitor analysis', ago: '3 days ago' },
+                            { text: 'Opportunity scored by CI pipeline', ago: '3 days ago' },
+                            { text: 'Added to backlog', ago: '2 days ago' },
+                          ].map((ev, ei) => (
+                            <div key={ei} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.border, flexShrink: 0, marginTop: 5 }} />
+                              <p style={{ fontSize: 12, color: C.muted, margin: 0, lineHeight: 1.4 }}>
+                                {ev.text} <span style={{ color: '#9ca3af' }}>· {ev.ago}</span>
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               })}

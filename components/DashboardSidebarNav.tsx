@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight, Lightbulb, Globe } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Plus, Trash2, LayoutDashboard, FolderOpen, Bot, ChevronRight, ChevronDown, Lightbulb, Globe } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { getProductMeta, faviconUrl } from '@/lib/product-meta'
@@ -141,6 +141,9 @@ function AgentTreeNode({ agent, isActive }: { agent: AgentStub; isActive: boolea
 export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeOkrIdx = searchParams.get('okr')
+  const [expandedOkrs, setExpandedOkrs] = useState<Record<string, boolean>>({})
 
   async function startGoalSelection(product: ProductGroup) {
     if (!product.projectId) return
@@ -218,22 +221,44 @@ export function DashboardSidebarNav({ products, ungroupedAgents }: Props) {
           <div className="mt-0.5 space-y-0.5">
             {/* OKR goal nodes (when CI selected multiple goals) */}
             {product.projectId && product.selectedOkrs && product.selectedOkrs.length > 0 ? (
-              product.selectedOkrs.map((okr, idx) => (
-                <Link
-                  key={`okr-${idx}`}
-                  href={`/products/${product.projectId}/opportunities?okr=${idx}`}
-                  className={`flex items-center gap-2 pl-5 pr-2 rounded-md transition-colors ${
-                    pathname === `/products/${product.projectId}/opportunities` ? 'hover:bg-muted' : 'hover:bg-muted'
-                  }`}
-                  style={{ height: 28 }}
+              <>
+                {/* Expand/collapse toggle for goals group */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedOkrs(prev => ({ ...prev, [product.id]: !prev[product.id] }))}
+                  className="flex items-center gap-1.5 pl-4 pr-2 rounded-md hover:bg-muted transition-colors w-full text-left"
+                  style={{ height: 26 }}
                 >
-                  <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
-                  <span className="hidden md:block truncate"
-                    style={{ fontSize: 12, fontWeight: 500, color: '#535963', maxWidth: 150 }}>
-                    {(() => { const words = okr.objective.split(' '); return words.length > 5 ? words.slice(0, 5).join(' ') + '…' : okr.objective })()}
+                  {(expandedOkrs[product.id] ?? true) ? (
+                    <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="hidden md:block" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', color: '#535963', textTransform: 'uppercase' }}>
+                    Goals
                   </span>
-                </Link>
-              ))
+                </button>
+                {(expandedOkrs[product.id] ?? true) && product.selectedOkrs.map((okr, idx) => {
+                  const isActive = pathname === `/products/${product.projectId}/opportunities` && activeOkrIdx === String(idx)
+                  return (
+                    <Link
+                      key={`okr-${idx}`}
+                      href={`/products/${product.projectId}/opportunities?okr=${idx}`}
+                      className={`flex items-center gap-2 pl-8 pr-2 rounded-md transition-colors ${
+                        isActive ? 'bg-accent' : 'hover:bg-muted'
+                      }`}
+                      style={{ height: 28 }}
+                    >
+                      <Lightbulb className="h-3 w-3 shrink-0 text-amber-500" />
+                      <span className="hidden md:block truncate"
+                        style={{ fontSize: 12, fontWeight: isActive ? 600 : 500, color: isActive ? '#1f2328' : '#535963', maxWidth: 150 }}>
+                        {(() => { const words = okr.objective.split(' '); return words.length > 5 ? words.slice(0, 5).join(' ') + '…' : okr.objective })()}
+                      </span>
+                    </Link>
+                  )
+                })}
+              </>
+
             ) : product.projectId && product.goal ? (
               <Link
                 href={`/products/${product.projectId}/opportunities`}
