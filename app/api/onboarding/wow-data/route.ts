@@ -151,7 +151,10 @@ function buildCiIdeas(
     human_number: null,
     _ci_data: {
       okr,
-      design: designByRank[i + 1] ?? null,
+      design: designs.find((d: Record<string, unknown>) =>
+        typeof d.use_case === 'string' && typeof okr.use_case === 'string' &&
+        d.use_case.toLowerCase().trim() === (okr.use_case as string).toLowerCase().trim()
+      ) ?? designByRank[okr.gap_rank as number] ?? null,
       analysis_id: ciAnalysisId,
     },
   }))
