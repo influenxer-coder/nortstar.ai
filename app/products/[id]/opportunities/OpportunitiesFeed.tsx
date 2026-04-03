@@ -81,6 +81,13 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
   const [activeTab, setActiveTab] = useState<'features' | 'pages'>('features')
   const [optimizeOpen, setOptimizeOpen] = useState(false)
   const [expandedHypothesis, setExpandedHypothesis] = useState<Record<number, boolean>>({})
+  const [ciRefs, setCiRefs] = useState<Array<{ company?: string; what_built?: string; quantified_result?: string }>>([])
+  const [ciUseCase, setCiUseCase] = useState<string>('')
+  const [marketCards, setMarketCards] = useState<Array<{
+    company: string; what_built: string; quantified_result: string;
+    score: number | null; justification: string;
+  }> | null>(null)
+  const [marketLoading, setMarketLoading] = useState(false)
   const [pageOptimizations, setPageOptimizations] = useState<{ id: string; name: string; url: string; status: string; target_element?: { text?: string } }[]>([])
   const hasFetched = useRef(false)
   const searchParams = useSearchParams()
@@ -287,6 +294,13 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
             setCiTierIdeas(tiers)
             const okr = ciData.okr as Record<string, unknown> | undefined
             if (okr) setCiOkrContext(okr)
+            // Store refs + use_case for market section
+            const design = ciData.design as Record<string, unknown> | undefined
+            const refs = Array.isArray(design?.reference_implementations)
+              ? design!.reference_implementations as Array<{ company?: string; what_built?: string; quantified_result?: string }>
+              : []
+            setCiRefs(refs)
+            setCiUseCase(String(okr?.use_case ?? ''))
           }
         }
         setLoading(false)
@@ -341,6 +355,9 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     // Reset state so stale tier ideas from previous OKR don't persist
     setCiTierIdeas(null)
     setCiOkrContext(null)
+    setCiRefs([])
+    setCiUseCase('')
+    setMarketCards(null)
     setRankedIdeas([])
     setBacklogIdeas([])
     void loadFromDB()
@@ -356,6 +373,45 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [okrIdx])
+
+  // Fetch ci-intelligence and assemble market competitor cards when refs are available
+  useEffect(() => {
+    if (ciRefs.length === 0 || !ciUseCase || !projectId) return
+    let cancelled = false
+    setMarketLoading(true)
+    fetch(`/api/products/${encodeURIComponent(projectId)}/ci-intelligence`)
+      .then(r => r.json())
+      .then((ciData: { ci_enriched?: boolean; use_case_rows?: Array<Record<string, unknown>> }) => {
+        if (cancelled || !ciData.ci_enriched) { setMarketLoading(false); return }
+        const ucRows = ciData.use_case_rows ?? []
+        const target = ciUseCase.toLowerCase().trim()
+        // Find the phase5 row matching this OKR's use_case
+        const p5row = ucRows.find(r => String(r.use_case_name ?? '').toLowerCase().trim() === target)
+        const playerScores = Array.isArray(p5row?.player_scores)
+          ? p5row!.player_scores as Array<{ name?: string; score?: number; justification?: string }>
+          : []
+        // Build cards from reference_implementations, enriched with scores
+        const cards = ciRefs
+          .filter(ref => ref.company)
+          .map(ref => {
+            const cName = (ref.company ?? '').toLowerCase()
+            const ps = playerScores.find(p => (p.name ?? '').toLowerCase().includes(cName) || cName.includes((p.name ?? '').toLowerCase()))
+            return {
+              company: ref.company ?? '',
+              what_built: ref.what_built ?? '',
+              quantified_result: ref.quantified_result ?? '',
+              score: ps?.score ?? null,
+              justification: ps?.justification ?? '',
+            }
+          })
+          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        setMarketCards(cards)
+        setMarketLoading(false)
+      })
+      .catch(() => { setMarketLoading(false) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ciRefs, ciUseCase, projectId])
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, padding: '32px' }}>
@@ -724,6 +780,97 @@ export default function OpportunitiesFeed({ projectId, productId, projectName, p
                 )
               })}
             </div>
+
+            {/* WHAT'S WORKING IN THE MARKET */}
+            {marketLoading && (
+              <div style={{ marginBottom: 48 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>
+                  WHAT&apos;S WORKING IN THE MARKET
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {[1, 2, 3].map(i => (
+                    <div key={i} style={{ height: 80, borderRadius: 12, background: '#f0f0f0', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {!marketLoading && marketCards && marketCards.length > 0 && (
+              <div style={{ marginBottom: 48 }}>
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>
+                    WHAT&apos;S WORKING IN THE MARKET
+                  </p>
+                  <p style={{ fontSize: 12, color: C.muted }}>
+                    Competitors who have shipped solutions for this gap — ranked by how well they execute it
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {marketCards.map((card, ci) => {
+                    const scoreBadge = card.score != null
+                      ? card.score >= 4.0
+                        ? { color: '#166534', bg: '#dcfce7', border: '#86efac', icon: '✓' }
+                        : card.score >= 3.0
+                          ? { color: '#92600a', bg: '#fffbeb', border: '#fde68a', icon: '⚠' }
+                          : { color: '#be123c', bg: '#fff1f2', border: '#fda4af', icon: '✗' }
+                      : null
+                    return (
+                      <div key={ci}>
+                        {/* Rank label */}
+                        <div style={{ marginBottom: 6 }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                            color: ci === 0 ? '#166534' : C.muted,
+                            background: ci === 0 ? '#dcfce7' : 'transparent',
+                            border: ci === 0 ? '1px solid #86efac' : 'none',
+                            borderRadius: 20, padding: ci === 0 ? '2px 10px' : '0',
+                          }}>
+                            #{ci + 1}{ci === 0 ? ' MOST PROVEN' : ''}
+                          </span>
+                        </div>
+                        {/* Card */}
+                        <div style={{
+                          background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`,
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden',
+                        }}>
+                          <div style={{ padding: '18px 20px' }}>
+                            {/* Header: company + score */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <p style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{card.company}</p>
+                              {scoreBadge && card.score != null && (
+                                <span style={{
+                                  fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
+                                  color: scoreBadge.color, background: scoreBadge.bg, border: `1px solid ${scoreBadge.border}`,
+                                }}>
+                                  {card.score.toFixed(1)}/5 {scoreBadge.icon}
+                                </span>
+                              )}
+                            </div>
+                            {/* Justification */}
+                            {card.justification && (
+                              <p style={{ fontSize: 12, color: C.muted, margin: '0 0 14px', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {card.justification}
+                              </p>
+                            )}
+                            {/* What they built */}
+                            {card.what_built && (
+                              <div style={{ marginBottom: card.quantified_result ? 4 : 14 }}>
+                                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>WHAT THEY BUILT</p>
+                                <p style={{ fontSize: 13, color: '#3a3a3c', lineHeight: 1.5, margin: 0 }}>{card.what_built}</p>
+                              </div>
+                            )}
+                            {card.quantified_result && (
+                              <p style={{ fontSize: 13, color: '#166534', fontWeight: 600, margin: '0 0 14px' }}>
+                                → {card.quantified_result}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </>
         )}
 
